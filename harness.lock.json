@@ -1,0 +1,40 @@
+{
+  "template_root": "/Users/family/orca/workspaces/jason-agent-harness-template/spirula",
+  "template_commit": "57b7543",
+  "synced_on": "2026-07-31",
+  "project_name": "",
+  "assets": {
+    ".claude/hooks/doc-drift-reminder.sh": {
+      "local": "c0e6e3ecb1b475679c66989e881416c5debc3522662f5b0ea381c7ebec0034e0",
+      "src": "513e8e9a05f9d7348ad9464db681bd96a780e164ad6f1971b324f66fab793fae"
+    },
+    ".claude/hooks/self-review-gate.sh": {
+      "local": "2f0920c84259d40b2b74e7bb45613442f5337e99503e44f59e7f286583165b91",
+      "src": "b860a67e7e2f183fd8c2475caac9bef6a8a75932434e1635d1eb306ef2619c25"
+    },
+    ".claude/settings.json": {
+      "local": "9b64ba7a4ac84d0a82a0fd55b6fcc3c97496a954d8659d7cadc6d83b7b84f515",
+      "src": "a8692e11a0db7a0010d8f4f6a18897f57dab617ea0744ad633d5a76b5db7b67f"
+    },
+    ".claude/skills/다음/SKILL.md": {
+      "local": "01724e1bfb3a7f8f868eefa012426a5ea08d304cd8990d842ef2b9d0472d129e",
+      "src": "0d2ac6d3f855ad441bc4e0d3e8af6886b71dbbd28c0a50bc281d277d22478ccf"
+    },
+    ".claude/skills/마감/SKILL.md": {
+      "local": "9684cf92ef69efc27b48632e29936bc45acc28dff7a21e0656ae0418c652efa5",
+      "src": "297aec88084ae7814366c60ee63bad553a6f05fb6dbe40c25a211d69f2633fb3"
+    },
+    ".claude/skills/명령어/SKILL.md": {
+      "local": "0534b460955d3784d74bd08af32bf5d9313f03dbdb5630e05eaa3eab6d90d448",
+      "src": "d3095d61e43a98cc40bdd9ea56ffcd3ca8cf41095f79a73f40acb7056faa66cb"
+    },
+    ".claude/skills/상태/SKILL.md": {
+      "local": "af138ccc40b20a938a4702bd846a92d9ea35b804557f76989e0baef2570953f4",
+      "src": "4c7a029b8e83bd44e39671217c29bb821bdeb79a4bb3d0f23e2c8dbe1461a1ce"
+    },
+    ".claude/skills/진단/SKILL.md": {
+      "local": "44dd9dba79bb7928b0ea61281e28852ce8933d8ff747a1a1920fb7b4fc6e3802",
+      "src": "5d3d3fca4b77521cd27cfefcd0ad2a417e324fa961d0f3db9d12eb98330ea410"
+    }
+  }
+}
