@@ -29,6 +29,8 @@
 | `docs/evidence/2026-07-30-marker-detect.md` | 마커 검출 실측 — **크기보다 대비**가 결정, 워밍업 수십 프레임 | 증거 | 마커·인쇄·AR 인식률을 다룰 때 |
 | `docs/ref/SLICE-AR-DEMO.md` | AR 실증 슬라이스 계획 — 5단계·정합 오차 실측 | 조사 | AR 슬라이스 착수 시 |
 | `docs/ref/rnd/V3-PORT-CONVERGE-LOOP-2026-07-29.md` | v3 이식 계획 수렴 루프 — 크럭스와 킬-실험 | 조사 | 착수 전 판단이 필요할 때 |
+| `docs/ref/rnd/NEXT-REFACTOR-2026-07-30.md` | 구조 개편 선택지 — 프레임워크·폴더·이름 | 조사 | **다음 세션 착수 시** |
+| `README.md` | 깃허브 첫 화면. 팀원용 진입 문서 | SSOT | 저장소를 처음 볼 때 |
 | `docs/research/README.md` | 조사 산출물 3건과 승격된 곳 | 조사 | 조사 원본을 볼 때 |
 | `docs/archive/ARCHIVE-INDEX.md` | 보관 문서 목록·이름 규칙 | 완료보존 | 옛 결정을 되짚을 때 |
 | `docs/INDEX.md` | 문서 지도 | SSOT | 문서를 찾을 때 |
@@ -87,6 +89,6 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 
 ## 자가검증
 
-- INDEX.md에 등재된 문서 행 개수 = 26/26
+- INDEX.md에 등재된 문서 행 개수 = 28/28
 - PROJECT-STATUS.md의 "다음 한 걸음" 항목 개수 = 5/5
 - PROJECT-STATUS.md의 "블로커" 항목 개수 = 3/3
