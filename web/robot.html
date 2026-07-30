@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FR5 3D — 그리퍼 정합</title>
+
+<!-- three.js r185 는 module + core 로 쪼개져 있다. core 를 빼면 **에러 없이** 화면이 죽는다.
+     vendor 파일들이 쓰는 지정자를 전부 적어야 한다 — 하나만 빠져도 모듈 해석에서 통째로 멈춘다.
+     실제 쓰이는 목록:  grep -rhoE "from '[^']+'" web/js
+     ColladaLoader 는 스텁으로 보낸다 (우리 메시는 전부 STL). -->
+<script type="importmap">
+{ "imports": {
+    "three": "./js/vendor/three.module.js",
+    "three/addons/controls/OrbitControls.js": "./js/vendor/OrbitControls.js",
+    "three/addons/loaders/STLLoader.js": "./js/vendor/STLLoader.js",
+    "three/addons/loaders/TGALoader.js": "./js/loaders/TGALoader.js",
+    "three/examples/jsm/loaders/STLLoader.js": "./js/vendor/STLLoader.js",
+    "three/examples/jsm/loaders/ColladaLoader.js": "./js/vendor/ColladaStub.js"
+} }
+</script>
+
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #14171a; color: #e8ecef;
+         font: 14px/1.5 -apple-system, "Apple SD Gothic Neo", sans-serif; }
+  #view { position: fixed; inset: 0; }
+  #panel { position: fixed; top: 0; right: 0; width: 320px; max-height: 100vh;
+           overflow: auto; padding: 14px 16px; background: #1c2024ee;
+           border-left: 1px solid #2e343a;
+           transition: transform .2s; }
+  #panel[hidden] { display: none; }
+
+  /* --- 패널 숨기기 (모바일)
+     폰에서 320px 패널은 화면을 거의 덮는다. 로봇을 보려면 접어야 한다.
+     접기 전에 **레이아웃부터 고친다** — 안 그러면 펼친 상태가 여전히 못 쓸 화면이다.
+     좁은 화면에서는 오른쪽 사이드바가 아니라 아래에서 올라오는 시트로 만든다. */
+  @media (max-width: 640px) {
+    #panel { top: auto; bottom: 0; left: 0; right: 0; width: auto;
+             max-height: 62vh; border-left: 0; border-top: 1px solid #2e343a;
+             padding-bottom: calc(14px + env(safe-area-inset-bottom));
+             border-radius: 12px 12px 0 0; }
+    .row { grid-template-columns: 22px 1fr 74px; }  /* 손가락으로 누를 여유 */
+    input[type=number], button { min-height: 38px; }
+  }
+  body.folded #panel { transform: translateX(105%); }
+  @media (max-width: 640px) { body.folded #panel { transform: translateY(105%); } }
+
+  #fold { position: fixed; z-index: 12; width: 44px; height: 44px; padding: 0;
+          top: max(10px, env(safe-area-inset-top)); left: 12px;
+          border-radius: 50%; background: #1c2024e6; border: 1px solid #37454f;
+          font-size: 16px; line-height: 1; display: grid; place-items: center; }
+  /* display 를 명시했으므로 hidden 도 명시해야 먹는다 (#loading 과 같은 함정) */
+  #fold[hidden] { display: none; }
+  h1 { margin: 0 0 2px; font-size: 15px; }
+  .sub { margin: 0 0 14px; color: #8b959e; font-size: 12px; }
+  fieldset { margin: 0 0 12px; padding: 10px 12px; border: 1px solid #2e343a; border-radius: 6px; }
+  legend { padding: 0 5px; color: #9fb2c2; font-size: 12px; }
+  .row { display: grid; grid-template-columns: 22px 1fr 62px; gap: 7px; align-items: center; margin: 5px 0; }
+  .row label { color: #8b959e; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; }
+  input[type=number] { width: 100%; padding: 3px 5px; background: #14171a; color: #e8ecef;
+                       border: 1px solid #343b42; border-radius: 4px;
+                       font: 12px ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  button { padding: 6px 10px; margin: 2px 4px 2px 0; background: #253039; color: #cfe0ee;
+           border: 1px solid #37454f; border-radius: 5px; font-size: 12px; cursor: pointer; }
+  button:hover { background: #2e3d48; }
+  pre { margin: 6px 0 0; padding: 8px; background: #101316; border: 1px solid #2a3036;
+        border-radius: 5px; font: 11px/1.45 ui-monospace, monospace; white-space: pre-wrap; }
+  #stats { color: #8b959e; font: 11px/1.6 ui-monospace, monospace; }
+  #stats b { color: #7fd6a2; font-weight: 600; }
+  .warn { color: #f0b862; }
+  #loading { position: fixed; inset: 0; display: flex; gap: 6px;
+             align-items: center; justify-content: center;
+             background: #14171a; font-size: 13px; color: #9fb2c2; }
+  /* display 를 명시한 규칙이 hidden 속성의 기본 display:none 을 덮는다.
+     이 한 줄이 없으면 로딩 화면이 안 사라져 캔버스를 가린다. */
+  #loading[hidden] { display: none; }
+</style>
+</head>
+<body>
+<div id="view"></div>
+<div id="loading">모델 읽는 중… <span id="pct">0%</span></div>
+<button id="fold" type="button" hidden aria-label="패널 접기" aria-pressed="false">☰</button>
+
+<div id="panel" hidden>
+  <h1>그리퍼 정합</h1>
+  <p class="sub">손목 좌표축(빨강 X · 초록 Y · 파랑 Z)에 그리퍼 밑면을 맞춘다.
+    맞으면 <b>저장용 JSON</b>을 <code>config/gripper-mount.json</code>에 넣는다.</p>
+
+  <fieldset>
+    <legend>위치 (mm)</legend>
+    <div class="row"><label>X</label><input type="range" id="px" min="-200" max="200" step="0.5"><input type="number" id="nx" step="0.5"></div>
+    <div class="row"><label>Y</label><input type="range" id="py" min="-200" max="200" step="0.5"><input type="number" id="ny" step="0.5"></div>
+    <div class="row"><label>Z</label><input type="range" id="pz" min="-200" max="300" step="0.5"><input type="number" id="nz" step="0.5"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>회전 (도)</legend>
+    <div class="row"><label>X</label><input type="range" id="rx" min="-180" max="180" step="15"><input type="number" id="mx" step="1"></div>
+    <div class="row"><label>Y</label><input type="range" id="ry" min="-180" max="180" step="15"><input type="number" id="my" step="1"></div>
+    <div class="row"><label>Z</label><input type="range" id="rz" min="-180" max="180" step="15"><input type="number" id="mz" step="1"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>보기</legend>
+    <button id="poseZero">영점 자세</button>
+    <button id="poseBent">굽힌 자세</button>
+    <button id="toggleAxes">좌표축 켜기/끄기</button>
+    <button id="toggleGrip">그리퍼 숨기기</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>실측</legend>
+    <div id="stats">읽는 중…</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>저장용 JSON</legend>
+    <button id="copy">복사</button>
+    <pre id="out"></pre>
+  </fieldset>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from './js/vendor/OrbitControls.js';
+import { loadConfig, loadRobot, applyMount, countTriangles } from './js/robot-view.js';
+
+const $ = (id) => document.getElementById(id);
+
+// ---- 씬
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+$('view').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x14171a);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+camera.position.set(1.4, 1.1, 1.4);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.45, 0);
+
+scene.add(new THREE.HemisphereLight(0xdfe8f0, 0x20262b, 1.1));
+const key = new THREE.DirectionalLight(0xffffff, 1.5);
+key.position.set(2, 3, 2);
+scene.add(key);
+
+const grid = new THREE.GridHelper(2, 20, 0x2c3439, 0x21272b);
+scene.add(grid);
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+addEventListener('resize', resize); resize();
+
+// ---- 로봇
+const { gripper: gcfg } = await loadConfig();
+
+// URDF 는 Z-up, three.js 는 Y-up. **로봇을 돌리지 않고 부모를 돌린다** —
+// 로봇 자체를 돌리면 관절 각도 해석이 헷갈린다.
+const stage = new THREE.Group();
+stage.rotation.x = -Math.PI / 2;
+scene.add(stage);
+
+const { robot, gripperGroup, stats } = await loadRobot({
+  urdfUrl: './assets/FAIRINO_FR5/fairino5_v6.urdf',
+  gripperCfg: gcfg,
+  gripperDir: './assets/PGEA_100_40/',
+  onProgress: (a, b) => { $('pct').textContent = `${Math.round((a / b) * 100)}%`; },
+});
+stage.add(robot);
+
+// 손목 좌표축 — 이걸 봐야 플랜지가 어디고 +Z 가 어느 쪽인지 **추측 없이** 안다.
+const wrist = robot.links['wrist3_link'];
+const axes = new THREE.AxesHelper(0.12);
+wrist.add(axes);
+
+$('loading').hidden = true;
+$('panel').hidden = false;
+$('fold').hidden = false;
+
+// ---- 패널 접기.
+// 폰에서 패널이 화면을 거의 덮어 로봇이 안 보인다. 접기 버튼은 **접힌 뒤에도 보인다** —
+// 다 사라지면 되돌릴 방법이 없다. 상태를 기억해 다음에 열 때 그대로 둔다.
+const FOLD_KEY = 'fr5web.robot.folded';
+function setFolded(on) {
+  document.body.classList.toggle('folded', on);
+  $('fold').textContent = on ? '☰' : '✕';
+  $('fold').setAttribute('aria-pressed', String(on));
+  $('fold').setAttribute('aria-label', on ? '패널 펼치기' : '패널 접기');
+  try { localStorage.setItem(FOLD_KEY, on ? '1' : '0'); } catch { /* 프라이빗 모드 */ }
+}
+$('fold').onclick = () => setFolded(!document.body.classList.contains('folded'));
+try { setFolded(localStorage.getItem(FOLD_KEY) === '1'); } catch { setFolded(false); }
+
+// ---- 실측 표시. 게이트 기준값(팔 58,482 + 그리퍼 70,102 = 128,584)과 대조한다.
+const ARM = 58482, GRIP = 70102;
+function refreshStats() {
+  const all = countTriangles(robot);
+  const g = countTriangles(gripperGroup);
+  const arm = all.triangles - g.triangles;
+  const box = new THREE.Box3().setFromObject(robot);
+  const size = box.getSize(new THREE.Vector3());
+  const ok = (v, want) => v === want ? `<b>${v.toLocaleString()}</b>` : `<span class="warn">${v.toLocaleString()} (기준 ${want.toLocaleString()})</span>`;
+  $('stats').innerHTML = [
+    `팔 삼각형    ${ok(arm, ARM)}`,
+    `그리퍼      ${ok(g.triangles, GRIP)}`,
+    `합계        ${ok(all.triangles, ARM + GRIP)} / 메시 ${all.meshes}개`,
+    `전체 크기    ${size.toArray().map((v) => (v * 1000).toFixed(0)).join(' × ')} mm`,
+  ].join('\n');
+}
+
+// ---- 마운트 조정
+const FIELDS = [
+  ['positionMm', 0, 'px', 'nx'], ['positionMm', 1, 'py', 'ny'], ['positionMm', 2, 'pz', 'nz'],
+  ['rotationDeg', 0, 'rx', 'mx'], ['rotationDeg', 1, 'ry', 'my'], ['rotationDeg', 2, 'rz', 'mz'],
+];
+function pushToInputs() {
+  for (const [key, i, slider, num] of FIELDS) {
+    $(slider).value = gcfg[key][i];
+    $(num).value = gcfg[key][i];
+  }
+}
+function apply() {
+  applyMount(gripperGroup, gcfg);
+  $('out').textContent = JSON.stringify({
+    parentLink: gcfg.parentLink,
+    meshScale: gcfg.meshScale,
+    positionMm: gcfg.positionMm,
+    rotationDeg: gcfg.rotationDeg,
+    verified: true,
+  }, null, 2);
+  refreshStats();
+}
+for (const [key, i, slider, num] of FIELDS) {
+  const set = (v) => {
+    const n = parseFloat(v);
+    if (Number.isNaN(n)) return;
+    gcfg[key][i] = n;
+    $(slider).value = n; $(num).value = n;
+    apply();
+  };
+  $(slider).addEventListener('input', (e) => set(e.target.value));
+  $(num).addEventListener('input', (e) => set(e.target.value));
+}
+pushToInputs(); apply();
+
+// ---- 자세·표시 전환
+const BENT = { j1: 0, j2: -60, j3: 70, j4: -100, j5: -90, j6: 0 };
+const DEG = Math.PI / 180;
+function pose(deg) {
+  for (const [j, v] of Object.entries(deg)) robot.setJointValue(j, v * DEG);
+  refreshStats(); // 자세가 바뀌면 전체 크기도 바뀐다. 안 부르면 낡은 숫자를 보고 오판한다.
+}
+$('poseZero').onclick = () => pose({ j1: 0, j2: 0, j3: 0, j4: 0, j5: 0, j6: 0 });
+$('poseBent').onclick = () => pose(BENT);
+$('toggleAxes').onclick = () => { axes.visible = !axes.visible; };
+$('toggleGrip').onclick = (e) => {
+  gripperGroup.visible = !gripperGroup.visible;
+  e.target.textContent = gripperGroup.visible ? '그리퍼 숨기기' : '그리퍼 보이기';
+};
+$('copy').onclick = () => navigator.clipboard?.writeText($('out').textContent);
+
+// ---- 렌더 루프
+renderer.setAnimationLoop(() => {
+  controls.update();
+  renderer.render(scene, camera);
+});
+
+// 헤드리스 검증용 노출. 카메라·컨트롤까지 내보내야 콘솔에서 시점을 잡아
+// 스크린샷 증거를 남길 수 있다 (docs/evidence/).
+Object.assign(window, {
+  robot, gripperGroup, gcfg, THREE, countTriangles,
+  scene, camera, controls, renderer, setFolded,
+  /** 손목을 화면 가운데에 크게 놓는다. dist 는 미터. */
+  focusWrist(dist = 0.42) {
+    const p = new THREE.Vector3();
+    robot.links['wrist3_link'].getWorldPosition(p);
+    controls.target.copy(p);
+    camera.position.copy(p).add(new THREE.Vector3(dist, dist * 0.55, dist));
+    controls.update();
+  },
+});
+</script>
+</body>
+</html>

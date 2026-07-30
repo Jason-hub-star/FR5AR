@@ -1,0 +1,98 @@
+# SAFETY-RULES — 안전 판정
+
+분류: **SSOT**. 로봇에 명령을 보내는 코드를 쓰기 전에 반드시 읽는다.
+출처: v3 `LiveCommandSafetyGate.cs` (깃허브 `Jason-hub-star/robotapp` `codex/robotcontrol-v3-toolkit` `d252eb6`)
+SDK 필드: `FAIR-INNOVATION/fairino-python-sdk` `linux/fairino/Robot.py` 상태 구조체 **필드 150개**
+필드 전수 근거: `docs/evidence/2026-07-30-sdk-state-fields.md`
+
+## 제1원칙 — 막는 쪽으로 실패한다 (fail-closed)
+
+**값을 못 읽으면 통과가 아니라 차단이다.**
+
+v3의 조건 목록에 `connection service missing` · `gripper readback missing` ·
+`boundary data missing` · `dry-run preview artifact missing` 이 있는 이유가 이것이다.
+"정보가 없다"를 "문제가 없다"로 읽으면 안 된다.
+
+구현 규칙 — 판정 함수의 기본 반환값은 **차단**이고, 모든 조건을 통과했을 때만 허용으로 바꾼다.
+`try/except`에서 예외를 삼키고 허용을 반환하는 코드는 금지한다.
+
+## 제2원칙 — 서버가 강제한다
+
+클라이언트(웹·폰·유니티)를 믿지 않는다. 속도 상한과 조건 검사는 **서버에서만** 한다.
+클라이언트의 검사는 사용자 편의를 위한 것이지 안전장치가 아니다.
+
+## 제3원칙 — `stop`은 항상 통과한다
+
+조종권·상한·조건과 무관하게 즉시 실행한다. 정지를 막는 조건은 만들지 않는다.
+
+---
+
+## 조건 목록 — v3 원본과 SDK 필드 매핑
+
+| # | v3 차단 사유 | SDK 필드 | 비고 |
+|---|---|---|---|
+| 1 | emergency stop active | `EmergencyStop` | 急停标志 1=눌림. 외 안전정지 필드 9개 |
+| 2 | fault active | `main_code` `sub_code` | 主故障码 / 子故障码 |
+| 3 | (서보 고장) | `servoErrCode` | v3 목록엔 없으나 추가 권장 |
+| 4 | controller collision flag active | `collisionState` | 1=충돌, 0=정상 |
+| 5 | (충돌 등급) | `collisionLevel` (6축) | 축별 등급 |
+| 6 | motion queue not empty | `mc_queue_len` | 运动指令队列长度 |
+| 7 | (도착 신호) | `motion_done` `inPos` | 1=도착 |
+| 8 | drift threshold failed | `cmdPointError` | 指令点错误 플래그 |
+| 9 | (자체 계산 대안) | `lastServoTarget` vs `jt_cur_pos` | 지령·실제 차이를 직접 계산 가능 |
+| 10 | latest-state freshness failed | (수신 시각을 서버가 기록) | 서버 구현 |
+| 11 | latest-drift freshness failed | (동일) | 서버 구현 |
+| 12 | boundary data missing / 목표가 작업영역 밖 | (URDF 관절 한계 + 작업영역 정의) | 서버 구현 |
+| 13 | collision data missing / 예상경로 위험 | (예상 경로 + 장애물 정의) | 서버 구현 |
+| 14 | coordSystem unresolved | (좌표계 선택 상태) | 서버 구현 |
+| 15 | gripper readback missing | `gripper_position` 외 **13개** | `gripper_motiondone` 2=물체 감지 |
+| 16 | live client is readback-only | (세션 모드) | 서버 구현 |
+| 17 | connection service missing | (연결 상태) | 서버 구현 |
+| 18 | mock client | (Mock 모드 플래그) | Mock에서 실명령 차단 |
+| 19 | (특이 자세) | `strangePosFlag` | 当前处于奇异位姿标志. v3 목록 밖, 추가 권장 |
+
+**요약** — 로봇에서 직접 읽는 값 9개, 서버가 판단하는 것 8개, 확인 필요 1개.
+크럭스는 해소됐다. v3 규칙을 새로 설계하지 않고 물려받을 수 있다.
+
+---
+
+## 명령별 최소 조건
+
+| 명령 | 반드시 통과해야 할 조건 |
+|---|---|
+| 상태 읽기 | 없음 (항상 허용) |
+| `stop` | **없음 — 항상 실행** |
+| 조그 / MoveJ | 2·4·6·8·12·14·16·17·18 전부 |
+| 그리퍼 | 2·4·15·16·17·18 |
+| 예상 경로 계산 | 없음 (로봇에 안 보냄) |
+
+## 상한
+
+| 항목 | 값 | 근거 |
+|---|---|---|
+| 기본 속도 | 10% | v3 `DefaultLiveSpeedCapPercent` |
+| 한 번에 허용되는 관절 변화 | 5° | v3 tiny-MoveJ 상한 |
+| 상한 초과 명령 | 거부하고 사유 응답 | |
+
+## 이 문서를 고칠 때
+
+조건을 **빼는** 변경은 팀에 먼저 알린다. 더하는 것은 자유다.
+조건을 뺄 근거는 "안 걸리더라"가 아니라 "이 조건이 막으려던 사고가 다른 곳에서 막힌다"여야 한다.
+
+## 추가 조건 (필드 전수에서 발견 · 2026-07-30)
+
+| # | 조건 | 필드 | 왜 |
+|---|---|---|---|
+| 20 | 안전벽 진입 | `safetyPlaneAlarm` | **로봇이 자체 안전벽을 갖고 있다.** AR에 그리는 영역과 일치시켜야 한다 |
+| 21 | 안전문 열림 | `safetyDoorAlarm` | |
+| 22 | 안전정지 신호 | `safety_stop0_state` `safety_stop1_state` | 외부 안전 회로 |
+| 23 | 그리퍼 물체 낙하 | `gripper_fault` = 3 | 작업물을 놓쳤다 |
+| 24 | 집기 실패 판정 | `gripper_motiondone` 1 vs 2 | 1=물체 없이 닫힘, 2=물체 잡음 |
+
+20~22는 차단 조건이다. 23~24는 차단이 아니라 **작업 결과 판정**에 쓴다.
+
+## 아직 확인 안 한 것
+
+- `cmdPointError` 임계값 조절 방법 — 플래그(`c_uint8`)라 조절 불가. 필요하면
+  `lastServoTarget`과 실제 관절값 차이를 서버가 직접 계산한다.
+- 각 조건의 **판정 주기** — 상태 수신 30Hz 기준으로 몇 프레임 연속이어야 차단할지 미정.

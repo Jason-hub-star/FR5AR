@@ -1,0 +1,20 @@
+# 설정 — .env 는 기계마다 다르다. 형식은 .env.example 을 본다
+.env
+
+# 생성물 — node scripts/build/config.mjs 가 .env 에서 만든다
+web/config/marker-offset.json
+web/config/gripper-mount.json
+
+# macOS
+.DS_Store
+
+# Vercel
+.vercel/
+
+# 생성물 — 스크립트로 다시 만든다
+#   python3 scripts/assets/make-marker-test-images.py
+web/test/marker-images/
+
+# 파이썬
+__pycache__/
+*.pyc

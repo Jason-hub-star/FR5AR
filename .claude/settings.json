@@ -1,0 +1,35 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/self-review-gate.sh",
+            "timeout": 20,
+            "statusMessage": "변경 종류별 게이트..."
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/doc-drift-reminder.sh",
+            "timeout": 20,
+            "statusMessage": "기준값 드리프트..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/session-gate.sh",
+            "timeout": 60,
+            "statusMessage": "세션 종료 게이트..."
+          }
+        ]
+      }
+    ]
+  }
+}

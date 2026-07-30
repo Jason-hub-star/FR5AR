@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FR5Web — 무엇을 만들까 · 아이디어 10</title>
+<style>
+  :root{
+    --ground:#F4F5F2; --panel:#FFFFFF; --panel-2:#ECEEE9; --panel-3:#E3E7E1;
+    --ink:#14181C; --ink-2:#3D464C; --muted:#6F7D83; --line:#D3D8D3;
+    --accent:#B96E0E; --accent-soft:#F6E8D0;
+    --signal:#25707E; --ok:#44803F; --crit:#AF3B32;
+    --shadow:0 1px 2px rgba(20,24,28,.05),0 10px 28px rgba(20,24,28,.06);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#0F1317; --panel:#161B20; --panel-2:#1C2329; --panel-3:#242D34;
+      --ink:#E7EAE7; --ink-2:#B3BDC1; --muted:#818E94; --line:#2A333A;
+      --accent:#E9A13B; --accent-soft:#33270F;
+      --signal:#5CBECE; --ok:#6DB273; --crit:#DE6257;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 14px 36px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--ground);color:var(--ink);
+    font-family:"Pretendard","Pretendard Variable",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+    font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+  .wrap{max-width:1180px;margin-inline:auto;padding-inline:clamp(18px,4vw,40px)}
+  section{padding-block:clamp(46px,7vw,88px);border-top:1px solid var(--line)}
+  section:first-of-type{border-top:0}
+
+  h1{font-size:clamp(2.4rem,6.4vw,4.6rem);line-height:1;letter-spacing:-.035em;font-weight:800;margin:0;text-wrap:balance}
+  h2{font-size:clamp(1.6rem,3.4vw,2.5rem);line-height:1.1;letter-spacing:-.028em;font-weight:750;margin:0 0 10px;text-wrap:balance}
+  h3{font-size:1.08rem;line-height:1.35;letter-spacing:-.015em;font-weight:700;margin:0}
+  h4{font-size:.92rem;margin:0;font-weight:700;letter-spacing:-.01em}
+  p{margin:0}
+  .eyebrow{
+    font-family:ui-monospace,Menlo,monospace;font-size:.72rem;letter-spacing:.17em;text-transform:uppercase;
+    color:var(--accent);font-weight:600;margin:0 0 14px;display:flex;align-items:center;gap:11px;
+  }
+  .eyebrow::after{content:"";flex:1;height:1px;background:var(--line);max-width:150px}
+  .lede{font-size:clamp(1rem,1.6vw,1.18rem);color:var(--ink-2);max-width:62ch;margin-top:14px;text-wrap:pretty}
+  .sub{color:var(--muted);font-size:.88rem;margin-top:8px}
+  a{color:var(--signal)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+  /* hero */
+  header.hero{padding-block:clamp(40px,7vw,86px) clamp(34px,5vw,60px)}
+  .hero-grid{display:grid;gap:clamp(22px,3vw,44px);grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);align-items:end}
+  @media (max-width:820px){.hero-grid{grid-template-columns:1fr}}
+  .hero-shot{border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--panel);box-shadow:var(--shadow)}
+  .hero-shot img{display:block;width:100%;height:clamp(240px,34vw,400px);object-fit:cover;object-position:50% 22%}
+  .hero-shot figcaption{padding:10px 14px;font-size:.8rem;color:var(--muted);border-top:1px solid var(--line)}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:26px;padding-top:16px;border-top:1px solid var(--line)}
+  .meta span{font-family:ui-monospace,Menlo,monospace;font-size:.76rem;color:var(--muted)}
+  .meta b{color:var(--ink-2);font-weight:600}
+
+  /* glossary */
+  .gloss{display:grid;gap:0;margin-top:26px;border-top:1px solid var(--line)}
+  .gl{display:grid;grid-template-columns:minmax(120px,.9fr) 26px minmax(0,2fr);gap:14px;align-items:baseline;
+      padding:11px 2px;border-bottom:1px solid var(--line)}
+  .gl .from{color:var(--muted);font-size:.9rem;text-decoration:line-through;text-decoration-color:var(--line)}
+  .gl .ar{color:var(--accent);font-family:ui-monospace,Menlo,monospace;font-size:.8rem}
+  .gl .to{font-size:.95rem}
+  .gl .to b{font-weight:700}
+
+  /* asset shots */
+  .shots{display:grid;gap:clamp(12px,1.6vw,18px);grid-template-columns:repeat(auto-fit,minmax(230px,1fr));margin-top:28px}
+  figure{margin:0;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--panel);box-shadow:var(--shadow)}
+  figure img{display:block;width:100%;height:190px;object-fit:cover;background:var(--panel-2)}
+  figure figcaption{padding:11px 13px;font-size:.82rem;color:var(--ink-2);border-top:1px solid var(--line)}
+  figure figcaption b{display:block;color:var(--ink);font-size:.9rem;margin-bottom:2px}
+
+  /* stage cards */
+  .stages{display:grid;gap:clamp(12px,1.6vw,18px);grid-template-columns:repeat(auto-fit,minmax(250px,1fr));margin-top:28px}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:18px 20px;
+         display:flex;flex-direction:column;gap:9px;box-shadow:var(--shadow)}
+  .stage.pick{border-color:var(--accent);background:var(--accent-soft)}
+  .stage .badge{font-family:ui-monospace,Menlo,monospace;font-size:.66rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+  .stage.pick .badge{color:var(--accent);font-weight:700}
+  .stage p{font-size:.9rem;color:var(--ink-2)}
+  .fitrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:10px;border-top:1px dashed var(--line)}
+  .fit{font-family:ui-monospace,Menlo,monospace;font-size:.68rem;padding:2px 7px;border:1px solid var(--line);border-radius:2px;color:var(--muted)}
+  .fit.on{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+
+  /* ideas */
+  .ideas{display:flex;flex-direction:column;gap:clamp(14px,2vw,20px);margin-top:30px}
+  .idea{background:var(--panel);border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow);overflow:hidden}
+  .idea-top{display:grid;grid-template-columns:64px minmax(0,1fr);gap:clamp(14px,2vw,22px);padding:clamp(18px,2.2vw,24px)}
+  .idea-no{font-family:ui-monospace,Menlo,monospace;font-size:2rem;font-weight:700;color:var(--accent);line-height:1;letter-spacing:-.02em}
+  .idea-body{display:flex;flex-direction:column;gap:12px;min-width:0}
+  .idea-lead{font-size:.98rem;color:var(--ink-2)}
+  .scene{display:flex;flex-wrap:wrap;gap:8px}
+  .scene span{
+    font-size:.84rem;color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line);
+    border-radius:2px;padding:5px 10px;
+  }
+  .scene span b{color:var(--ink);font-weight:650}
+  .idea-foot{
+    display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;
+    padding:12px clamp(18px,2.2vw,24px);background:var(--panel-2);border-top:1px solid var(--line);
+  }
+  .lvl{font-family:ui-monospace,Menlo,monospace;font-size:.74rem;color:var(--muted)}
+  .lvl b{color:var(--ink);font-weight:650}
+  .refs{display:flex;flex-wrap:wrap;gap:7px;margin-left:auto}
+  a.gh,a.yt,a.doc{
+    display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink-2);
+    font-size:.78rem;padding:5px 10px;border:1px solid var(--line);border-radius:2px;background:var(--panel);
+    transition:border-color .15s,color .15s;white-space:nowrap;
+  }
+  a.gh:hover,a.yt:hover,a.doc:hover{border-color:var(--accent);color:var(--ink)}
+  a.gh .st{font-family:ui-monospace,Menlo,monospace;font-size:.72rem;color:var(--accent)}
+  a.yt{border-color:color-mix(in srgb,var(--crit) 35%,var(--line));color:var(--crit)}
+  a.yt:hover{border-color:var(--crit)}
+  .idea-shot{border-top:1px solid var(--line)}
+  .idea-shot img{display:block;width:100%;max-height:300px;object-fit:cover;object-position:50% 40%}
+  .idea-shot .cap{padding:9px 14px;font-size:.78rem;color:var(--muted);background:var(--panel-2)}
+  .ours{
+    font-family:ui-monospace,Menlo,monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 40%,transparent);border-radius:2px;padding:2px 7px;
+  }
+
+  /* combined flow */
+  .flow{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));margin-top:28px}
+  .step{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:0 4px 4px 0;
+        padding:16px 18px;display:flex;flex-direction:column;gap:7px;box-shadow:var(--shadow)}
+  .step .n{font-family:ui-monospace,Menlo,monospace;font-size:.68rem;letter-spacing:.13em;text-transform:uppercase;color:var(--accent)}
+  .step p{font-size:.88rem;color:var(--ink-2)}
+
+  /* table */
+  .tablewrap{overflow-x:auto;margin-top:28px;border:1px solid var(--line);border-radius:4px;background:var(--panel)}
+  table{border-collapse:collapse;width:100%;min-width:720px;font-size:.87rem}
+  th,td{text-align:left;padding:11px 15px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{font-family:ui-monospace,Menlo,monospace;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;
+     color:var(--muted);font-weight:600;background:var(--panel-2);white-space:nowrap}
+  tbody tr:last-child td{border-bottom:0}
+  td.n{font-family:ui-monospace,Menlo,monospace;white-space:nowrap;color:var(--ink-2)}
+  td .no{font-family:ui-monospace,Menlo,monospace;color:var(--accent);font-weight:700;margin-right:9px}
+  .stars{letter-spacing:.16em;color:var(--accent);white-space:nowrap}
+  .stars i{color:var(--line);font-style:normal}
+
+  /* fr5 repo list */
+  .repolist{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));margin-top:26px}
+  a.repo{
+    display:flex;flex-direction:column;gap:3px;padding:12px 15px;text-decoration:none;color:inherit;
+    border:1px solid var(--line);border-radius:3px;background:var(--panel);transition:border-color .15s,transform .15s;
+  }
+  a.repo:hover{border-color:var(--accent);transform:translateY(-1px)}
+  a.repo .t{font-family:ui-monospace,Menlo,monospace;font-size:.83rem;font-weight:600;color:var(--signal);word-break:break-all}
+  a.repo .d{font-size:.83rem;color:var(--ink-2)}
+  a.repo .s{font-family:ui-monospace,Menlo,monospace;font-size:.72rem;color:var(--muted)}
+
+  /* decisions */
+  .asks{display:flex;flex-direction:column;margin-top:26px;border-top:1px solid var(--line)}
+  .ask{display:grid;grid-template-columns:42px 1fr;gap:16px;padding:15px 0;border-bottom:1px solid var(--line);align-items:baseline}
+  .ask .q{font-family:ui-monospace,Menlo,monospace;font-size:.76rem;color:var(--accent);font-weight:600}
+  .ask .opts{font-family:ui-monospace,Menlo,monospace;font-size:.79rem;color:var(--muted);margin-top:3px}
+
+  .note{margin-top:22px;font-size:.85rem;color:var(--muted);border-left:2px solid var(--line);padding-left:14px;max-width:70ch}
+  footer{padding-block:38px 60px;color:var(--muted);font-size:.79rem;font-family:ui-monospace,Menlo,monospace;border-top:1px solid var(--line)}
+
+  /* sticky nav */
+  nav.top{
+    position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 88%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+  }
+  nav.top .wrap{display:flex;gap:4px;overflow-x:auto;padding-block:9px;scrollbar-width:none}
+  nav.top .wrap::-webkit-scrollbar{display:none}
+  nav.top a{
+    font-size:.79rem;color:var(--muted);text-decoration:none;padding:5px 11px;border-radius:2px;white-space:nowrap;
+  }
+  nav.top a:hover{color:var(--ink);background:var(--panel-2)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  @media print{nav.top{display:none}section{break-inside:avoid}}
+</style>
+</head>
+<body>
+
+<nav class="top"><div class="wrap">
+  <a href="#말">쉬운 말로</a>
+  <a href="#재료">우리가 가진 것</a>
+  <a href="#무대">무대 정하기</a>
+  <a href="#아이디어">아이디어 10</a>
+  <a href="#합치기">합치면</a>
+  <a href="#비교">비교표</a>
+  <a href="#fr5">FR5 사례 모음</a>
+  <a href="#정할것">정할 것</a>
+</div></nav>
+
+<header class="hero wrap">
+  <p class="eyebrow">FR5Web · 팀 회의 자료</p>
+  <div class="hero-grid">
+    <div>
+      <h1>팔 하나,<br>바퀴 둘,<br>브라우저 하나.</h1>
+      <p class="lede">로봇 팔과 바퀴로봇을 <b>웹 화면 하나에서</b> 같이 다루는 프로젝트입니다. 만들 수 있는 것 10가지를 실제 사례와 함께 모았습니다. 읽고 고르시면 됩니다.</p>
+      <div class="meta">
+        <span>회의 <b>2026-07-30</b></span>
+        <span>할 일 <b>무대 1개 + 아이디어 고르기</b></span>
+        <span>사진 <b>전부 우리 프로젝트 실물</b></span>
+      </div>
+    </div>
+    <figure class="hero-shot">
+      <img src="assets/fr5.jpg" alt="실제 FR5 로봇 팔과 화면 속 3D 로봇">
+      <figcaption>우리가 쓰는 로봇 팔(FAIRINO FR5)과, 화면에서 같은 자세로 따라 움직이는 3D 로봇.</figcaption>
+    </figure>
+  </div>
+</header>
+
+<!-- ══ 용어 ══ -->
+<section id="말"><div class="wrap">
+  <p class="eyebrow">먼저, 쉬운 말로</p>
+  <h2>어려운 단어는 이 문서에서 이렇게 부릅니다.</h2>
+  <p class="lede">회의에서 말이 막히지 않게, 자주 나오는 말을 미리 바꿔 두었습니다.</p>
+  <div class="gloss">
+    <div class="gl"><span class="from">협동로봇 · 코봇</span><span class="ar">→</span><span class="to"><b>로봇 팔</b> — 안전장치가 들어 있어 사람 옆에서 같이 일할 수 있는 팔</span></div>
+    <div class="gl"><span class="from">AMR · 자율주행로봇</span><span class="ar">→</span><span class="to"><b>바퀴로봇</b> — 스스로 길을 찾아 굴러다니는 로봇(우리 TurtleBot)</span></div>
+    <div class="gl"><span class="from">티칭 펜던트</span><span class="ar">→</span><span class="to"><b>로봇 조작기</b> — 로봇을 손으로 움직이고 자세를 저장하는 화면</span></div>
+    <div class="gl"><span class="from">웨이포인트</span><span class="ar">→</span><span class="to"><b>이동 지점</b> — 로봇이 거쳐 갈 위치 하나하나</span></div>
+    <div class="gl"><span class="from">디지털 트윈</span><span class="ar">→</span><span class="to"><b>화면 속 쌍둥이</b> — 실물과 똑같이 움직이는 3D 로봇</span></div>
+    <div class="gl"><span class="from">AR · 증강현실</span><span class="ar">→</span><span class="to"><b>겹쳐 보기</b> — 폰 카메라 화면 위에 정보를 덧그리는 것</span></div>
+    <div class="gl"><span class="from">픽앤플레이스</span><span class="ar">→</span><span class="to"><b>집어서 옮기기</b></span></div>
+    <div class="gl"><span class="from">캘리브레이션</span><span class="ar">→</span><span class="to"><b>위치 맞추기</b> — 카메라가 본 좌표와 로봇 좌표를 일치시키는 작업</span></div>
+    <div class="gl"><span class="from">리플레이</span><span class="ar">→</span><span class="to"><b>되감아 보기</b></span></div>
+    <div class="gl"><span class="from">차수</span><span class="ar">→</span><span class="to"><b>이번 프로젝트</b> / <b>지난 프로젝트</b></span></div>
+  </div>
+</div></section>
+
+<!-- ══ 재료 ══ -->
+<section id="재료"><div class="wrap">
+  <p class="eyebrow">우리가 이미 가진 것</p>
+  <h2>맨땅이 아닙니다. 만들다 만 것들이 이미 있습니다.</h2>
+  <div class="shots">
+    <figure>
+      <img src="assets/twin.jpg" alt="화면 속 3D 로봇 팔과 이동 지점 저장 목록" style="object-position:50% 44%">
+      <figcaption><b>로봇 조작 화면 (만들어 둠)</b>3D 로봇을 보면서 움직이고, 자세를 이름 붙여 저장·재생하는 화면. 지금은 컴퓨터 프로그램이라 한 사람만 씁니다.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/tb.jpg" alt="TurtleBot3 두 대" style="object-position:50% 24%">
+      <figcaption><b>바퀴로봇 2대 (지난 프로젝트)</b>스스로 지도를 만들고 길을 찾아 다닙니다. 표식을 보고 정확한 자리에 서는 것까지 됩니다.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/dash.jpg" alt="TurtleBot 웹 대시보드 주행 화면">
+      <figcaption><b>바퀴로봇 웹 화면 (만들어 둠)</b>브라우저에서 지도 보고, 길 만들고, 직접 운전까지. 웹으로 로봇을 다루는 방식을 이미 검증했습니다.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/room.jpg" alt="URHYNIX 관제 화면">
+      <figcaption><b>관제 화면 (지난 프로젝트)</b>여러 로봇 상태·카메라·사건 기록을 한 화면에 모은 구조. 화면 설계를 그대로 가져올 수 있습니다.</figcaption>
+    </figure>
+  </div>
+  <p class="note">여기에 <b>이번에 새로 다루는 로봇 팔</b>이 더해집니다. 팔은 이미 화면에서 움직이고 자세를 저장하는 데까지 되어 있고, 웹으로 여는 부분만 비어 있습니다.</p>
+</div></section>
+
+<!-- ══ 무대 ══ -->
+<section id="무대"><div class="wrap">
+  <p class="eyebrow">무대 정하기</p>
+  <h2>어디를 배경으로 할까요.</h2>
+  <p class="lede">우리 작업 공간은 <b>약 1.9m × 1.9m</b>입니다. 방 하나가 아니라 <b>책상 하나 크기의 작업 구역</b>을 만든다고 생각하면 맞습니다. 후보 다섯 개를 놓고 봅니다.</p>
+  <div class="stages">
+    <div class="stage pick">
+      <span class="badge">추천</span>
+      <h3>작은 공장 — 부품 검사·분류</h3>
+      <p>바퀴로봇이 부품 상자를 실어 오면, 카메라가 부품을 알아보고, 팔이 정상·불량으로 나눠 담습니다.</p>
+      <div class="fitrow"><span class="fit on">알아보기 좋음</span><span class="fit on">안전 이야기 됨</span><span class="fit on">기록 의미 있음</span><span class="fit on">좁은 공간 OK</span></div>
+    </div>
+    <div class="stage">
+      <span class="badge">대안 1</span>
+      <h3>무인 카페</h3>
+      <p>컵을 집어 내려놓고, 주문을 받아 움직입니다. 보는 사람 반응이 가장 좋습니다.</p>
+      <div class="fitrow"><span class="fit on">발표 반응 최고</span><span class="fit">사례가 이미 많음</span><span class="fit">액체·컵은 난이도 있음</span></div>
+    </div>
+    <div class="stage">
+      <span class="badge">대안 2</span>
+      <h3>실험실 검체 옮기기</h3>
+      <p>시험관을 정해진 자리로 옮기고, 누가 언제 무엇을 옮겼는지 전부 남깁니다.</p>
+      <div class="fitrow"><span class="fit on">기록 이야기 강함</span><span class="fit on">안전 이야기 강함</span><span class="fit">보기에 밋밋</span></div>
+    </div>
+    <div class="stage">
+      <span class="badge">대안 3</span>
+      <h3>재활용 분류</h3>
+      <p>캔·페트·종이를 알아보고 통에 나눠 넣습니다. 알아보는 성능이 곧 성과입니다.</p>
+      <div class="fitrow"><span class="fit on">알아보기 재미</span><span class="fit">모양이 제각각이라 집기 어려움</span></div>
+    </div>
+    <div class="stage">
+      <span class="badge">대안 4</span>
+      <h3>편의점 진열</h3>
+      <p>상품을 선반에 채우고 재고를 셉니다.</p>
+      <div class="fitrow"><span class="fit">공간이 더 필요</span><span class="fit">차별점 약함</span></div>
+    </div>
+  </div>
+  <p class="note"><b>왜 작은 공장인가</b> — 지난 프로젝트 다른 팀들이 물류창고·순찰을 했기 때문에 겹치지 않으면서, 아래 아이디어 10개를 <b>전부 자연스럽게 쓸 수 있는</b> 유일한 무대입니다. 부품은 종류가 달라 알아보는 재미가 있고, 불량 판정은 기록할 이유가 되고, 사람이 옆에 서니 안전 겹쳐보기가 말이 됩니다.</p>
+</div></section>
+
+<!-- ══ 아이디어 10 ══ -->
+<section id="아이디어"><div class="wrap">
+  <p class="eyebrow">아이디어 10</p>
+  <h2>만들 수 있는 것들, 그리고 남들이 이미 만든 것.</h2>
+  <p class="lede">각 항목에 <b>실제로 존재하는 공개 프로젝트</b>를 붙였습니다. 링크는 전부 살아있는지 확인했고, 별표는 인기도(GitHub 별 개수)입니다.</p>
+
+  <div class="ideas">
+
+    <!-- 1 -->
+    <article class="idea">
+      <div class="idea-top">
+        <span class="idea-no">01</span>
+        <div class="idea-body">
+          <h3>웹에서 로봇 팔 움직이기</h3>
+          <p class="idea-lead">지금은 로봇 앞에 앉은 한 사람만 조작합니다. 이걸 <b>주소 하나</b>로 바꿉니다. 팀원이 자기 노트북에서 열고 움직이고, 자세를 저장하면 그게 팀 공용 자산이 됩니다.</p>
+          <div class="scene">
+            <span>노트북에서 <b>주소를 연다</b></span>
+            <span>화면에서 <b>팔을 움직인다</b></span>
+            <span>자세에 <b>이름을 붙여 저장</b></span>
+            <span>다른 사람이 <b>불러서 재생</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="idea-foot">
+        <span class="lvl">난이도 <b>중</b></span>
+        <span class="lvl">우리 것 재사용 <b>많음</b></span>
+        <span class="ours">이게 있어야 나머지가 올라탐</span>
+        <span class="refs">
+          <a class="gh" href="https://github.com/SpesRobotics/teleop" target="_blank" rel="noopener">SpesRobotics/teleop <span class="st">★254</span></a>
+          <a class="gh" href="https://github.com/CRH380B-6216L/ur5_webgui" target="_blank" rel="noopener">ur5_webgui <span class="st">★30</span></a>
+          <a class="gh" href="https://github.com/elephantrobotics/myCobot" target="_blank" rel="noopener">myCobot <span class="st">★178</span></a>
+          <a class="yt" href="https://www.youtube.com/results?search_query=web+browser+robot+arm+control+teleoperation" target="_blank" rel="noopener">▶ 영상 찾아보기</a>
+        </span>
+      </div>
+    </article>
+
+    <!-- 2 -->
+    <article class="idea">
+      <div class="idea-top">
+        <span class="idea-no">02</span>
+        <div class="idea-body">
+          <h3>화면 속 쌍둥이 로봇</h3>
+          <p class="idea-lead">실물이 움직이면 화면 속 3D 로봇도 똑같이 움직입니다. 반대로 화면에서 먼저 움직여 보고 <b>안전한지 확인한 뒤</b> 실물로 보낼 수도 있습니다.</p>
+          <div class="scene">
+            <span>실물이 움직이면 <b>화면도 같이</b></span>
+            <span>화면에서 <b>먼저 시험</b></span>
+            <span>괜찮으면 <b>실물로 전송</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="idea-shot">
+        <img src="assets/twin.jpg" alt="화면 속 3D 로봇 팔" style="object-position:50% 44%">
+        <div class="cap">우리 화면 — 실물 팔 옆에서 3D 로봇이 같은 자세를 잡고 있습니다. 이걸 웹으로 옮기는 것이 이 아이디어입니다.</div>
+      </div>
+      <div class="idea-foot">
+        <span class="lvl">난이도 <b>중</b></span>
+        <span class="lvl">우리 것 재사용 <b>많음</b></span>
+        <span class="refs">
+          <a class="gh" href="https://github.com/gkjohnson/urdf-loaders" target="_blank" rel="noopener">urdf-loaders (NASA JPL) <span class="st">★806</span></a>
+          <a class="gh" href="https://github.com/kimar1022-code/fairino-fr5-digital-twin" target="_blank" rel="noopener">FR5 쌍둥이 (한국어)</a>
+          <a class="gh" href="https://github.com/vrtnis/robot-web-viewer" target="_blank" rel="noopener">robot-web-viewer</a>
+          <a class="gh" href="https://github.com/dersimn/robotWebView" target="_blank" rel="noopener">robotWebView</a>
+        </span>
+      </div>
+    </article>
+
+    <!-- 3 -->
+    <article class="idea">
+      <div class="idea-top">
+        <span class="idea-no">03</span>
+        <div class="idea-body">
+          <h3>카메라로 알아보고 집기</h3>
+          <p class="idea-lead">카메라가 물건이 무엇인지·어디 있는지 알아내고, 팔이 그걸 집습니다. 지난 프로젝트에서 <b>이미 카메라로 물건을 알아보는 것까지</b> 해봤습니다.</p>
+          <div class="scene">
+            <span>카메라가 <b>물건을 찾는다</b></span>
+            <span>좌표를 <b>로봇 좌표로 바꾼다</b></span>
+            <span>팔이 <b>집어서 옮긴다</b></span>
+          </div>
+          <p class="sub">진짜 어려운 부분은 알아보는 게 아니라 <b>위치 맞추기</b>(카메라가 본 자리와 로봇이 아는 자리를 일치시키기)입니다. 물건 놓는 자리를 격자로 정해 두면 확 쉬워집니다.</p>
+        </div>
+      </div>
+      <div class="idea-shot">
+        <img src="assets/yolo.jpg" alt="카메라가 사람과 물건을 알아보는 화면">
+        <div class="cap">지난 프로젝트 — 카메라가 사람·컵·키보드를 실시간으로 구분하고 있습니다. 이 능력을 팔에 붙이는 것이 이 아이디어입니다.</div>
+      </div>
+      <div class="idea-foot">
+        <span class="lvl">난이도 <b>상</b></span>
+        <span class="lvl">기술 깊이 <b>높음</b></span>
+        <span class="refs">
+          <a class="gh" href="https://github.com/Walid-khaled/YOLO-Object-Detection-for-Pick-and-Place-task-using-ROS-on-KUKA-iiwa" target="_blank" rel="noopener">KUKA 집기 <span class="st">★41</span></a>
+          <a class="gh" href="https://github.com/leihui6/LRBO" target="_blank" rel="noopener">위치 맞추기 <span class="st">★33</span></a>
+          <a class="gh" href="https://github.com/aralab-unr/Aubo-Deep-Object-Grasping" target="_blank" rel="noopener">Aubo 파지 <span class="st">★29</span></a>
+          <a class="gh" href="https://github.com/IFRA-Cranfield/irb120_PoseEstimation" target="_blank" rel="noopener">ABB 큐브 집기</a>
+        </span>
+      </div>
+    </article>
+
+    <!-- 4 -->
+    <article class="idea">
+      <div class="idea-top">
+        <span class="idea-no">04</span>
+        <div class="idea-body">
+          <h3>폰으로 겹쳐 보기</h3>
+          <p class="idea-lead">폰 카메라를 실물 로봇에 대면 <b>눈에 안 보이던 것</b>이 보입니다. 사람이 들어가면 안 되는 범위, 팔이 곧 지나갈 길, 지금 관절 각도. 앱을 깔 필요 없이 <b>주소만 열면</b> 됩니다.</p>
+          <div class="scene">
+            <span>로봇 옆에 <b>흑백 표식을 붙인다</b></span>
+            <span>폰으로 <b>비춘다</b></span>
+            <span>안전 범위·지나갈 길이 <b>겹쳐 보인다</b></span>
+          </div>
+          <p class="sub">표식을 읽어 위치를 맞추는 기술은 지난 프로젝트에서 바퀴로봇 도킹에 <b>이미 써봤습니다.</b> 그대로 가져다 씁니다.</p>
+        </div>
+      </div>
+      <div class="idea-foot">
+        <span class="lvl">난이도 <b>중</b></span>
+        <span class="lvl">차별점 <b>10개 중 가장 높음</b></span>
+        <span class="ours">우리가 해본 기술 재사용</span>
+        <span class="refs">
+          <a class="gh" href="https://github.com/AR-js-org/AR.js" target="_blank" rel="noopener">AR.js <span class="st">★5966</span></a>
+          <a class="gh" href="https://github.com/SpesRobotics/teleop" target="_blank" rel="noopener">폰으로 로봇 조종 <span class="st">★254</span></a>
+          <a class="gh" href="https://github.com/ilhamachmada/robot-arm-babylonjs-webxr" target="_blank" rel="noopener">WebXR 로봇팔</a>
+          <a class="doc" href="https://spj.science.org/doi/10.34133/cbsystems.0098" target="_blank" rel="noopener">논문 — AR 원격조작 효과</a>
+          <a class="yt" href="https://www.youtube.com/results?search_query=augmented+reality+robot+safety+zone+overlay" target="_blank" rel="noopener">▶ 영상 찾아보기</a>
+        </span>
+      </div>
+    </article>
+
+    <!-- 5 -->
+    <article class="idea">
+      <div class="idea-top">
+        <span class="idea-no">05</span>
+        <div class="idea-body">
+          <h3>바퀴로봇이 실어 오고, 팔이 집는다</h3>
+          <p class="idea-lead">지난 프로젝트를 버리지 않고 <b>이번 로봇의 파트너</b>로 씁니다. 바퀴로봇이 부품을 싣고 와서 정확한 자리에 서면, 팔이 집어서 옮기고, 바퀴로봇은 다음 일을 하러 갑니다.</p>
+          <div class="scene">
+            <span>바퀴로봇이 <b>싣고 온다</b></span>
+            <span>표식 보고 <b>정확히 선다</b></span>
+            <span>팔이 <b>집어서 옮긴다</b></span>
+            <span>웹 화면이 <b>전체를 지휘</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="idea-shot">
+        <img src="assets/tb.jpg" alt="TurtleBot3 두 대" style="object-position:50% 20%">
+        <div class="cap">우리 바퀴로봇 2대. 지도 만들기·길찾기·표식 도킹까지 이미 됩니다.</div>
+      </div>
+      <div class="idea-foot">
+        <span class="lvl">난이도 <b>중상</b></span>
+        <span class="lvl">발표 <b>가장 잘 팔림</b></span>
+        <span class="refs">
+          <a class="gh" href="https://github.com/Sjschhabra/Voice-Operated-Mobile-Manipulator-Turtlebot-Mycobot" target="_blank" rel="noopener">TurtleBot + 팔 + 음성</a>
+          <a class="gh" href="https://github.com/fetchrobotics/fetch_ros" target="_blank" rel="noopener">Fetch <span class="st">★203</span></a>
+          <a class="gh" href="https://github.com/hello-robot/stretch_ros" target="_blank" rel="noopener">Stretch <span class="st">★189</span></a>
+          <a class="gh" href="https://github.com/ROBOTIS-GIT/turtlebot3_manipulation" target="_blank" rel="noopener">TurtleBot3 팔 <span class="st">★99</span></a>
+          <a class="yt" href="https://www.youtube.com/results?search_query=mobile+manipulator+robot+arm+on+mobile+base+demo" target="_blank" rel="noopener">▶ 영상 찾아보기</a>
+        </span>
+      </div>
+    </article>
+
+    <!-- 6 -->
+    <article class="idea">
+      <div class="idea-top">
+        <span class="idea-no">06</span>
+        <div class="idea-body">
+          <h3>말로 시키기</h3>
+          <p class="idea-lead">버튼을 누르는 대신 <b>"빨간 부품 3번 자리로 옮겨"</b>라고 말하거나 입력하면, 알아듣고 순서를 짜서 실행합니다.</p>
+          <div class="scene">
+            <span>사람이 <b>말한다</b></span>
+            <span>말을 <b>작업 순서로 바꾼다</b></span>
+            <span>순서대로 <b>실행한다</b></span>
+            <span>사람이 <b>중간에 멈출 수 있다</b></span>
+          </div>
+          <p class="sub">화려하지만 <b>사고 위험</b>이 가장 큰 항목입니다. 실행 전에 "이렇게 움직일 겁니다" 미리 보여주고 사람이 확인 누르는 단계를 반드시 넣어야 합니다.</p>
+        </div>
+      </div>
+      <div class="idea-foot">
+        <span class="lvl">난이도 <b>중상</b></span>
+        <span class="lvl">눈길 <b>높음</b></span>
+        <span class="refs">
+          <a class="gh" href="https://github.com/Auromix/ROS-LLM" target="_blank" rel="noopener">ROS-LLM <span class="st">★819</span></a>
+          <a class="gh" href="https://github.com/sahilrajpurkar03/nlp-pnp-robotic-arm" target="_blank" rel="noopener">SPARC 집기 <span class="st">★65</span></a>
+          <a class="gh" href="https://github.com/cakh/llm-ur-control" target="_blank" rel="noopener">UR 말로 제어</a>
+          <a class="yt" href="https://www.youtube.com/results?search_query=LLM+natural+language+robot+arm+control+demo" target="_blank" rel="noopener">▶ 영상 찾아보기</a>
+        </span>
+      </div>
+    </article>
+
+    <!-- 7 -->
+    <article class="idea">
+      <div class="idea-top">
+        <span class="idea-no">07</span>
+        <div class="idea-body">
+          <h3>손동작 따라 하기</h3>
+          <p class="idea-lead">웹캠 앞에서 손을 움직이면 로봇 팔이 <b>그대로 따라 합니다.</b> 조작법을 배울 필요가 없어서 처음 보는 사람도 바로 씁니다.</p>
+          <div class="scene">
+            <span>웹캠이 <b>손을 본다</b></span>
+            <span>손 위치를 <b>팔 자세로 바꾼다</b></span>
+            <span>팔이 <b>천천히 따라온다</b></span>
+          </div>
+          <p class="sub">우리 프로그램에 <b>손 위치를 받는 통로가 이미 만들어져 있습니다</b>(<span class="mono">UdpHandPoseReceiver</span>, 포트 5005). 절반은 되어 있는 셈입니다.</p>
+        </div>
+      </div>
+      <div class="idea-foot">
+        <span class="lvl">난이도 <b>중</b></span>
+        <span class="lvl">체험 재미 <b>매우 높음</b></span>
+        <span class="ours">우리 코드에 통로 이미 있음</span>
+        <span class="refs">
+          <a class="gh" href="https://github.com/Joeclinton1/hand-teleop" target="_blank" rel="noopener">hand-teleop <span class="st">★50</span></a>
+          <a class="gh" href="https://github.com/e-candeloro/Vision-Robotic-Arm-Gesture-Recognition" target="_blank" rel="noopener">몸동작 제어 <span class="st">★24</span></a>
+          <a class="gh" href="https://github.com/ABMI-software/hand_controlLerobot" target="_blank" rel="noopener">웹캠 손 추적</a>
+          <a class="gh" href="https://github.com/nickmeinhold/lidar-robot-arm" target="_blank" rel="noopener">아이폰으로 조종</a>
+          <a class="yt" href="https://www.youtube.com/results?search_query=mediapipe+hand+tracking+robot+arm+teleoperation" target="_blank" rel="noopener">▶ 영상 찾아보기</a>
+        </span>
+      </div>
+    </article>
+
+    <!-- 8 -->
+    <article class="idea">
+      <div class="idea-top">
+        <span class="idea-no">08</span>
+        <div class="idea-body">
+          <h3>되감아 보기</h3>
+          <p class="idea-lead">로봇이 한 모든 일을 남기고, 웹 타임라인에서 <b>그때로 되돌려 봅니다.</b> 시연이 실패했을 때 "왜 그랬는지"를 눈으로 찾을 수 있습니다.</p>
+          <div class="scene">
+            <span>명령·상태·카메라를 <b>전부 기록</b></span>
+            <span>타임라인을 <b>드래그</b></span>
+            <span>그 순간 화면이 <b>그대로 재생</b></span>
+          </div>
+          <p class="sub">이것만으로는 시연이 안 됩니다. 대신 <b>다른 아이디어 밑에 깔리는 바닥</b>이고, 발표 자료와 보고서를 여기서 그대로 뽑습니다. 지난 프로젝트 기록 구조를 넓히기만 하면 됩니다.</p>
+        </div>
+      </div>
+      <div class="idea-shot">
+        <img src="assets/room.jpg" alt="관제 화면의 이벤트 기록 패널">
+        <div class="cap">지난 프로젝트 관제 화면 — 오른쪽 아래에 사건 기록이 시간순으로 쌓입니다. 여기에 되감기를 붙이는 것이 이 아이디어입니다.</div>
+      </div>
+      <div class="idea-foot">
+        <span class="lvl">난이도 <b>하</b></span>
+        <span class="lvl">단독 시연 <b>어려움</b></span>
+        <span class="refs">
+          <a class="gh" href="https://github.com/cruise-automation/webviz" target="_blank" rel="noopener">webviz <span class="st">★2322</span></a>
+          <a class="gh" href="https://github.com/foxglove/mcap" target="_blank" rel="noopener">mcap <span class="st">★1019</span></a>
+          <a class="gh" href="https://github.com/ros2/rosbag2" target="_blank" rel="noopener">rosbag2 <span class="st">★430</span></a>
+          <a class="gh" href="https://github.com/foxglove/foxglove-sdk" target="_blank" rel="noopener">Foxglove SDK <span class="st">★283</span></a>
+        </span>
+      </div>
+    </article>
+
+    <!-- 9 -->
+    <article class="idea">
+      <div class="idea-top">
+        <span class="idea-no">09</span>
+        <div class="idea-body">
+          <h3>여럿이 같이 쓰기</h3>
+          <p class="idea-lead">로봇은 한 대인데 쓸 사람은 여럿입니다. <b>지금 누가 조종 중인지</b> 보이고, 나머지는 구경하다가 순서가 오면 넘겨받습니다. 로봇이 놀지 않게 됩니다.</p>
+          <div class="scene">
+            <span>지금 <b>조종자 한 명</b></span>
+            <span>나머지는 <b>같은 화면을 구경</b></span>
+            <span>순서가 오면 <b>넘겨받기</b></span>
+            <span>충돌 명령 <b>원천 차단</b></span>
+          </div>
+          <p class="sub">지난 프로젝트에서 화면 두 개가 동시에 명령을 보내 충돌한 적이 있어, 이 규칙은 <b>어차피 필요합니다.</b></p>
+        </div>
+      </div>
+      <div class="idea-foot">
+        <span class="lvl">난이도 <b>중</b></span>
+        <span class="lvl">팀 공유 <b>핵심</b></span>
+        <span class="refs">
+          <a class="gh" href="https://github.com/weblabdeusto/weblabdeusto" target="_blank" rel="noopener">WebLab-Deusto <span class="st">★41</span></a>
+          <a class="gh" href="https://github.com/edrys-labs/lab-robot-operating-system" target="_blank" rel="noopener">원격 실습실(ROS2)</a>
+          <a class="gh" href="https://github.com/cyberbotics/webots" target="_blank" rel="noopener">Webots <span class="st">★4500</span></a>
+          <a class="doc" href="https://www.theconstruct.ai/" target="_blank" rel="noopener">The Construct — 브라우저 로봇 실습</a>
+        </span>
+      </div>
+    </article>
+
+    <!-- 10 -->
+    <article class="idea">
+      <div class="idea-top">
+        <span class="idea-no">10</span>
+        <div class="idea-body">
+          <h3>불량 골라내기</h3>
+          <p class="idea-lead">부품을 카메라로 보고 <b>정상인지 불량인지 판정</b>해서 다른 통에 담습니다. 판정 근거 사진이 함께 남아 "왜 불량이라 했는지" 나중에 확인됩니다.</p>
+          <div class="scene">
+            <span>팔이 부품을 <b>카메라 앞에 든다</b></span>
+            <span>정상·불량 <b>판정</b></span>
+            <span>판정대로 <b>다른 통에</b></span>
+            <span>근거 사진 <b>기록</b></span>
+          </div>
+          <p class="sub">03(알아보고 집기)와 08(되감아 보기)을 하나로 묶으면 자연스럽게 나오는 결과물입니다. 무대를 "작은 공장"으로 잡으면 여기가 최종 장면이 됩니다.</p>
+        </div>
+      </div>
+      <div class="idea-foot">
+        <span class="lvl">난이도 <b>중상</b></span>
+        <span class="lvl">산업 설득력 <b>가장 높음</b></span>
+        <span class="refs">
+          <a class="gh" href="https://github.com/huggingface/lerobot" target="_blank" rel="noopener">LeRobot <span class="st">★26k</span></a>
+          <a class="gh" href="https://github.com/SreevaatsavB/fairino-fr5-policies" target="_blank" rel="noopener">FR5 학습 파이프라인</a>
+          <a class="gh" href="https://github.com/CoRoLab-Berlin/fr5_mujoco_env" target="_blank" rel="noopener">FR5 시뮬레이터</a>
+          <a class="yt" href="https://www.youtube.com/results?search_query=cobot+vision+quality+inspection+sorting+demo" target="_blank" rel="noopener">▶ 영상 찾아보기</a>
+        </span>
+      </div>
+    </article>
+
+  </div>
+</div></section>
+
+<!-- ══ 합치기 ══ -->
+<section id="합치기"><div class="wrap">
+  <p class="eyebrow">합치면 이렇게 됩니다</p>
+  <h2>따로따로가 아니라, 한 흐름으로 이어집니다.</h2>
+  <p class="lede">01·02·03·04·08을 묶으면 <b>"웹 작업대"</b> 하나가 됩니다. 여기에 05(바퀴로봇)를 일감으로 붙이고, 10(불량 골라내기)을 최종 장면으로 둡니다.</p>
+  <div class="flow">
+    <div class="step"><span class="n">1 · 본다</span><h4>카메라가 알아본다</h4><p>부품이 무엇이고 어디 있는지. <span class="mono">아이디어 03</span></p></div>
+    <div class="step"><span class="n">2 · 가르친다</span><h4>웹에서 움직이고 저장한다</h4><p>화면 속 쌍둥이로 먼저 확인하고 실물로. <span class="mono">아이디어 01·02</span></p></div>
+    <div class="step"><span class="n">3 · 겹쳐 본다</span><h4>폰으로 안전을 확인한다</h4><p>사람이 서 있어도 되는지 눈으로. <span class="mono">아이디어 04</span></p></div>
+    <div class="step"><span class="n">4 · 되감는다</span><h4>전부 남고 다시 본다</h4><p>실패 원인도, 발표 자료도 여기서. <span class="mono">아이디어 08</span></p></div>
+  </div>
+  <p class="note"><b>한 문장으로 —</b> "로봇 팔 한 대를 팀 전체가 브라우저에서 같이 보고, 가르치고, 안전을 확인하고, 되돌려 보는 작업대. 부품은 바퀴로봇이 실어 오고, 결과는 정상·불량으로 나뉜다."</p>
+</div></section>
+
+<!-- ══ 비교표 ══ -->
+<section id="비교"><div class="wrap">
+  <p class="eyebrow">한눈에</p>
+  <h2>고르기 위한 표.</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>아이디어</th><th>난이도</th><th>차별점</th><th>우리 것 재사용</th><th>혼자 시연</th><th>한 줄 평</th></tr></thead>
+      <tbody>
+        <tr><td><span class="no">01</span>웹에서 팔 움직이기</td><td class="n">중</td><td class="stars">★★<i>★</i></td><td class="stars">★★★</td><td class="n">가능</td><td>나머지가 올라탈 <b>바닥</b></td></tr>
+        <tr><td><span class="no">02</span>화면 속 쌍둥이</td><td class="n">중</td><td class="stars">★★<i>★</i></td><td class="stars">★★★</td><td class="n">가능</td><td>안전하게 <b>미리 보기</b></td></tr>
+        <tr><td><span class="no">03</span>알아보고 집기</td><td class="n">상</td><td class="stars">★★★</td><td class="stars">★★<i>★</i></td><td class="n">가능</td><td>깊지만 <b>위치 맞추기가 관문</b></td></tr>
+        <tr><td><span class="no">04</span>폰으로 겹쳐 보기</td><td class="n">중</td><td class="stars">★★★</td><td class="stars">★★<i>★</i></td><td class="n">가능</td><td>남들이 <b>안 하는 것</b></td></tr>
+        <tr><td><span class="no">05</span>바퀴로봇 연계</td><td class="n">중상</td><td class="stars">★★<i>★</i></td><td class="stars">★★★</td><td class="n">가능</td><td>발표에서 <b>가장 잘 팔림</b></td></tr>
+        <tr><td><span class="no">06</span>말로 시키기</td><td class="n">중상</td><td class="stars">★★★</td><td class="stars">★<i>★★</i></td><td class="n">가능</td><td>눈길 끌지만 <b>안전 장치 필수</b></td></tr>
+        <tr><td><span class="no">07</span>손동작 따라 하기</td><td class="n">중</td><td class="stars">★★<i>★</i></td><td class="stars">★★<i>★</i></td><td class="n">가능</td><td>체험 <b>재미 최고</b></td></tr>
+        <tr><td><span class="no">08</span>되감아 보기</td><td class="n">하</td><td class="stars">★<i>★★</i></td><td class="stars">★★★</td><td class="n">어려움</td><td>메인 말고 <b>바닥</b></td></tr>
+        <tr><td><span class="no">09</span>여럿이 같이 쓰기</td><td class="n">중</td><td class="stars">★★<i>★</i></td><td class="stars">★★<i>★</i></td><td class="n">어려움</td><td>팀 공유의 <b>진짜 알맹이</b></td></tr>
+        <tr><td><span class="no">10</span>불량 골라내기</td><td class="n">중상</td><td class="stars">★★<i>★</i></td><td class="stars">★★<i>★</i></td><td class="n">가능</td><td>03+08의 <b>최종 장면</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div></section>
+
+<!-- ══ FR5 사례 ══ -->
+<section id="fr5"><div class="wrap">
+  <p class="eyebrow">우리와 같은 로봇으로</p>
+  <h2>FR5로 남들은 무엇을 만들었나.</h2>
+  <p class="lede">우리가 쓰는 것과 <b>똑같은 로봇 팔</b>로 만들어진 공개 프로젝트들입니다. 전부 실재 확인했습니다. 맨 위는 우리가 듣는 과정의 공식 저장소입니다.</p>
+  <div class="repolist">
+    <a class="repo" href="https://github.com/eduwingrobotics/fairino-cobot-manipulation" target="_blank" rel="noopener"><span class="t">eduwingrobotics / fairino-cobot-manipulation</span><span class="d">우리 교육 과정 공식 저장소 — 기초 조작부터 ROS2·MoveIt2·쌍둥이·카메라 집기까지</span><span class="s">C++ · 2026-07 갱신 · 한국어</span></a>
+    <a class="repo" href="https://github.com/FAIR-INNOVATION/frcobot_ros2" target="_blank" rel="noopener"><span class="t">FAIR-INNOVATION / frcobot_ros2</span><span class="d">제조사 공식 ROS 2 드라이버</span><span class="s">★57 · C++ · 2026-07 갱신</span></a>
+    <a class="repo" href="https://github.com/FAIR-INNOVATION/fairino-python-sdk" target="_blank" rel="noopener"><span class="t">FAIR-INNOVATION / fairino-python-sdk</span><span class="d">제조사 공식 파이썬 라이브러리 — 웹 서버를 파이썬으로 만들 때 이게 곧 백엔드</span><span class="s">★29 · Python · 2026-07 갱신</span></a>
+    <a class="repo" href="https://github.com/kimar1022-code/fairino-fr5-digital-twin" target="_blank" rel="noopener"><span class="t">kimar1022-code / fairino-fr5-digital-twin</span><span class="d">FR5와 화면 속 쌍둥이 실시간 동기화 (한국어)</span><span class="s">C# · 2026-07 갱신</span></a>
+    <a class="repo" href="https://github.com/Devonics-Inc/ros2_fr_gazebo" target="_blank" rel="noopener"><span class="t">Devonics-Inc / ros2_fr_gazebo</span><span class="d">FR 로봇 시뮬레이션 + 경로계획 환경</span><span class="s">C++ · 2026-07 갱신</span></a>
+    <a class="repo" href="https://github.com/CoRoLab-Berlin/fr5_mujoco_env" target="_blank" rel="noopener"><span class="t">CoRoLab-Berlin / fr5_mujoco_env</span><span class="d">FR5 물리 시뮬레이터 — 학습용 데이터 만들기</span><span class="s">Python · 2026-05 갱신</span></a>
+    <a class="repo" href="https://github.com/SreevaatsavB/fairino-fr5-policies" target="_blank" rel="noopener"><span class="t">SreevaatsavB / fairino-fr5-policies</span><span class="d">사람 시범을 보고 FR5가 따라 배우는 학습 파이프라인</span><span class="s">2026-07 갱신</span></a>
+    <a class="repo" href="https://github.com/lh6100/fairino-fr5-visual-servo" target="_blank" rel="noopener"><span class="t">lh6100 / fairino-fr5-visual-servo</span><span class="d">카메라를 보면서 팔이 목표에 붙어가는 제어</span><span class="s">Python</span></a>
+    <a class="repo" href="https://github.com/xoozjay/fr_hanzi" target="_blank" rel="noopener"><span class="t">xoozjay / fr_hanzi</span><span class="d">FR5가 붓글씨(한자)를 쓴다 — 경로 정밀도 데모로 재미있음</span><span class="s">Python · 2026-04 갱신</span></a>
+    <a class="repo" href="https://github.com/edwardmudge/fairino-fr5-sim" target="_blank" rel="noopener"><span class="t">edwardmudge / fairino-fr5-sim</span><span class="d">FR5 3D 시각화 + 3D프린팅 경로</span><span class="s">Python · 2026-07 갱신</span></a>
+    <a class="repo" href="https://github.com/wagnerxavier-dev/fairino-fr5-ros" target="_blank" rel="noopener"><span class="t">wagnerxavier-dev / fairino-fr5-ros</span><span class="d">FR5로 ROS2 공부한 기록</span><span class="s">2024-08</span></a>
+    <a class="repo" href="https://github.com/ma-weiss/Fairino-Mujoco" target="_blank" rel="noopener"><span class="t">ma-weiss / Fairino-Mujoco</span><span class="d">FR5 3D 모델 파일</span><span class="s">2026-04 갱신</span></a>
+  </div>
+  <p class="note">참고로 우리 교육 과정 저장소는 <b>ROS 2 Jazzy + MoveIt2 + RealSense D435 카메라</b>를 전제로 합니다. 위 아이디어 중 03·10은 과정 커리큘럼과 그대로 겹칩니다 — 배우면서 만들 수 있다는 뜻입니다.</p>
+</div></section>
+
+<!-- ══ 정할 것 ══ -->
+<section id="정할것"><div class="wrap">
+  <p class="eyebrow">내일 정할 것</p>
+  <h2>다섯 개만 정하면 바로 시작합니다.</h2>
+  <div class="asks">
+    <div class="ask"><span class="q">Q1</span><div><h4>무대를 어디로 할까</h4><p class="opts">작은 공장(부품 검사·분류) · 무인 카페 · 실험실 · 재활용 · 다른 것</p></div></div>
+    <div class="ask"><span class="q">Q2</span><div><h4>메인 아이디어 1~2개</h4><p class="opts">01 웹 조작 · 05 바퀴로봇 연계 · 03 알아보고 집기 · 04 겹쳐 보기 · 그 외</p></div></div>
+    <div class="ask"><span class="q">Q3</span><div><h4>욕심 항목을 넣을까 뺄까</h4><p class="opts">06 말로 시키기 · 07 손동작 — 재미는 크고 일정은 위험</p></div></div>
+    <div class="ask"><span class="q">Q4</span><div><h4>시연 장면을 한 문장으로</h4><p class="opts">예 — "바퀴로봇이 부품을 실어 오면 팔이 검사해서 정상·불량으로 나눠 담는다"</p></div></div>
+    <div class="ask"><span class="q">Q5</span><div><h4>역할 나누기</h4><p class="opts">로봇 실물 · 웹 화면 · 서버·연동 · 카메라 · 문서·발표</p></div></div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  FR5Web · 아이디어 조사 · 2026-07-29 · 사진은 전부 우리 프로젝트 실물 · GitHub 링크는 전부 실재 확인(API 조회) · 영상은 검색 링크로 연결(개별 영상 주소는 확인이 안 돼 직접 걸지 않음)
+</div></footer>
+
+</body>
+</html>

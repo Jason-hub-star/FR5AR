@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>겹쳐 보기 — 기술 스택 조사</title>
+<style>
+  :root{
+    --ground:#F4F5F2; --panel:#FFFFFF; --panel-2:#ECEEE9; --panel-3:#E2E6E0;
+    --ink:#14181C; --ink-2:#3D464C; --muted:#6F7D83; --line:#D3D8D3;
+    --accent:#B96E0E; --accent-soft:#F6E8D0;
+    --signal:#25707E; --ok:#44803F; --crit:#AF3B32; --warn:#8A6A16;
+    --code-bg:#F0F2EE;
+    --shadow:0 1px 2px rgba(20,24,28,.05),0 10px 28px rgba(20,24,28,.06);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#0F1317; --panel:#161B20; --panel-2:#1C2329; --panel-3:#242D34;
+      --ink:#E7EAE7; --ink-2:#B3BDC1; --muted:#818E94; --line:#2A333A;
+      --accent:#E9A13B; --accent-soft:#33270F;
+      --signal:#5CBECE; --ok:#6DB273; --crit:#DE6257; --warn:#D9AF52;
+      --code-bg:#11161A;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 14px 36px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--ground);color:var(--ink);
+    font-family:"Pretendard","Pretendard Variable",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+    font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;
+  }
+  code,.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+  code{background:var(--code-bg);border:1px solid var(--line);border-radius:2px;padding:1px 5px;font-size:.87em}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:3px;padding:14px 16px;overflow-x:auto;
+      font-family:ui-monospace,Menlo,monospace;font-size:.83rem;line-height:1.6;margin:14px 0 0}
+  pre code{background:none;border:0;padding:0;font-size:1em}
+  .wrap{max-width:1160px;margin-inline:auto;padding-inline:clamp(18px,4vw,40px)}
+  section{padding-block:clamp(40px,6vw,72px);border-top:1px solid var(--line)}
+
+  h1{font-size:clamp(2.1rem,5.2vw,3.7rem);line-height:1.03;letter-spacing:-.034em;font-weight:800;margin:0;text-wrap:balance}
+  h2{font-size:clamp(1.45rem,3vw,2.15rem);line-height:1.12;letter-spacing:-.027em;font-weight:750;margin:0;text-wrap:balance}
+  h3{font-size:1.02rem;line-height:1.35;letter-spacing:-.012em;font-weight:700;margin:0}
+  p{margin:0}
+  .eyebrow{font-family:ui-monospace,Menlo,monospace;font-size:.71rem;letter-spacing:.17em;text-transform:uppercase;
+           color:var(--accent);font-weight:600;margin:0 0 13px;display:flex;align-items:center;gap:11px}
+  .eyebrow::after{content:"";flex:1;height:1px;background:var(--line);max-width:140px}
+  .lede{font-size:clamp(.98rem,1.5vw,1.14rem);color:var(--ink-2);max-width:64ch;margin-top:14px;text-wrap:pretty}
+  a{color:var(--signal)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+  nav.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 90%,transparent);
+          backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  nav.top .wrap{display:flex;gap:2px;overflow-x:auto;padding-block:9px;scrollbar-width:none}
+  nav.top .wrap::-webkit-scrollbar{display:none}
+  nav.top a{font-size:.78rem;color:var(--muted);text-decoration:none;padding:5px 10px;border-radius:2px;white-space:nowrap}
+  nav.top a:hover{color:var(--ink);background:var(--panel-2)}
+
+  header.hero{padding-block:clamp(34px,5vw,64px) clamp(26px,4vw,44px)}
+
+  /* verdict cards */
+  .verdicts{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));margin-top:30px}
+  .vd{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:0 3px 3px 0;
+      padding:16px 18px;display:flex;flex-direction:column;gap:7px;box-shadow:var(--shadow)}
+  .vd .t{font-family:ui-monospace,Menlo,monospace;font-size:.68rem;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  .vd p{font-size:.89rem;color:var(--ink-2)}
+  .vd .so{font-family:ui-monospace,Menlo,monospace;font-size:.73rem;color:var(--muted);
+          margin-top:auto;padding-top:8px;border-top:1px dashed var(--line)}
+
+  /* layer stack */
+  .layers{display:flex;flex-direction:column;gap:9px;margin-top:28px}
+  .ly{display:grid;grid-template-columns:150px minmax(0,1fr);gap:clamp(14px,2.2vw,26px);
+      background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:15px 18px;box-shadow:var(--shadow)}
+  @media (max-width:700px){.ly{grid-template-columns:1fr;gap:8px}}
+  .ly .lname{font-family:ui-monospace,Menlo,monospace;font-size:.76rem;letter-spacing:.09em;text-transform:uppercase;
+             color:var(--muted);padding-top:2px}
+  .ly .lbody{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .ly .pick{font-size:1rem;font-weight:700;letter-spacing:-.015em}
+  .ly .pick em{font-style:normal;color:var(--accent);font-family:ui-monospace,Menlo,monospace;font-size:.83rem;margin-left:7px}
+  .ly .why{font-size:.87rem;color:var(--ink-2)}
+  .ly .alt{font-size:.8rem;color:var(--muted)}
+
+  /* table */
+  .tablewrap{overflow-x:auto;margin-top:24px;border:1px solid var(--line);border-radius:3px;background:var(--panel)}
+  table{border-collapse:collapse;width:100%;min-width:660px;font-size:.87rem}
+  th,td{text-align:left;padding:10px 15px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-family:ui-monospace,Menlo,monospace;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;
+     color:var(--muted);font-weight:600;background:var(--panel-2);white-space:nowrap}
+  tbody tr:last-child td{border-bottom:0}
+  td.n{font-family:ui-monospace,Menlo,monospace;white-space:nowrap;color:var(--ink-2)}
+  .yes{color:var(--ok);font-weight:700}
+  .no{color:var(--crit);font-weight:700}
+  .mid{color:var(--warn);font-weight:700}
+
+  /* traps */
+  .traps{display:grid;gap:11px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:26px}
+  .tp{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--crit);border-radius:0 3px 3px 0;
+      padding:15px 17px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow)}
+  .tp p{font-size:.87rem;color:var(--ink-2)}
+  .tp .fix{font-size:.85rem;color:var(--ink);border-top:1px dashed var(--line);padding-top:8px;margin-top:auto}
+  .tp .fix b{color:var(--ok)}
+
+  /* steps */
+  .steps{display:flex;flex-direction:column;margin-top:26px;border-top:1px solid var(--line)}
+  .st{display:grid;grid-template-columns:80px 1fr;gap:clamp(14px,2.2vw,26px);padding:16px 0;border-bottom:1px solid var(--line);align-items:start}
+  .st .d{font-family:ui-monospace,Menlo,monospace;font-size:.85rem;font-weight:650;color:var(--accent)}
+  .st .b{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .st p{font-size:.88rem;color:var(--ink-2)}
+  .st .gate{font-family:ui-monospace,Menlo,monospace;font-size:.77rem;color:var(--signal)}
+
+  .note{margin-top:20px;font-size:.85rem;color:var(--muted);border-left:2px solid var(--line);padding-left:13px;max-width:74ch}
+  .warnbox{margin-top:22px;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);
+           border-radius:3px;padding:15px 18px;font-size:.9rem;color:var(--ink-2)}
+  .warnbox b{color:var(--ink)}
+  footer{padding-block:34px 56px;color:var(--muted);font-size:.78rem;font-family:ui-monospace,Menlo,monospace;border-top:1px solid var(--line)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<nav class="top"><div class="wrap">
+  <a href="#판정">핵심 판정</a>
+  <a href="#스택">스택 한 장</a>
+  <a href="#정합">① 폰 정합</a>
+  <a href="#3d">② 3D 렌더</a>
+  <a href="#궤적">③ 궤적 계산</a>
+  <a href="#통신">④ 뒷단·통신</a>
+  <a href="#개발">⑤ 개발 환경</a>
+  <a href="#버전">버전표</a>
+  <a href="#함정">함정</a>
+  <a href="#첫주">첫 주 할 일</a>
+</div></nav>
+
+<header class="hero wrap">
+  <p class="eyebrow">FR5Web · 기술 스택 조사</p>
+  <h1>겹쳐 보기,<br>무엇으로 만드나.</h1>
+  <p class="lede">만들 것 — <b>폰 카메라로 실물 FR5를 비추면, 저장된 이동 지점과 팔이 지나갈 길이 실물 위에 겹쳐 보이는 것.</b> 웹에서 지점을 고치면 폰 화면도 바로 바뀝니다. 앱 설치는 없습니다.</p>
+  <p class="lede" style="margin-top:10px">아래 버전·수치는 전부 2026-07-29에 npm·PyPI·GitHub API로 직접 확인했습니다.</p>
+</header>
+
+<!-- 판정 -->
+<section id="판정"><div class="wrap">
+  <p class="eyebrow">먼저 결론</p>
+  <h2>이 세 가지가 나머지 선택을 다 결정합니다.</h2>
+  <div class="verdicts">
+    <div class="vd">
+      <span class="t">판정 1 — 방식</span>
+      <h3>WebXR은 못 씁니다. 마커 방식이 유일한 답입니다.</h3>
+      <p>iOS 사파리는 2026년 현재도 <code>immersive-ar</code>를 열어주지 않습니다. 안드로이드만 됩니다. <b>양쪽 다 되는 방법은 카메라 영상을 직접 받아 마커를 찾는 방식뿐</b>입니다.</p>
+      <span class="so">근거 — caniuse WebXR · Safari 미지원 지속</span>
+    </div>
+    <div class="vd">
+      <span class="t">판정 2 — 자산</span>
+      <h3>FR5 3D 모델이 이미 우리 손에 있습니다.</h3>
+      <p><code>FR5UNITY/…/FAIRINO_FR5/fairino5_v6.urdf</code> + STL 7개. 웹 로더가 <b>STL을 그대로 읽습니다.</b> 모델을 새로 구할 필요도, 형식을 바꿀 필요도 없습니다.</p>
+      <span class="so">실측 — 58,482 삼각형 / 12 MB</span>
+    </div>
+    <div class="vd">
+      <span class="t">판정 3 — 범위</span>
+      <h3>오차 1~1.5cm. 그래서 용도가 정해집니다.</h3>
+      <p>마커 정합은 <b>±5~15mm</b> 어긋납니다. "여기쯤 지나갑니다"를 보여주기엔 충분하고, <b>mm 단위 정렬 작업에는 못 씁니다.</b> 안전 범위·궤적·지점 표시가 딱 맞는 용도입니다.</p>
+      <span class="so">근거 — 마커 자세 추정 정확도 연구 (거리 0.5~1m에서 최적)</span>
+    </div>
+  </div>
+</div></section>
+
+<!-- 스택 -->
+<section id="스택"><div class="wrap">
+  <p class="eyebrow">스택 한 장</p>
+  <h2>층별로 이렇게 고릅니다.</h2>
+  <div class="layers">
+    <div class="ly"><span class="lname">폰 · 카메라 정합</span><div class="lbody">
+      <span class="pick">AR.js <em>@ar-js-org/ar.js 3.4.8</em></span>
+      <span class="why">마커를 찾아 3D 좌표계를 실물에 붙입니다. iOS·안드로이드 양쪽 다 됩니다. 2026년 3월 릴리스로 <b>지금도 관리되고 있습니다.</b></span>
+      <span class="alt">대안 — MindAR(이미지 추적, 2024년 이후 정체) · 8th Wall(2026-02 서비스 종료) · model-viewer(마커 추적 불가)</span>
+    </div></div>
+
+    <div class="ly"><span class="lname">3D 렌더</span><div class="lbody">
+      <span class="pick">three.js + urdf-loader <em>0.185.1 / 0.13.1</em></span>
+      <span class="why">우리 URDF를 그대로 읽어 관절 단위로 움직입니다. <code>robot.setJointValue(관절명, 각도)</code> 한 줄로 자세가 바뀝니다.</span>
+      <span class="alt">화면 구성이 복잡해지면 react-three-fiber 9.6.1 + drei 10.7.7 추가. 처음엔 순수 three.js로 충분합니다.</span>
+    </div></div>
+
+    <div class="ly"><span class="lname">궤적 계산</span><div class="lbody">
+      <span class="pick">우리가 이미 가진 정기구학(FK)</span>
+      <span class="why">저장된 지점은 관절 각도이고 MoveJ는 관절을 곧바로 보간합니다. <b>각도를 잘게 쪼개 FK를 돌리면 손끝이 그리는 선이 그대로 나옵니다.</b> 역기구학(IK)이 없어도 됩니다.</span>
+      <span class="alt">브라우저에서 다시 계산해도 되고(three.js에서 URDF의 관절 트리를 그대로 이용), 서버에서 계산해 점 목록만 내려줘도 됩니다.</span>
+    </div></div>
+
+    <div class="ly"><span class="lname">뒷단(서버)</span><div class="lbody">
+      <span class="pick">Python FastAPI + 공식 Fairino SDK <em>fastapi 0.140.13</em></span>
+      <span class="why">로봇과는 제조사 공식 파이썬 라이브러리로 말하고, 브라우저와는 WebSocket으로 말합니다. 이미 있는 <code>FairinoBridgeClient</code>가 부르는 그 서버 자리입니다.</span>
+      <span class="alt">서버 실행은 uvicorn 0.52.0. 조사에서 본 <code>meowiky/DP-fairino-robot-API</code>가 이 형태의 최소 예시입니다.</span>
+    </div></div>
+
+    <div class="ly"><span class="lname">실시간 통신</span><div class="lbody">
+      <span class="pick">WebSocket</span>
+      <span class="why">관절값을 초당 30~100번 내려보내고, 브라우저에서 명령을 올려보내야 하므로 <b>양방향이 필요합니다.</b> SSE는 한 방향뿐이라 탈락, WebRTC는 과합니다.</span>
+      <span class="alt">여러 사람이 동시에 볼 때는 서버가 접속 목록을 들고 있다가 한꺼번에 뿌리는 방식(브로드캐스트).</span>
+    </div></div>
+
+    <div class="ly"><span class="lname">개발 환경</span><div class="lbody">
+      <span class="pick">HTTPS 필수 — mkcert 또는 터널</span>
+      <span class="why">브라우저는 <b>안전한 연결이 아니면 카메라를 아예 안 열어줍니다.</b> 폰으로 테스트하려면 <code>http://192.168.x.x</code>로는 안 됩니다.</span>
+      <span class="alt">사내망이면 mkcert로 인증서 발급, 밖에서도 봐야 하면 tailscale funnel이나 Cloudflare Tunnel.</span>
+    </div></div>
+  </div>
+</div></section>
+
+<!-- 정합 -->
+<section id="정합"><div class="wrap">
+  <p class="eyebrow">① 폰이 로봇 위치를 아는 방법</p>
+  <h2>마커를 붙이고, 그걸 원점으로 삼습니다.</h2>
+  <p class="lede">로봇 베이스 옆 <b>고정된 자리</b>에 흑백 마커를 붙입니다. 폰이 마커를 찾으면 그 위치·방향을 알아내고, 마커와 로봇 원점의 관계는 한 번만 재두면 이후로는 로봇이 어디 있는지 계산됩니다.</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>방식</th><th>iOS</th><th>안드로이드</th><th>정합 방법</th><th>판정</th></tr></thead>
+      <tbody>
+        <tr><td><b>AR.js 마커</b></td><td class="yes">가능</td><td class="yes">가능</td><td>카메라 영상에서 흑백 마커 검출</td><td class="yes">채택</td></tr>
+        <tr><td>WebXR <code>immersive-ar</code></td><td class="no">불가</td><td class="mid">일부 기기</td><td>기기 자체 공간 인식(ARCore)</td><td class="no">iOS에서 막힘</td></tr>
+        <tr><td>MindAR 이미지 추적</td><td class="yes">가능</td><td class="yes">가능</td><td>사진 이미지를 타깃으로</td><td class="mid">보조용</td></tr>
+        <tr><td>model-viewer</td><td class="mid">앱 전환</td><td class="mid">앱 전환</td><td>바닥에 놓기만 가능</td><td class="no">겹치기 불가</td></tr>
+        <tr><td>Unity AR 앱 빌드</td><td class="yes">가능</td><td class="yes">가능</td><td>ARKit / ARCore</td><td class="no">"링크만 열면"과 충돌</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="warnbox">
+    <b>마커 크기가 정확도를 결정합니다.</b> 1~2m 거리에서 쓰려면 최소 15cm, 되도록 <b>20cm 이상</b>으로 인쇄하세요. 작을수록 오차와 떨림이 커집니다. 그리고 <b>금속 반사면 위에는 붙이지 마세요</b> — FR5 베이스가 알루미늄이라 마커는 옆 고정 판이나 테이블에 붙이는 게 낫습니다.
+  </div>
+
+  <p class="note">한 가지 더 — 우리 팀은 지난 프로젝트에서 <b>바퀴로봇 도킹에 ArUco 마커를 이미 써봤습니다.</b> 마커를 찍고 자세를 계산해 좌표를 맞추는 절차 자체가 새로운 게 아닙니다.</p>
+</div></section>
+
+<!-- 3D -->
+<section id="3d"><div class="wrap">
+  <p class="eyebrow">② 브라우저에 로봇 그리기</p>
+  <h2>우리 URDF를 그대로 읽힙니다.</h2>
+  <p class="lede"><code>urdf-loader</code>는 기본 로더가 <b>STL과 COLLADA를 지원</b>합니다. 우리 파일이 정확히 STL이라 변환 없이 바로 뜹니다.</p>
+
+  <pre><code>// 우리 파일 그대로 로드
+const loader = new URDFLoader();
+loader.packages = { '': '/assets/FAIRINO_FR5' };
+loader.load('/assets/FAIRINO_FR5/fairino5_v6.urdf', robot =&gt; {
+  scene.add(robot);
+
+  // 관절 하나 움직이기 — 각도는 라디안
+  robot.setJointValue('j2', -1.2);
+
+  // 저장된 지점 하나를 그대로 적용
+  ['j1','j2','j3','j4','j5','j6'].forEach((n, i) =&gt;
+    robot.setJointValue(n, deg2rad(point.jointsDeg[i]))
+  );
+});</code></pre>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>항목</th><th>실측값</th><th>뜻</th></tr></thead>
+      <tbody>
+        <tr><td>URDF 파일</td><td class="n">fairino5_v6.urdf</td><td>SolidWorks에서 내보낸 것. 관성·충돌 정보까지 들어 있음</td></tr>
+        <tr><td>메시 파일</td><td class="n">STL 7개</td><td>base · shoulder · upperarm · forearm · wrist1~3</td></tr>
+        <tr><td>총 삼각형</td><td class="n">58,482</td><td>요즘 폰에서 60fps로 무리 없이 돌아가는 수준</td></tr>
+        <tr><td>총 용량</td><td class="n">12 MB</td><td class="mid">문제는 렌더가 아니라 <b>다운로드 시간</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="note"><b>12MB는 줄이는 게 좋습니다.</b> 폰에서 매번 12MB를 받으면 첫 화면이 느립니다. <code>@gltf-transform/cli 4.4.2</code>로 GLB 변환 + 간소화를 걸면 1~2MB대로 떨어집니다. 다만 <b>1단계에서는 STL 그대로 쓰고</b>, 느리다고 느껴질 때 최적화하는 순서를 권합니다 — 미리 하면 형식이 하나 더 늘어 관리 지점만 늘어납니다.</p>
+</div></section>
+
+<!-- 궤적 -->
+<section id="궤적"><div class="wrap">
+  <p class="eyebrow">③ 지나갈 길 계산하기</p>
+  <h2>역기구학이 없어도 궤적은 그려집니다.</h2>
+  <p class="lede">이게 이 계획에서 가장 중요한 기술 판단입니다. 우리 프로그램에는 <b>역기구학(IK)이 구현돼 있지 않습니다.</b> 보통 이런 기능은 IK가 필요하다고 생각하지만, 이 경우엔 필요 없습니다.</p>
+
+  <div class="verdicts" style="grid-template-columns:1fr">
+    <div class="vd" style="border-left-color:var(--ok)">
+      <span class="t" style="color:var(--ok)">이유</span>
+      <h3>저장된 지점이 이미 관절 각도이기 때문입니다.</h3>
+      <p>우리 이동 지점은 손끝 위치가 아니라 <b>6축 관절 각도</b>로 저장됩니다. 그리고 MoveJ는 그 각도들을 곧장 보간합니다. 그러니 <b>시작 각도 → 끝 각도를 100등분해 각 단계마다 정기구학(FK)을 돌리면</b> 손끝이 지나가는 점 100개가 나옵니다. 그 점들을 이으면 그게 궤적입니다.</p>
+      <span class="so">우리 자산 — DHStandard.cs · ForwardKinematics.cs · DH 파라미터 6축 전부 정의됨</span>
+    </div>
+  </div>
+
+  <pre><code># 서버 쪽 의사코드 — IK 없이 궤적 만들기
+def preview_path(p_from, p_to, steps=100):
+    pts = []
+    for k in range(steps + 1):
+        t = k / steps
+        # 관절 각도를 선형 보간 (MoveJ가 실제로 하는 것)
+        q = [a + (b - a) * t for a, b in zip(p_from, p_to)]
+        # 정기구학 → 손끝 위치
+        pts.append(forward_kinematics(q))
+    return pts   # 이 점 목록을 브라우저로 보내면 선이 됨</code></pre>
+
+  <p class="note">브라우저에서 그릴 때는 점 목록을 three.js의 선으로 만듭니다. 얇은 선(<code>Line</code>)은 굵기 조절이 안 되니, <b>보기 좋게 하려면 <code>TubeGeometry</code>(가는 관)</b>로 만들고 반투명 재질을 씌우는 쪽이 낫습니다. 안전 범위는 반투명 원기둥 하나면 됩니다.</p>
+
+  <div class="warnbox">
+    <b>주의 — 이 궤적은 "예상"입니다.</b> 실제 로봇은 가감속 곡선과 안전 제한 때문에 조금 다르게 움직일 수 있습니다. 화면에 <b>"예상 경로"</b>라고 명시하고, 실제 지나간 길은 로봇이 보내주는 실제 관절값으로 따로 그려 두 개를 비교하면 오히려 더 좋은 기능이 됩니다.
+  </div>
+</div></section>
+
+<!-- 통신 -->
+<section id="통신"><div class="wrap">
+  <p class="eyebrow">④ 뒷단과 통신</p>
+  <h2>서버 하나가 로봇과 브라우저 사이에 섭니다.</h2>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>방식</th><th>양방향</th><th>초당 100회</th><th>구현 난이도</th><th>판정</th></tr></thead>
+      <tbody>
+        <tr><td><b>WebSocket</b></td><td class="yes">O</td><td class="yes">충분</td><td class="n">낮음</td><td class="yes">채택</td></tr>
+        <tr><td>SSE (한방향 스트림)</td><td class="no">X</td><td class="mid">가능하나 불안정</td><td class="n">낮음</td><td class="no">명령을 못 올림</td></tr>
+        <tr><td>WebRTC 데이터채널</td><td class="yes">O</td><td class="yes">여유</td><td class="n">높음</td><td class="mid">지금 규모엔 과함</td></tr>
+        <tr><td>HTTP 폴링</td><td class="mid">△</td><td class="no">부적합</td><td class="n">가장 낮음</td><td class="no">지연·부하</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <pre><code># FastAPI — 접속자 전원에게 관절값 뿌리기 (최소 형태)
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+
+app = FastAPI()
+clients: list[WebSocket] = []
+
+@app.websocket("/ws/state")
+async def state(ws: WebSocket):
+    await ws.accept()
+    clients.append(ws)
+    try:
+        while True:
+            await ws.receive_text()      # 브라우저 → 서버 명령
+    except WebSocketDisconnect:
+        clients.remove(ws)
+
+async def broadcast(payload: dict):      # 로봇 상태 폴링 루프에서 호출
+    for ws in list(clients):
+        try:    await ws.send_json(payload)
+        except: clients.remove(ws)</code></pre>
+
+  <p class="note">이 구조가 그대로 <b>"여럿이 같이 쓰기"</b>의 바탕이 됩니다 — 상태는 전원에게 뿌리고, 명령은 지금 조종권을 가진 한 명의 것만 받아들이면 됩니다.</p>
+</div></section>
+
+<!-- 개발 환경 -->
+<section id="개발"><div class="wrap">
+  <p class="eyebrow">⑤ 개발 환경</p>
+  <h2>카메라를 열려면 HTTPS가 반드시 필요합니다.</h2>
+  <p class="lede">브라우저는 안전한 연결이 아니면 <code>navigator.mediaDevices</code> 자체를 주지 않습니다. <b>이걸 모르고 시작하면 첫날에 반나절을 날립니다.</b></p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>상황</th><th>되나</th><th>방법</th></tr></thead>
+      <tbody>
+        <tr><td>PC에서 <code>http://localhost</code></td><td class="yes">됨</td><td>브라우저가 예외로 허용</td></tr>
+        <tr><td>폰에서 <code>http://192.168.x.x</code></td><td class="no">안 됨</td><td class="n">— 여기서 대부분 막힙니다</td></tr>
+        <tr><td>폰에서 사내망 접속</td><td class="yes">됨</td><td><code>mkcert</code>로 인증서 발급 → 폰에 인증서 설치</td></tr>
+        <tr><td>밖에서도 접속</td><td class="yes">됨</td><td><code>tailscale funnel</code> 또는 Cloudflare Tunnel로 HTTPS 주소 발급</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="note">시연 당일을 생각하면 <b>터널 방식이 안전합니다</b> — 회의실 와이파이가 사내망과 다를 수 있고, 심사위원 폰에 인증서를 깔게 할 수는 없기 때문입니다. QR코드 하나 띄워두면 각자 폰으로 열어봅니다.</p>
+</div></section>
+
+<!-- 버전 -->
+<section id="버전"><div class="wrap">
+  <p class="eyebrow">확인된 버전</p>
+  <h2>2026-07-29 기준 실측.</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>패키지</th><th>버전</th><th>역할</th><th>라이선스 · 상태</th></tr></thead>
+      <tbody>
+        <tr><td class="n">@ar-js-org/ar.js</td><td class="n">3.4.8</td><td>마커 검출·카메라 정합</td><td>MIT · 2026-03 릴리스, 관리 중</td></tr>
+        <tr><td class="n">three</td><td class="n">0.185.1</td><td>3D 렌더링</td><td>MIT · ★114k, 매일 갱신</td></tr>
+        <tr><td class="n">urdf-loader</td><td class="n">0.13.1</td><td>URDF → 3D 로봇</td><td>Apache-2.0 · NASA JPL 출신</td></tr>
+        <tr><td class="n">@react-three/fiber</td><td class="n">9.6.1</td><td>(선택) React 연동</td><td>MIT · ★31k</td></tr>
+        <tr><td class="n">@react-three/drei</td><td class="n">10.7.7</td><td>(선택) 카메라·컨트롤 도우미</td><td>MIT</td></tr>
+        <tr><td class="n">@gltf-transform/cli</td><td class="n">4.4.2</td><td>(나중) 모델 경량화</td><td>MIT</td></tr>
+        <tr><td class="n">fastapi</td><td class="n">0.140.13</td><td>웹 서버</td><td>MIT</td></tr>
+        <tr><td class="n">uvicorn</td><td class="n">0.52.0</td><td>서버 실행기</td><td>BSD</td></tr>
+        <tr><td class="n">js-aruco2</td><td class="n">2.0.0</td><td>(대안) 순수 JS ArUco 검출</td><td class="mid">2023년 이후 갱신 없음</td></tr>
+        <tr><td class="n">mind-ar</td><td class="n">1.2.5</td><td>(대안) 이미지 추적</td><td class="mid">2024-06 이후 갱신 없음</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Fairino 파이썬 라이브러리는 <b>PyPI에 없습니다.</b> <code>pip install fairino</code>는 실패합니다. 공식 저장소에서 받아 설치해야 하고, 최신 파이썬에서 설치가 막히는 경우가 있어 <code>fairino-python-sdk-pippatch</code> 같은 우회 패치가 따로 존재합니다. <b>환경 세팅 시간을 여기서 잡아먹습니다.</b></p>
+</div></section>
+
+<!-- 함정 -->
+<section id="함정"><div class="wrap">
+  <p class="eyebrow">먼저 알고 가면 좋은 것</p>
+  <h2>실제로 막힐 지점 다섯.</h2>
+  <div class="traps">
+    <div class="tp">
+      <h3>HTTPS 없이는 카메라가 안 열린다</h3>
+      <p>폰에서 IP 주소로 접속하면 카메라 요청이 아예 안 뜹니다. 코드 잘못인 줄 알고 헤매기 쉽습니다.</p>
+      <span class="fix"><b>먼저 할 일</b> — 코드 짜기 전에 터널부터 세우고 폰에서 카메라가 켜지는지 확인</span>
+    </div>
+    <div class="tp">
+      <h3>마커가 흔들리면 로봇도 흔들린다</h3>
+      <p>마커 검출은 프레임마다 조금씩 튑니다. 그대로 쓰면 겹쳐진 로봇이 덜덜 떱니다.</p>
+      <span class="fix"><b>해결</b> — 최근 몇 프레임 평균을 쓰거나, 마커를 놓쳐도 마지막 위치를 유지</span>
+    </div>
+    <div class="tp">
+      <h3>단위가 두 번 어긋난다</h3>
+      <p>URDF는 미터·라디안, 우리 저장 지점은 밀리미터·도(°)입니다. 그리고 로봇 좌표계와 3D 화면 좌표계의 축 방향이 다릅니다.</p>
+      <span class="fix"><b>해결</b> — 변환을 한 곳에만 두고, 절대 여기저기서 하지 않기</span>
+    </div>
+    <div class="tp">
+      <h3>마커 원점과 로봇 원점을 맞추는 작업이 있다</h3>
+      <p>마커를 붙였다고 끝이 아닙니다. 마커가 로봇 원점에서 얼마나 떨어져 있는지 <b>한 번은 재야</b> 합니다.</p>
+      <span class="fix"><b>해결</b> — 이 값을 설정 파일 하나로 빼두면 마커를 옮겨도 숫자만 고치면 됨</span>
+    </div>
+    <div class="tp">
+      <h3>12MB 첫 로딩</h3>
+      <p>폰에서 처음 열 때 로봇 모델을 다 받아야 화면이 뜹니다. 시연 중 몇 초 침묵이 생깁니다.</p>
+      <span class="fix"><b>해결</b> — 로딩 표시를 넣고, 느리면 그때 GLB로 바꿔 1~2MB로</span>
+    </div>
+  </div>
+</div></section>
+
+<!-- 첫 주 -->
+<section id="첫주"><div class="wrap">
+  <p class="eyebrow">착수 순서</p>
+  <h2>위험한 것부터 먼저 확인합니다.</h2>
+  <p class="lede">기능을 순서대로 쌓지 않고, <b>"안 되면 계획이 무너지는 것"부터</b> 하루 안에 확인합니다. 아래 순서면 3일차에 계속할지 말지 판단이 섭니다.</p>
+  <div class="steps">
+    <div class="st"><span class="d">1일차</span><div class="b"><h3>폰에서 카메라 + 마커</h3><p>터널로 HTTPS 주소를 만들고, AR.js 예제를 그대로 띄워 마커 위에 상자 하나를 올립니다. 로봇도 3D도 없이.</p><span class="gate">판정 — 팀원 세 명의 폰(아이폰 포함)에서 상자가 뜬다</span></div></div>
+    <div class="st"><span class="d">2일차</span><div class="b"><h3>브라우저에 FR5 띄우기</h3><p>우리 URDF를 웹 폴더에 복사하고 three.js로 로드해, 슬라이더로 관절 6개를 움직여 봅니다. AR 없이 평범한 웹페이지로.</p><span class="gate">판정 — 슬라이더를 움직이면 3D 로봇이 따라 움직인다</span></div></div>
+    <div class="st"><span class="d">3일차</span><div class="b"><h3>둘을 합치기</h3><p>마커 위에 상자 대신 FR5를 올립니다. 이 시점에 정합 오차와 떨림이 실제로 어느 정도인지 <b>눈으로 확인</b>됩니다.</p><span class="gate">판정 — 실물 팔과 겹쳐 보이는 정도가 쓸 만한가 (여기서 계속 여부 결정)</span></div></div>
+    <div class="st"><span class="d">4~5일차</span><div class="b"><h3>서버와 잇기</h3><p>FastAPI로 관절값을 WebSocket으로 뿌리고, 폰의 3D 로봇이 실물을 따라 움직이게 합니다. 저장된 지점도 점으로 띄웁니다.</p><span class="gate">판정 — 실물을 손으로 움직이면 폰 화면의 로봇도 따라 움직인다</span></div></div>
+    <div class="st"><span class="d">그다음</span><div class="b"><h3>궤적과 안전 범위</h3><p>FK로 계산한 예상 경로를 반투명 관으로, 안전 범위를 반투명 원기둥으로 얹습니다.</p><span class="gate">판정 — 지점을 웹에서 고치면 폰의 경로가 바로 바뀐다</span></div></div>
+  </div>
+  <p class="note"><b>3일차가 진짜 관문입니다.</b> 마커 정합이 실물과 눈에 띄게 어긋나면 그때 방향을 바꿀 수 있습니다 — 겹쳐 보기를 빼고 화면 속 3D만으로 가거나, 마커를 키우거나. 4일차까지 코드를 쌓아놓고 나서 알게 되면 되돌리기 어렵습니다.</p>
+</div></section>
+
+<footer><div class="wrap">
+  조사·검증 2026-07-29 · 버전은 npm / PyPI 레지스트리 직접 조회 · 저장소 상태는 GitHub API 직접 조회 · URDF·메시 수치는 로컬 파일 실측 · iOS WebXR 미지원은 복수 출처 교차 확인
+</div></footer>
+
+</body>
+</html>

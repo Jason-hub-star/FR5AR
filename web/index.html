@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FR5Web — AR 실증</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center;
+         justify-content: center; padding: 28px 20px; background: #0f1215; color: #e8ecef;
+         font: 15px/1.6 -apple-system, "Apple SD Gothic Neo", sans-serif; }
+  main { width: 100%; max-width: 30rem; }
+  h1 { margin: 0 0 4px; font-size: 19px; letter-spacing: -0.01em; }
+  p.lead { margin: 0 0 22px; color: #8b959e; font-size: 13px; }
+  a.card { display: block; margin-bottom: 10px; padding: 15px 17px; border-radius: 11px;
+           background: #191d21; border: 1px solid #272d33; color: inherit;
+           text-decoration: none; }
+  a.card:hover { background: #1e2328; border-color: #343c44; }
+  a.card b { display: block; font-size: 15px; }
+  a.card span { display: block; margin-top: 2px; color: #8b959e; font-size: 12.5px; }
+  a.primary { background: #16302a; border-color: #2f6b58; }
+  a.primary:hover { background: #1a3a31; border-color: #3d8a71; }
+  a.primary b { color: #7fd6a2; }
+  .note { margin: 20px 0 0; padding: 12px 14px; border-left: 2px solid #3a444c;
+          color: #8b959e; font-size: 12.5px; }
+  .note b { color: #cfd8de; }
+  code { font: 12px ui-monospace, monospace; color: #a8bcc9; }
+</style>
+</head>
+<body>
+<main>
+  <h1>FR5Web — AR 실증</h1>
+  <p class="lead">FAIRINO FR5 협동로봇을 폰 카메라로 실물 위에 겹쳐 본다.</p>
+
+  <a class="card primary" href="./ar.html">
+    <b>겹쳐 보기 (AR) →</b>
+    <span>마커를 비추면 로봇·예정 경로·안전 범위가 뜬다. 카메라 권한이 필요하다</span>
+  </a>
+  <a class="card" href="./robot.html">
+    <b>3D 뷰 · 그리퍼 정합</b>
+    <span>카메라 없이 로봇만 본다. 장착값을 눈으로 맞추는 화면</span>
+  </a>
+  <a class="card" href="./test/marker-detect.html">
+    <b>마커 검출 실측</b>
+    <span>합성 이미지로 실제 검출기를 재는 검증 페이지</span>
+  </a>
+
+  <p class="note">
+    <b>마커 인쇄</b> — 100% 배율, 무광 용지, 딱딱한 판에 평평하게.
+    검출을 결정하는 것은 크기가 아니라 <b>흑백 대비</b>다. 광택지 반사광이면 안 잡힌다.<br><br>
+    <b>바로 안 뜨는 게 정상</b> — 검출기가 첫 인식까지 2~3초 걸린다. 마커를 들고 기다린다.<br><br>
+    <b>안 되면</b> — AR 화면의 <b>⚙</b> → <b>진단 수치 보기</b>. 인식률·놓침·거리가 숫자로 나온다.
+    크기와 깜빡임 억제도 거기서 바꾼다. 자세한 것은 <code>docs/ref/AR-DEBUG.md</code>.
+  </p>
+</main>
+</body>
+</html>

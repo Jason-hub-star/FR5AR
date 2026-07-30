@@ -1,0 +1,44 @@
+<!DOCTYPE html><meta charset="utf-8"><title>ArSmoothedControls 동작 검사</title>
+<script type="importmap">
+{ "imports": { "three": "/js/vendor/three.module.js", "threex": "/js/vendor/ar-threex.mjs" } }
+</script>
+<pre id="out">…</pre>
+<script type="module">
+import * as THREE from 'three';
+import { ArSmoothedControls } from 'threex';
+const log = [];
+const g = new THREE.Group();
+log.push(['생성 전 matrixAutoUpdate', g.matrixAutoUpdate]);
+const sc = new ArSmoothedControls(g, { lerpPosition: 1, lerpQuaternion: 1, lerpScale: 1, minVisibleDelay: 0, minUnvisibleDelay: 0 });
+log.push(['생성 후 matrixAutoUpdate', g.matrixAutoUpdate]);
+log.push(['생성 후 visible', g.visible]);
+
+// 원시 대상: 실제 ArMarkerControls 처럼 matrix 를 쓰고 decompose 한 상태를 흉내낸다
+const raw = new THREE.Group();
+raw.matrixAutoUpdate = false;
+raw.matrix.makeTranslation(1, 2, 3);
+raw.matrix.decompose(raw.position, raw.quaternion, raw.scale);
+raw.visible = true;
+
+// 프레임을 몇 번 돌린다
+for (let i = 0; i < 30; i++) sc.update(raw);
+g.updateMatrixWorld(true);
+const p = new THREE.Vector3().setFromMatrixPosition(g.matrixWorld);
+log.push(['update 후 position', g.position.toArray().join(', ')]);
+log.push(['update 후 matrixWorld 위치', p.toArray().map(n=>+n.toFixed(3)).join(', ')]);
+log.push(['**행렬이 반영됐나**', p.length() > 0.1 ? 'YES' : 'NO — 단위행렬. 아무것도 안 보인다']);
+
+// 고친 경우: matrixAutoUpdate 를 다시 켜면?
+const g2 = new THREE.Group();
+const sc2 = new ArSmoothedControls(g2, { lerpPosition: 1, lerpQuaternion: 1, lerpScale: 1, minVisibleDelay: 0, minUnvisibleDelay: 0 });
+g2.matrixAutoUpdate = true;                 // ← 고침
+for (let i = 0; i < 30; i++) sc2.update(raw);
+g2.updateMatrixWorld(true);
+const p2 = new THREE.Vector3().setFromMatrixPosition(g2.matrixWorld);
+log.push(['', '']);
+log.push(['[고침] position', g2.position.toArray().join(', ')]);
+log.push(['[고침] matrixWorld 위치', p2.toArray().map(n=>+n.toFixed(3)).join(', ')]);
+log.push(['[고침] 반영됐나', p2.length() > 0.1 ? 'YES' : 'NO']);
+document.getElementById('out').textContent = log.map(([a,b])=>a?`${a}: ${b}`:'').join('\n');
+window.result = { before: p.length(), after: p2.length(), autoUpdate: g.matrixAutoUpdate };
+</script>
