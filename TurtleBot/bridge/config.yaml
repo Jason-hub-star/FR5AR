@@ -1,0 +1,11 @@
+# tb-bridge 설정 — WiFi·로봇이 바뀌면 여기만 바뀐다 (코드에 IP 를 박지 않는다 · D29)
+port: 5055
+robots:
+  - id: tb3_1
+    ros_domain_id: 2        # repo2 값 — P4 실기에서 대조 (스택가드)
+  - id: tb3_2
+    ros_domain_id: 1
+safety:
+  linear_cap_mm_s: 150      # 버거 물리 최대 220
+  angular_cap_deg_s: 60
+disk_min_free_gb: 2         # 이 밑이면 record/start 거부 (감사 R5)

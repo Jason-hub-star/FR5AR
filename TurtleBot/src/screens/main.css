@@ -1,0 +1,173 @@
+/* 터틀봇 관제 스타일 — 공용 토큰은 @fr5/shared/tokens 에서 온다.
+ * 밝은 테마는 index.html 의 data-theme="light" 가 켠다 (승인된 목업 기준,
+ * evidence/2026-07-31-tb-ui-reference.md). **상태 색은 전 화면 공유 토큰이다** —
+ * 안전 표시가 화면마다 다르면 오판한다. */
+@import '@fr5/shared/tokens/tokens.css';
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--c-bg); color: var(--c-fg); font: var(--f-body);
+       height: 100dvh; display: flex; flex-direction: column; }
+#root { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+header { display: flex; align-items: baseline; gap: var(--s-3);
+         padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--c-line); }
+header h1 { margin: 0; font-size: 16px; }
+header .sub { color: var(--c-fg-mute); font-size: 12px; }
+header .who { margin-left: auto; font-size: 12px; color: var(--c-fg-mute);
+              display: flex; align-items: center; gap: 6px; }
+header .who input { width: 9em; padding: 3px 8px; border: 1px solid var(--c-line-strong);
+                    border-radius: var(--r-ctl); background: var(--c-sunken); color: var(--c-fg);
+                    font: inherit; }
+
+.source { padding: 3px 8px; border-radius: 99px; font-size: 11px; font-family: ui-monospace, monospace; }
+.source[data-src="mock"] { background: #f0b86233; color: var(--c-warn); }
+.source[data-src="real"] { background: #7fd6a233; color: var(--c-ok); }
+
+nav { display: flex; gap: var(--s-1); padding: var(--s-2) var(--s-4);
+      border-bottom: 1px solid var(--c-line); }
+nav button { padding: 7px 14px; background: var(--c-btn); color: var(--c-btn-fg);
+             border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
+             font-size: 13px; cursor: pointer; }
+nav button[aria-selected="true"] { background: var(--c-fg); color: var(--c-bg);
+                                   border-color: var(--c-fg); font-weight: 600; }
+
+main { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
+.pane { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+h3 { margin: 0 0 var(--s-2); font-size: 13px; }
+h4 { margin: var(--s-3) 0 var(--s-1); font-size: 12px; }
+.dim { color: var(--c-fg-mute); font-size: 12px; }
+.mono { font-family: ui-monospace, monospace; font-size: 12px; }
+.row { display: flex; align-items: center; gap: var(--s-2); }
+
+button { font: inherit; }
+.pane button { cursor: pointer; }
+.side button, .runs-toolbar button {
+  padding: 6px 12px; background: var(--c-btn); color: var(--c-btn-fg);
+  border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl); font-size: 13px; }
+.side button.primary { background: var(--c-fg); color: var(--c-bg); border-color: var(--c-fg); }
+.side button:disabled { opacity: .4; cursor: default; }
+
+/* ── 로봇 카드 줄 ── */
+.robot-cards { display: flex; gap: var(--s-2); padding: var(--s-2) var(--s-4);
+               border-bottom: 1px solid var(--c-line); align-items: stretch; }
+.robot-card { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-3);
+              background: var(--c-panel); border: 1px solid var(--c-line);
+              border-radius: var(--r-box); font-size: 13px; }
+.robot-card[aria-selected="true"] { border-color: var(--c-info); outline: 1px solid var(--c-info); }
+.bridge-health { margin-left: auto; align-self: center; }
+
+.badge { padding: 2px 8px; border-radius: 99px; font-size: 11px;
+         border: 1px solid var(--c-line-strong); color: var(--c-fg-dim); }
+.badge.ok     { color: var(--c-ok); border-color: var(--c-ok); }
+.badge.warn   { color: var(--c-warn); border-color: var(--c-warn); }
+.badge.danger { color: var(--c-danger); border-color: var(--c-danger); }
+.badge.info   { color: var(--c-info); border-color: var(--c-info); }
+.badge.result-completed { color: var(--c-ok); border-color: var(--c-ok); }
+.badge.result-stopped   { color: var(--c-info); border-color: var(--c-info); }
+.badge.result-estop     { color: var(--c-warn); border-color: var(--c-warn); }
+.badge.result-error     { color: var(--c-danger); border-color: var(--c-danger); }
+
+/* ── 주행·매핑 본문: 맵 + 사이드 ── */
+.drive-body { display: grid; grid-template-columns: 1fr 320px; gap: var(--s-3);
+              padding: var(--s-3) var(--s-4); flex: 1; min-height: 0; align-items: start; }
+.mapview { position: relative; background: var(--c-sunken); border: 1px solid var(--c-line);
+           border-radius: var(--r-box); overflow: hidden; }
+.mapview canvas { display: block; width: 100%; height: auto; }
+.mapview .livemap { display: block; width: 100%; height: auto;
+                    image-rendering: pixelated; }   /* 240×160 격자를 그대로 보인다 */
+.mapview-caption { position: absolute; left: var(--s-3); top: var(--s-2); margin: 0;
+                   padding: 4px 10px; background: var(--c-panel); border: 1px solid var(--c-line);
+                   border-radius: var(--r-ctl); font-size: 11px; color: var(--c-fg-dim); }
+.side { display: flex; flex-direction: column; gap: var(--s-4); }
+.side section { border-bottom: 1px solid var(--c-line); padding-bottom: var(--s-3); }
+.side input { width: 100%; padding: 6px 8px; margin-bottom: var(--s-2);
+              border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
+              background: var(--c-panel); color: var(--c-fg); font: inherit; }
+.side select { width: 100%; padding: 6px 8px; font: inherit; }
+
+.slot-list { display: flex; flex-direction: column; gap: var(--s-1); margin-bottom: var(--s-2); }
+.slot-card { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+             padding: var(--s-2) var(--s-3); background: var(--c-panel); text-align: left;
+             border: 1px solid var(--c-line); border-radius: var(--r-box); }
+.slot-card[aria-selected="true"] { border-color: var(--c-info); outline: 1px solid var(--c-info); }
+
+.notice { margin: 0; padding: var(--s-2) var(--s-3); font-size: 12px;
+          background: #ef767618; color: var(--c-danger); border-radius: var(--r-box); }
+.notice.warn { background: #f0b86218; color: var(--c-warn); }
+
+/* button.estop — `.side button`(0,1,1) 과 동률이라 뒤에 선언된 이쪽이 이긴다.
+ * `.estop` 만 쓰면 명시도에 져서 위험색이 회색으로 덮인다 (실렌더로 잡음) */
+button.estop { padding: var(--s-3); font-size: 15px; font-weight: 700;
+               background: var(--c-danger); color: #fff; border: 0; border-radius: var(--r-box); }
+
+/* ── 조이스틱 ── */
+.teleop { display: flex; gap: var(--s-3); align-items: center; }
+.teleop-pad { position: relative; border-radius: 50%; background: var(--c-sunken);
+              border: 1px solid var(--c-line-strong); touch-action: none; flex: none; }
+.teleop-knob { position: absolute; left: 50%; top: 50%; width: 34px; height: 34px;
+               margin: -17px 0 0 -17px; border-radius: 50%; background: var(--c-fg); }
+.teleop-readout { font-size: 12px; color: var(--c-fg-dim); display: flex;
+                  flex-direction: column; gap: 2px; }
+.teleop-readout b { font-family: ui-monospace, monospace; font-size: 15px; color: var(--c-fg); }
+.teleop-note { font-size: 11px; color: var(--c-fg-mute); }
+.teleop-reason { color: var(--c-danger); }
+
+/* ── 로그 패널 ── */
+.logpanel { border-top: 1px solid var(--c-line); background: #14171a; color: #e8ecef; }
+.logpanel-head { display: flex; align-items: center; gap: var(--s-2);
+                 padding: var(--s-2) var(--s-4); }
+.logpanel-head h3 { margin: 0; font-size: 12px; }
+.logpanel-note { margin-left: auto; font-size: 11px; color: #8b959e; }
+.chip { padding: 2px 10px; border-radius: 99px; font-size: 11px; background: #253039;
+        color: #cfe0ee; border: 1px solid #37454f; }
+.chip[aria-selected="true"] { background: #e8ecef; color: #14171a; }
+.logpanel-body { height: 140px; overflow-y: auto; padding: var(--s-1) var(--s-4) var(--s-2);
+                 font: var(--f-mono); }
+.logline { display: flex; gap: var(--s-3); white-space: nowrap; }
+.log-t { color: #8b959e; }
+.log-robot { color: #9fb2c2; width: 4em; }
+.log-src { width: 5em; }
+.src-slot   { color: #7fd6a2; }
+.src-nav    { color: #6fb3e0; }
+.src-rosout { color: #f0b862; }
+.src-bridge { color: #ef7676; }
+.log-warn { color: #f0b862; }
+
+/* ── 기록 탭 ── */
+.runs-toolbar { display: flex; align-items: center; gap: var(--s-3);
+                padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--c-line); }
+.runs-toolbar h2 { margin: 0; font-size: 15px; margin-right: auto; }
+.runs-toolbar select { padding: 5px 8px; font: inherit; }
+.runs-body { display: grid; grid-template-columns: 1fr 380px; gap: var(--s-3);
+             padding: var(--s-3) var(--s-4); flex: 1; min-height: 0; align-items: start; }
+.runs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.runs-table th { text-align: left; font-size: 11px; color: var(--c-fg-mute);
+                 border-bottom: 1px solid var(--c-line-strong); padding: var(--s-1) var(--s-2); }
+.runs-table td { padding: var(--s-2); border-bottom: 1px solid var(--c-line); }
+.runs-table tbody tr { cursor: pointer; }
+.runs-table tbody tr:hover { background: var(--c-sunken); }
+.runs-table tbody tr[aria-selected="true"] { background: var(--c-sunken);
+                                             outline: 1px solid var(--c-info); }
+.run-detail { border: 1px solid var(--c-line); border-radius: var(--r-box);
+              padding: var(--s-3); background: var(--c-panel); }
+.run-detail textarea { width: 100%; font: inherit; padding: var(--s-2);
+                       border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
+                       background: var(--c-bg); color: var(--c-fg); margin-bottom: var(--s-2); }
+.run-detail button.primary { padding: 6px 12px; background: var(--c-fg); color: var(--c-bg);
+                             border: 0; border-radius: var(--r-ctl); }
+.metrics-json { margin: 0; padding: var(--s-3); background: #14171a; color: #7fd6a2;
+                border-radius: var(--r-box); font: var(--f-mono); overflow-x: auto; }
+.facts { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); padding: var(--s-2) 0;
+         font-size: 12px; color: var(--c-fg-dim); font-variant-numeric: tabular-nums; }
+.facts b { color: var(--c-fg); }
+
+/* ── 폰 ── */
+@media (max-width: 820px) {
+  header { flex-wrap: wrap; padding: var(--s-2) var(--s-3); }
+  header .who { margin-left: 0; }
+  nav button { padding: 9px 14px; }          /* 손가락 목표 40px */
+  .drive-body, .runs-body { grid-template-columns: 1fr; }
+  .robot-cards { flex-wrap: wrap; }
+  .bridge-health { margin-left: 0; flex-basis: 100%; }
+  .logpanel-body { height: 110px; }
+}
