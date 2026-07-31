@@ -310,5 +310,9 @@ export function initAR({
       diag.maxMissMs = 0; diag.missStartAt = 0; diag.spinMaxDeg = 0;
     },
     onResize,
+
+    // 카메라 영상 엘리먼트. 녹화가 이것과 WebGL 캔버스를 합친다 (features/record/).
+    // `#arjs-video` 를 직접 찾지 않는 이유 — 그 id 는 AR.js 내부 규약이라 우리 계약이 아니다.
+    video: () => source.domElement ?? null,
   };
 }

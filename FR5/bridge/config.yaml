@@ -1,0 +1,28 @@
+# fr5-bridge 설정 — 로봇 개체가 바뀌면 여기만 바뀐다 (코드에 IP 를 박지 않는다 · D39)
+# endpoint 는 서버 설정이다. 브라우저가 임의 IP 를 전달하지 않는다 (API-CONTRACT §프로필).
+port: 5055
+sample_ms: 33               # 상태 폴링 목표 주기 — 실측 27Hz 남짓 (unity-bridge-protocol §5)
+robots:
+  - robotId: fr5-lab-a
+    name: 실험실 FR5 (실기)
+    adapter: fairino        # Python SDK macOS 미확인 — 어댑터가 연결을 fail-closed 로 거부한다
+    endpoint: 192.168.57.2:8080   # 2026-07-31 실측값. 기본값이 아니라 증거값이다
+    expectedModel: FR5
+  - robotId: fr5-mock-a
+    name: 목업 A
+    adapter: mock
+    endpoint: mock://a
+    expectedModel: FR5
+  - robotId: fr5-mock-b
+    name: 목업 B — 프로필 교체 시험용
+    adapter: mock
+    endpoint: mock://b
+    expectedModel: FR5
+  - robotId: fr5-mock-broken
+    name: 목업 — 잘못된 모델·누락 필드 (fail-closed 시험용)
+    adapter: mock
+    endpoint: mock://broken
+    expectedModel: FR5
+    mock:
+      model: FR3
+      drop: [safetyStop]

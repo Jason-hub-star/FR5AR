@@ -52,9 +52,17 @@ WebSocket `/ws/state`로 브로드캐스트. 접속한 전원이 같은 것을 �
   "coord": { "toolId": 0, "userId": 0 },
   "sampleMs": 33,                // 서버가 실제로 쓰는 폴링 주기
   "gripper": { "opened": true, "pos": 0 },
-  "owner": "kim"                 // 조종권 보유자 (없으면 null)
+  "owner": "kim",                // 조종권 보유자 (없으면 null)
+  "phase": "OBSERVE_ONLY",      // 연결 상태기계 (FR5-IMPLEMENTATION-PLAN §안전 상태) — 클라이언트가 이걸 보고 조작 UI를 잠근다
+  "failReason": null             // FAIL_CLOSED 일 때만 사유 문자열
 }
 ```
+
+`phase` 는 `DISCONNECTED → PREFLIGHT → OBSERVE_ONLY → OWNER_HELD → ARMED → EXECUTING`
++ `FAIL_CLOSED` 다 (2026-07-31, D40). 미연결이면 `robotId: null · connected: false ·
+phase: "DISCONNECTED"` 스냅샷을 같은 스키마로 보낸다 — 클라이언트가 빈 응답을 따로 처리하지 않는다.
+`POST /connect` 응답은 `{ ok, phase, reasons: [] }` 이며 preflight 실패는 `ok: false` +
+사유 목록으로 fail-closed 한다.
 
 **이름은 우리 규칙을 따른다** (`CODING-CONVENTIONS.md`) — 안전 관련을 `safety` 아래로 묶고
 좌표계 id 를 `coord` 로 묶었다. 유니티는 이걸 플랫으로 뒀지만 우리 클라이언트는 우리 것이다.

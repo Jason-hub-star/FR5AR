@@ -15,6 +15,7 @@ import {
 import { makeReachZone, FR5_REACH_M } from '@fr5/shared/view3d/safety/reach-zone.js';
 import { initAR } from '../features/marker/ar-marker.js';
 import { bindNumberPair } from '../features/ui/number-pair.js';
+import { createRecorder } from '../features/record/screen-record.js';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (s, cls = '') => { $('status').className = cls; $('status').textContent = s; };
@@ -337,6 +338,28 @@ $('bMeasure').onclick = () => {
 $('bReset').onclick = () => ar?.resetStats();
 applyDiag();
 
+// ---- 화면 녹화
+//
+// 폰 내장 화면 녹화로도 되지만 **버튼바와 진단판까지 같이 찍힌다.** 시연 영상에는
+// 그게 없어야 하고, 증거로 남길 때도 UI 가 화면 아래를 가린 판이 남는다.
+// 여기서는 카메라 영상과 겹침만 합치므로 그 문제가 없다 (features/record/).
+const recorder = createRecorder({
+  canvas: renderer.domElement,
+  getVideo: () => ar?.video() ?? null,
+  onState: ({ on, sec, msg }) => {
+    $('bRec').textContent = on ? '■ 정지' : '● 녹화';
+    $('bRec').classList.toggle('on', on);
+    $('rState').textContent = msg || (on ? `녹화 중 ${sec}s` : '');
+  },
+});
+if (recorder.supported) {
+  $('bRec').onclick = () => recorder.toggle();
+} else {
+  // 되는 척하지 않는다. 이 브라우저에서 안 되면 폰 내장 녹화를 쓰라고 알린다.
+  $('bRec').disabled = true;
+  $('rState').textContent = '이 브라우저는 녹화를 지원하지 않아요 — 폰 내장 화면 녹화를 쓰세요';
+}
+
 // ---- 패널 숨기기
 //
 // 폰에서 하단 버튼바가 카메라 화면 아래쪽을 가린다. 마커를 실물 옆에 놓고 겹쳐 볼 때
@@ -419,6 +442,10 @@ renderer.setAnimationLoop((now) => {
   }
 
   renderer.render(scene, activeCamera);
+
+  // **렌더 바로 다음이어야 한다.** preserveDrawingBuffer:false 라 이 자리를 벗어나
+  // 캔버스를 읽으면 빈 화면이 녹화된다. 녹화 중이 아니면 즉시 되돌아간다.
+  recorder.capture(now);
 });
 
 // 헤드리스 검증용 노출.
@@ -432,6 +459,7 @@ Object.assign(window, {
   // Object.assign 은 getter 를 그 시점 값으로 복사해버려 낡은 스냅샷이 된다.
   getAR: () => ar,
   getCamera: () => activeCamera,
+  recorder,   // 헤드리스 검증 — 카메라 없이도 녹화 경로를 끝까지 돌려볼 수 있다
   /**
    * 카메라를 열지 않고 3D 내용만 눈으로 확인한다 (헤드리스 검증용).
    * AR 을 켜면 markerRoot 가 카메라 영상에 맞춰 움직이므로 이 시점은 버려진다.

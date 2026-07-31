@@ -44,6 +44,7 @@
 | D38 | **codegate 에디토리얼 아카데믹이 시각 정본** — 의미 토큰만 미러링 | 07-31 |
 | D37 | **증거는 날짜가 폴더다** — `evidence/YYYY-MM-DD/<주제>.md`. 게이트가 강제 | 07-31 |
 | D39 | **FR5는 robot profile + observe-only 사전검증** 뒤에만 명령 상태로 승격 | 07-31 |
+| D40 | FR5 상태 스트림에 **phase·failReason** 노출 — 화면이 상태기계를 보고 잠근다 | 07-31 |
 
 ---
 
@@ -798,5 +799,17 @@ C#SDK-V1.2.4의 version·6축·TCP readback이 성공했다. 명령 호출은 0�
 **경계** — C# readback 성공은 Python SDK 성공이 아니다. 루트 `Backend/`는 되살리지 않고
 `FR5/bridge/robot_adapter/`에서 Python read-only 관문을 먼저 확인하며, 실패하면 브리지만
 Linux로 옮긴다. 실기 상세 계획은 `ref/FR5-IMPLEMENTATION-PLAN.md`가 맡는다.
+
+**날짜**: 2026-07-31
+
+## D40. FR5 상태 스트림에 phase·failReason 을 노출한다
+
+**결정** — `/state`·`/ws/state` 에 연결 상태기계(`DISCONNECTED→PREFLIGHT→OBSERVE_ONLY→
+OWNER_HELD→ARMED→EXECUTING`, 실패는 `FAIL_CLOSED`)의 현재 칸과 사유를 싣는다.
+클라이언트는 이 값으로 조작 UI 를 잠그고, 미연결에도 같은 스키마의 스냅샷을 받는다.
+
+**이유** — 안전 판정을 서버가 하더라도 화면이 지금 어느 칸인지 모르면 "눌렀는데 왜 거부됐나"를
+설명할 수 없다. fail-closed 사유를 사람이 읽게 만드는 것이 P0 의 완료 증거다
+(`ref/FR5-IMPLEMENTATION-PLAN.md` §구현 순서 P0).
 
 **날짜**: 2026-07-31
