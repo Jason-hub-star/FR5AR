@@ -14,6 +14,45 @@ import { createStage } from '@fr5/shared/view3d/lab/stage.js';
 import { createLayoutView } from '@fr5/shared/view3d/lab/layout-view.js';
 import { createInteraction } from '@fr5/shared/view3d/lab/interaction.js';
 
+/**
+ * 숫자 한 칸. **끌기는 100mm 격자에 붙어 그 사이 값을 못 넣는다** — 그래서 이게 있다.
+ *
+ * 규칙 하나가 전부다 — **타이핑 중에는 입력칸 값을 절대 되쓰지 않는다.**
+ * `8` 을 치고 `0` 을 치려는 순간 화면이 `8` 을 지우면 못 쓴다.
+ * (AR 의 `features/ui/number-pair.js` 가 같은 버그를 고치며 얻은 규칙이다.
+ *  그쪽은 바닐라 DOM + 슬라이더 쌍이라 코드는 못 가져온다 — 규칙만 가져왔다.)
+ * 자르기·격자 맞추기는 **손을 뗄 때**(`blur`) 한 번만 한다.
+ */
+function NumBox({ label, value, min, max, step, onCommit }) {
+  const [draft, setDraft] = useState(String(value));
+  const [typing, setTyping] = useState(false);
+  // 끌어서 값이 바뀌거나 고른 물건이 바뀌면 따라간다 — **타이핑 중이 아닐 때만**
+  useEffect(() => { if (!typing) setDraft(String(value)); }, [value, typing]);
+
+  const commit = () => {
+    const n = Number(draft.trim());
+    setTyping(false);                       // 어느 경우든 화면은 실제 값으로 돌아온다
+    if (draft.trim() === '' || !Number.isFinite(n)) return;
+    const v = Math.min(max, Math.max(min, Math.round(n / step) * step));
+    if (v !== value) onCommit(v);
+  };
+
+  return (
+    <label className="numbox">
+      <span>{label}</span>
+      <input
+        type="number" value={draft} step={step} min={min} max={max}
+        onChange={(e) => { setTyping(true); setDraft(e.target.value); }}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') { setTyping(false); e.currentTarget.blur(); }
+        }}
+      />
+    </label>
+  );
+}
+
 export function LayoutView({ layout, onReport, onCommit }) {
   const hostRef = useRef(null);
   const stageRef = useRef(null);
@@ -21,6 +60,32 @@ export function LayoutView({ layout, onReport, onCommit }) {
   const viewRef = useRef(null);
   const framedRef = useRef(null);          // 마지막으로 시점을 맞춘 배치안 id
   const [picked, setPicked] = useState(null);
+  // 커밋 콜백이 매번 새로 만들어지지 않게 최신 선택을 ref 로도 들고 있는다
+  const pickedRef = useRef(null);
+  pickedRef.current = picked;
+
+  // 패널에 보일 값. **정본은 배치안이다** — 3D 노드의 `userData.item` 은 `{kind,id,type}` 만
+  // 담아 회전을 실어 나르지 않고(180° 인 물건이 0° 로 뜬다), `picked` 는 고른 순간의 사본이라
+  // 되돌리기로 배치안이 돌아가도 안 따라온다. **끄는 중(`live`)에만** 손끝을 따라간다.
+  let shown = null;
+  if (picked?.posMm) {
+    const rec = [...(layout.props ?? []), ...(layout.stations ?? [])].find((o) => o.id === picked.id);
+    const src = picked.live || !rec ? picked.posMm : rec.posMm;
+    shown = { x: Math.round(src[0]), y: Math.round(src[1]), rot: Math.round(Number(rec?.rotDeg ?? 0)) };
+  }
+  const shownRef = useRef(null);
+  shownRef.current = shown;
+  // 사용법 안내는 한 번 닫으면 안 돌아온다. **사파리 프라이빗에서 던진다** — 삼키고 계속 돈다
+  const [hintOff, setHintOff] = useState(() => {
+    try { return localStorage.getItem('fr5.hint.layout') === '1'; } catch { return false; }
+  });
+  const closeHint = useCallback(() => {
+    setHintOff(true);
+    try { localStorage.setItem('fr5.hint.layout', '1'); } catch { /* 저장 못 해도 이번 세션은 닫힌다 */ }
+  }, []);
+  // **물건을 골랐다는 건 안내를 읽었다는 뜻이다.** 안내를 접어 자리를 비운다 —
+  // 폰에서는 안내와 선택 패널이 같은 아래쪽 자리를 쓴다 (실렌더로 겹침 확인).
+  useEffect(() => { if (picked) closeHint(); }, [picked, closeHint]);
 
   // 콜백을 ref 로 잡아둔다 — 부모가 새 함수를 넘겨도 무대를 다시 만들지 않기 위해서다
   const cbRef = useRef({ onReport, onCommit });
@@ -28,6 +93,20 @@ export function LayoutView({ layout, onReport, onCommit }) {
 
   const fit = useCallback(() => {
     if (stageRef.current && viewRef.current) stageRef.current.frame(viewRef.current.contents);
+  }, []);
+
+  // 숫자칸이 낸 값을 끌어놓기와 **같은 문으로** 보낸다 — 저장·되돌리기가 한 곳에서만 쌓인다.
+  //
+  // 함정 둘을 여기서 막는다 (둘 다 실렌더가 잡았다) —
+  //   ① `picked` 를 같이 고치면 그게 또 하나의 정본이 되어, 되돌리기로 배치안이
+  //      돌아가도 **패널만 옛 값**을 들고 있는다
+  //   ② 그렇다고 `picked` 를 그대로 보내면 회전만 바꿔도 **고른 순간의 좌표**가 같이 실려
+  //      위치가 옛날로 되돌아간다. 그래서 **지금 보이는 값**(`shown`)을 바탕으로 보낸다
+  const commitField = useCallback((patch) => {
+    const s = shownRef.current;
+    cbRef.current.onCommit?.({
+      ...pickedRef.current, posMm: [s.x, s.y], rotDeg: s.rot, ...patch,
+    });
   }, []);
 
   // ① 무대 — 마운트에 한 번. **카메라가 여기 산다.**
@@ -47,7 +126,12 @@ export function LayoutView({ layout, onReport, onCommit }) {
       pickRoot: () => viewRef.current?.contents,
       gridMm: 100,
       onPick: setPicked,
-      onCommit: (item) => cbRef.current.onCommit?.(item),
+      onCommit: (item) => {
+        // 끌기가 끝났으니 **미리보기 모드를 끈다.** 안 끄면 `shown` 이 계속 손끝 좌표를 보고
+        // 있어서 되돌리기를 해도 패널이 놓은 자리에 얼어붙는다 (배포본 실렌더에서 확인)
+        setPicked((p) => (p?.live ? { ...p, live: false } : p));
+        cbRef.current.onCommit?.(item);
+      },
     });
     editRef.current = edit;
 
@@ -84,18 +168,37 @@ export function LayoutView({ layout, onReport, onCommit }) {
         {/* **폰에는 키보드가 없다.** R 키와 같은 걸 부르는 버튼을 같이 둔다 */}
         <button type="button" onClick={() => editRef.current?.rotate()} disabled={!picked}>90° 회전</button>
       </div>
-      <div className="view3d-hint">
-        <span className="wide">클릭해 고르고 · 끌어서 옮기고 · <kbd>R</kbd> 로 90° 회전 · 100mm 격자에 붙는다</span>
-        <span className="narrow">눌러 고르고 · 끌어서 옮긴다 · 100mm 격자</span>
-      </div>
+      {/* **처음 한 번만.** 항상 떠 있으면 3D 를 계속 가린다 (2026-07-31 감사 P2).
+          폰·데스크톱 문구를 하나로 합쳤다 — 회전은 위 버튼이 이미 알려준다 */}
+      {!hintOff && (
+        <div className="view3d-hint">
+          <span>물건을 끌어서 옮겨보세요<br />100mm 격자에 붙고, 빈 곳을 누르면 선택이 풀려요</span>
+          <button type="button" onClick={closeHint} aria-label="안내 닫기">✕</button>
+        </div>
+      )}
       {picked && (
         <div className="view3d-pick">
           <b>{picked.name ?? picked.id}</b>
           <span className="dim">{picked.kind === 'station' ? '스테이션' : picked.type}</span>
-          {picked.posMm && (
-            <span className="num">
-              x {Math.round(picked.posMm[0])} · y {Math.round(picked.posMm[1])} mm
-            </span>
+          {shown && (
+            <>
+              {/* 범위는 **방 치수에서 온다** — 매직넘버를 여기 박지 않는다 */}
+              <NumBox
+                label="x" value={shown.x} min={0} max={layout.floor.widthMm} step={100}
+                onCommit={(v) => commitField({ posMm: [v, shown.y] })}
+              />
+              <NumBox
+                label="y" value={shown.y} min={0} max={layout.floor.depthMm} step={100}
+                onCommit={(v) => commitField({ posMm: [shown.x, v] })}
+              />
+              {/* **90° 단위만 받는다** — 벽에 붙이는 가구라 자유 각도는 쓸 일이 없고
+                  `interaction.js` 의 회전도 같은 전제 위에 있다 */}
+              <NumBox
+                label="회전" value={shown.rot} min={-270} max={270} step={90}
+                onCommit={(v) => commitField({ rotDeg: v })}
+              />
+              <span className="dim">mm · °</span>
+            </>
           )}
         </div>
       )}

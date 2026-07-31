@@ -39,6 +39,14 @@ export function createInteraction({
   let hovered = null;
   let selected = null;
   let dragging = null;
+  // **끌기가 시작되는 문턱.** 이게 없으면 고르려고 누른 손이 1px 만 흔들려도 끌기로 쳐서
+  // 격자에 스냅해 커밋한다 — 예시 좌표에 100mm 배수가 아닌 값이 여럿이라
+  // **고를 때마다 물건이 최대 50mm 밀린다** (2026-07-31 배포본 실사용에서 발견).
+  // 손가락은 마우스보다 흔들리므로 폰까지 덮는 값으로 잡는다.
+  const SLOP_PX = 4;
+  let moved = false;
+  let downX = 0;
+  let downY = 0;
 
   // 바닥 링 — 호버·선택 표시. **물체에 윤곽선을 그리는 것보다 싸고, 겹쳐도 안 가린다.**
   const mkRing = (color) => {
@@ -94,6 +102,12 @@ export function createInteraction({
 
   function onMove(ev) {
     if (dragging) {
+      // 문턱을 넘기 전에는 **아무것도 건드리지 않는다.** 여기서 막아야 메시도 안 움직이고
+      // 데이터도 안 바뀐다 — 놓을 때만 막으면 화면과 배치안이 갈라진다
+      if (!moved) {
+        if (Math.hypot(ev.clientX - downX, ev.clientY - downY) < SLOP_PX) return;
+        moved = true;
+      }
       const r = renderer.domElement.getBoundingClientRect();
       ptr.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
       ptr.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
@@ -136,6 +150,9 @@ export function createInteraction({
     }
 
     dragging = it;
+    moved = false;
+    downX = ev.clientX;
+    downY = ev.clientY;
     renderer.domElement.style.cursor = 'grabbing';
     // **여기서 즉시 끈다.** 틱에서 끄면 늦다 — OrbitControls 가 먼저 등록돼 있어
     // 같은 pointerdown 으로 이미 궤도를 시작해 버린다. 실제로 카메라가 55m 밖으로 날아갔다.
@@ -154,6 +171,9 @@ export function createInteraction({
     renderer.domElement.style.cursor = 'grab';
     if (controls) controls.enabled = true;
     try { ev.target.releasePointerCapture?.(ev.pointerId); } catch { /* 합성 이벤트 */ }
+    // **고르기만 한 것은 편집이 아니다.** 문턱을 안 넘었으면 배치안을 건드리지 않는다 —
+    // 안 그러면 클릭 한 번에 저장 배지가 뜨고 되돌리기 기록이 쌓인다
+    if (!moved) return;
     // **여기서 데이터에 커밋한다.** 끄는 동안은 메시만 움직였다.
     onCommit?.({ ...it.userData.item, posMm: [toMm(it.position.x), toMm(it.position.z)] });
   }

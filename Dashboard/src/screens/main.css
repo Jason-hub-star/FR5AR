@@ -70,27 +70,39 @@ main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column
 .facts .ok     { color: var(--c-ok); }
 .facts .warn   { color: var(--c-warn); }
 .facts .danger { color: var(--c-danger); }
-.facts .note { flex-basis: 100%; margin: 0; color: var(--c-fg-mute); font-size: 11px; }
 
 /* ── 편집 인터랙션 ───────────────────────────────────────────────────────── */
+/* 사용법 안내 — **닫을 수 있다.** 닫으면 안 돌아온다 */
 .view3d-hint { position: absolute; left: var(--s-4); bottom: var(--s-3); margin: 0;
-               padding: 5px 10px; background: var(--c-panel); border: 1px solid var(--c-line);
-               border-radius: var(--r-ctl); font-size: 11px; color: var(--c-fg-mute); }
-.view3d-hint kbd { padding: 1px 5px; background: var(--c-btn); border: 1px solid var(--c-line-strong);
-                   border-radius: 2px; font: inherit; font-family: ui-monospace, monospace; }
+               display: flex; align-items: flex-start; gap: var(--s-2);
+               padding: 7px 8px 7px 12px; background: var(--c-panel); border: 1px solid var(--c-line);
+               border-radius: var(--r-ctl); font-size: 12px; color: var(--c-fg-dim); line-height: 1.5; }
+.view3d-hint button { padding: 0 4px; background: none; color: var(--c-fg-mute);
+                      border: 0; font-size: 13px; line-height: 1.5; cursor: pointer; }
 
 /* 고른 것 — 화면 위에 얹는다. 3D 를 가리지 않게 좌상단 한 줄 */
 .view3d-pick { position: absolute; left: var(--s-4); top: var(--s-3); display: flex; gap: var(--s-3);
                align-items: baseline; padding: 6px 12px; background: var(--c-panel);
                border: 1px solid var(--c-info); border-radius: var(--r-ctl); font-size: 12px; }
 .view3d-pick .dim { color: var(--c-fg-mute); }
-.view3d-pick .num { color: var(--c-info); font-variant-numeric: tabular-nums;
-                    font-family: ui-monospace, monospace; }
 
-.revert { margin-left: auto; padding: 5px 11px; background: var(--c-btn); color: var(--c-btn-fg);
+/* 숫자칸 — **끌기로는 100mm 격자 사이 값을 못 넣는다.** 여기서 정확히 넣는다 */
+.numbox { display: inline-flex; align-items: baseline; gap: 5px; color: var(--c-fg-mute); }
+.numbox input { width: 5.5em; padding: 3px 6px; background: var(--c-sunken); color: var(--c-info);
+                border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
+                font: inherit; font-family: ui-monospace, monospace;
+                font-variant-numeric: tabular-nums; text-align: right; }
+.numbox input:focus { outline: 2px solid var(--c-info); outline-offset: -1px; }
+
+/* **`margin-left:auto` 는 `.seg` 하나만 갖는다.** 둘이 가지면 되돌리기 버튼이
+ * 뜨고 지는 순간 A/B 세그먼트가 좌우로 튄다 (2026-07-31 감사 P2).
+ * 지금 배치 — h2 · 저장안내 · 되돌리기 ┄┄auto┄┄ A/B. 양끝이 고정된다. */
+.revert { padding: 5px 11px; background: var(--c-btn); color: var(--c-btn-fg);
           border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
           font-size: 12px; cursor: pointer; }
-.seg { margin-left: var(--s-2); }
+.unsaved, .saved { padding: 3px 8px; border-radius: 99px; font-size: 11px; white-space: nowrap; }
+.unsaved { background: #f0b86222; color: var(--c-warn); }
+.saved   { background: #7fd6a222; color: var(--c-ok); }
 
 /* 시점 맞추기 · 회전 — 오른쪽 위. **회전은 폰용이다** (키보드가 없다) */
 .view3d-tools { position: absolute; right: var(--s-4); top: var(--s-3); display: flex; gap: var(--s-1); }
@@ -98,8 +110,6 @@ main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column
                        border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
                        font-size: 12px; cursor: pointer; }
 .view3d-tools button:disabled { opacity: .45; cursor: default; }
-
-.view3d-hint .narrow { display: none; }
 
 /* ── 폰 ────────────────────────────────────────────────────────────────────
  * 3D 가 메인이므로 **높이를 3D 에 몰아준다.** 머리글·숫자줄을 얇게 만들고
@@ -109,15 +119,16 @@ main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column
   header .sub { flex-basis: 100%; }
   nav, .pane-head { padding: var(--s-2) var(--s-3); flex-wrap: wrap; }
   nav button { padding: 9px 13px; }            /* 손가락 목표 40px 확보 */
-  .pane-head h2 { font-size: 13px; }
+  /* **폰에서는 제목을 숨긴다.** 바로 위 탭에 "배치안" 이 이미 있어 같은 말이고,
+   * 저장 배지가 뜨는 순간 머리줄이 두 줄로 접혀 3D 높이를 44px 먹는다 (실렌더 확인). */
+  .pane-head h2 { display: none; }
   .seg, .revert { margin-left: 0; }
   .seg button, .revert, .view3d-tools button { padding: 8px 10px; }
   .view3d-tools, .view3d-pick, .view3d-hint { left: var(--s-2); right: var(--s-2); }
   .view3d-tools { justify-content: flex-end; left: auto; }
-  .view3d-pick { top: var(--s-2); flex-wrap: wrap; gap: var(--s-2); }
-  .view3d-hint { bottom: var(--s-2); text-align: center; }
-  .view3d-hint .wide { display: none; }
-  .view3d-hint .narrow { display: inline; }
+  /* **선택 패널을 아래로 내린다.** 위에 두면 폭이 좁아 시점·회전 버튼을 덮는다
+   * (실렌더 확인). 안내와 자리가 같지만 둘은 동시에 안 뜬다 — LayoutView 참조 */
+  .view3d-pick { top: auto; bottom: var(--s-2); flex-wrap: wrap; gap: var(--s-2); }
+  .view3d-hint { bottom: var(--s-2); }
   .facts { padding: var(--s-2) var(--s-3); gap: 2px var(--s-3); font-size: 11px; }
-  .facts .note { display: none; }              /* 폰에서는 화면을 3D 에 준다 */
 }
