@@ -42,6 +42,7 @@
 | `docs/evidence/2026-07-31/tb-ui-reference.md` | TB 관제 UI 레퍼런스 목업 3장 — P1 의 시각 기준 | 증거 | 터틀봇 화면을 짤 때 |
 | `docs/evidence/2026-07-31/tb-mock-verify.md` | TB mock 검증 3판(웹·브리지·전 사이클) 55항목 — 결함 4·교훈 4 | 증거 | 터틀봇 웹·브리지를 고칠 때 |
 | `docs/evidence/2026-07-31/fr5-live-readback.md` | **FR5 실기 readback** — 네트워크·펌웨어·6축·TCP, 명령 호출 0건 | 증거 | FR5 프로필·브리지·실기 연결을 다룰 때 |
+| `docs/evidence/2026-07-31/ar-record.md` | **AR 화면 녹화** — 합성 레이어를 픽셀로 검증. 자동화 탭에서 rAF 가 안 도는 벽 | 증거 | AR 을 영상으로 남길 때 · 캔버스 합성을 건드릴 때 |
 | `docs/evidence/2026-07-30/doc-weight.md` | 문서 적재 실태·임계값 출처·하네스 이식 판정 | 증거 | 문서가 무거워졌을 때 · 하네스를 더 가져올 때 |
 | `docs/ref/unity/unity-bridge-protocol.md` | **유니티가 실기에서 검증한 값** — IP·포트·타임아웃·브링업 순서·함정 8개 | 참고 | **브리지 서버를 짤 때** |
 | `docs/evidence/2026-07-30/ar-baseline.md` | **AR 이관 기준값 7개** — 뜯기 전 배포본에서 뽑았다 | 증거 | **이관 후 대조할 때** |
@@ -115,6 +116,6 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 
 ## 자가검증
 
-- INDEX.md에 등재된 문서 행 개수 = 51/51
+- INDEX.md에 등재된 문서 행 개수 = 52/52
 - PROJECT-STATUS.md의 "다음 한 걸음" 항목 개수 = 5/5
 - PROJECT-STATUS.md의 "블로커" 항목 개수 = 3/3

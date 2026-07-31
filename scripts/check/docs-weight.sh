@@ -39,7 +39,7 @@ CAP_ENTRY_W=80;    CAP_ENTRY_H=110      # docs/SESSION-START.md
 CAP_STATUS_W=120;  CAP_STATUS_H=160     # docs/status/PROJECT-STATUS.md
 CAP_DOC_W=300;     CAP_DOC_H=450        # 개별 md 한 개
 CAP_INDEX_W=45;    CAP_INDEX_H=60       # docs/INDEX.md 등재 행
-CAP_EVID_W=15;     CAP_EVID_H=25        # docs/evidence/ 파일 수
+CAP_EVID_W=8;      CAP_EVID_H=14        # docs/evidence/<날짜>/ 폴더 **하나당** 파일 수 (D37)
 CAP_RND_W=5;       CAP_RND_H=8          # docs/ref/rnd/ 파일 수
 CAP_TOTAL_W=9000;  CAP_TOTAL_H=13000    # docs/**.md 총 줄수
 CAP_DECLOG_W=600;  CAP_DECLOG_H=900     # DECISION-LOG 는 자르지 않는다 (아래 참조)
@@ -98,8 +98,16 @@ echo
 echo "== 개수로 쌓이는 것 =="
 gauge "docs/INDEX.md 등재 행" "$(grep -cE '^\| `[^`]*\.(md|html)`' docs/INDEX.md)" \
       "$CAP_INDEX_W" "$CAP_INDEX_H" "결론난 조사 문서를 archive/ 로 (INDEX 행도 함께 줄어든다)"
-gauge "docs/evidence/ 파일" "$(find docs/evidence -type f 2>/dev/null | wc -l | tr -d ' ')" \
-      "$CAP_EVID_W" "$CAP_EVID_H" "같은 주제 여러 날짜는 한 파일로 합친다"
+# **누적 총량이 아니라 하루치를 잰다** (D37). 증거는 지우지 않는 역사라 총량은 계속 는다 —
+# 총량에 상한을 걸면 게이트가 시간이 지났다는 이유로 빨개진다. 진짜 냄새는
+# "하루에 열몇 개가 쌓였다" 쪽이고, 그건 한 판을 너무 잘게 쪼개 적었다는 뜻이다.
+for d in docs/evidence/*/; do
+  [ -d "$d" ] || continue
+  # 스크린샷(.png)은 세지 않는다 — **문서에 딸린 근거지 읽을거리가 아니다.**
+  # 세면 사진을 많이 붙인 성실한 기록이 벌을 받는다.
+  gauge "${d} 문서" "$(find "$d" -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')" \
+        "$CAP_EVID_W" "$CAP_EVID_H" "한 날짜 안에서 같은 주제를 한 파일로 합친다"
+done
 gauge "docs/ref/rnd/ 파일" "$(find docs/ref/rnd -type f 2>/dev/null | wc -l | tr -d ' ')" \
       "$CAP_RND_W" "$CAP_RND_H" "결론이 DECISION-LOG 로 올라간 것은 archive/ 로"
 
