@@ -2,8 +2,13 @@
 .env
 
 # 생성물 — node scripts/build/config.mjs 가 .env 에서 만든다
-web/config/marker-offset.json
-web/config/gripper-mount.json
+# 경로는 D23(`shared/model/` → `Shared/data/`) 을 따라간다. 어긋나면 생성물이 커밋된다 (D14).
+Shared/data/config/marker-offset.json
+Shared/data/config/gripper-mount.json
+
+# 폰이 dev 서버로 보낸 진단 로그 (AR/vite.config.js §diagSink)
+# 측정 원본이지 SSOT 가 아니다 — 결론만 docs/evidence/ 로 옮긴다
+.diag/
 
 # macOS
 .DS_Store
@@ -13,8 +18,12 @@ web/config/gripper-mount.json
 
 # 생성물 — 스크립트로 다시 만든다
 #   python3 scripts/assets/make-marker-test-images.py
-web/test/marker-images/
+AR/test/marker-images/
 
 # 파이썬
 __pycache__/
 *.pyc
+node_modules/
+*/dist/
+AR/dist/
+Fr5Dashboard/dist/

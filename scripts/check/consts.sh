@@ -43,13 +43,13 @@ else bad "INDEX 실제 ${IDX}행인데 자가검증엔 ${DEC} (docs/INDEX.md §�
 
 echo
 echo "== .env ↔ 생성된 설정 =="
-# web/config/*.json 은 .env 에서 생성된 산출물이다. 손으로 고치면 다음 생성에서 사라진다.
+# Shared/data/config/*.json 은 .env 에서 생성된 산출물이다. 손으로 고치면 다음 생성에서 사라진다.
 if command -v node >/dev/null 2>&1; then
   if out="$(node "$ROOT/scripts/build/config.mjs" --check 2>&1)"; then
     printf '%s\n' "$out"
   else
     printf '%s\n' "$out"
-    bad ".env 와 web/config/*.json 이 다르다 → node scripts/build/config.mjs"
+    bad ".env 와 Shared/data/config/*.json 이 다르다 → node scripts/build/config.mjs"
   fi
 else
   note "node 없음 — 대조를 건너뛴다"

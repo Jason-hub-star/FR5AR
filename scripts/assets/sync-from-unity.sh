@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 유니티 프로젝트에서 URDF와 메시를 web/assets/ 로 가져온다.
+# 유니티 프로젝트에서 URDF와 메시를 Shared/assets/ 로 가져온다.
 # 유니티 쪽 모델이 바뀌었을 때만 돌리면 된다. 부산물(.meta/.asset/.prefab)은 가져오지 않는다.
 # 원본 경로가 없으면 exit 1.
 
@@ -10,8 +10,8 @@ cd "$ROOT"
 SRC="${FR5UNITY_ROOT:-/Users/family/jason/FR5UNITY/robotapp/Assets/Runtime}"
 ARM_SRC="$SRC/Robots/FAIRINO_FR5"
 GRIP_SRC="$SRC/EndEffectors/PGEA_100_40/Source"
-ARM_DST=web/assets/FAIRINO_FR5
-GRIP_DST=web/assets/PGEA_100_40
+ARM_DST=Shared/assets/FAIRINO_FR5
+GRIP_DST=Shared/assets/PGEA_100_40
 
 if [ ! -d "$ARM_SRC" ]; then
   echo "FAIL  원본이 없다: $ARM_SRC"
@@ -33,7 +33,7 @@ done
 echo "  그리퍼 메시 $(find "$GRIP_DST" -iname '*.stl' | wc -l | tr -d ' ')개"
 
 # 유니티 부산물이 딸려오면 지운다
-find web/assets \( -name '*.meta' -o -name '*.asset' -o -name '*.prefab' \) -delete 2>/dev/null
+find Shared/assets \( -name '*.meta' -o -name '*.asset' -o -name '*.prefab' \) -delete 2>/dev/null
 
 echo
 echo "동기화 완료. 검증:  bash scripts/check/assets.sh"

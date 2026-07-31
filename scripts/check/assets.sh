@@ -11,8 +11,8 @@ FAIL=0
 note() { printf '  %s\n' "$1"; }
 bad()  { printf '  FAIL  %s\n' "$1"; FAIL=1; }
 
-ARM=web/assets/FAIRINO_FR5
-GRIP=web/assets/PGEA_100_40
+ARM=Shared/assets/FAIRINO_FR5
+GRIP=Shared/assets/PGEA_100_40
 
 # 기준값 — 2026-07-29 유니티 원본 실측. 원본이 바뀌면 여기도 같이 고친다.
 WANT_ARM_TRIS=58482
@@ -64,7 +64,7 @@ g=$(count_tris "$GRIP" 2>/dev/null || echo 0)
 
 echo
 echo "== 유니티 부산물 혼입 =="
-n=$(find web/assets \( -name '*.meta' -o -name '*.asset' -o -name '*.prefab' \) 2>/dev/null | wc -l | tr -d ' ')
+n=$(find Shared/assets \( -name '*.meta' -o -name '*.asset' -o -name '*.prefab' \) 2>/dev/null | wc -l | tr -d ' ')
 [ "$n" -eq 0 ] && note "없음" || bad "$n개 섞임 — scripts/assets/sync-from-unity.sh 로 다시 받아라"
 
 echo

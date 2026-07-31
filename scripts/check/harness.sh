@@ -12,8 +12,10 @@ note() { printf '  %s\n' "$1"; }
 bad()  { printf '  FAIL  %s\n' "$1"; FAIL=1; }
 
 # 채택 기준값 — 늘리거나 줄이면 여기도 같이 고친다
-WANT_COMMANDS=8
-WANT_SKILLS=21
+# 커맨드 0 은 의도한 값이다 — 2026-07-30 에 8개를 전부 한국어 스킬로 흡수했다 (D19).
+# 슬래시 명령은 .claude/skills/ 의 한글 폴더명이 결정한다 (~/.claude/commands.md).
+WANT_COMMANDS=0
+WANT_SKILLS=14
 
 echo "== 하네스 =="
 

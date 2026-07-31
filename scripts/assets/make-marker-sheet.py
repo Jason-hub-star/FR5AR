@@ -13,7 +13,7 @@
   ④ 배치가 용지를 벗어나면 파일을 만들지 않고 실패한다
 
 시트에 인쇄·부착 지침을 넣지 않는다 — 인쇄하기 **전에** 읽는 내용이고
-`web/index.html` 과 `docs/ref/STACK.md` 에 있다. 종이에는 한 줄만 남긴다:
+`AR/index.html` 과 `docs/ref/STACK.md` 에 있다. 종이에는 한 줄만 남긴다:
 어느 마커이고 몇 mm인지. 그게 없으면 종이만 보고 barcodeValue 를 알 수 없다.
 
 사용
@@ -32,7 +32,8 @@ DPI = 300
 MM = DPI / 25.4  # 1mm 당 픽셀
 
 ROOT = Path(__file__).resolve().parents[2]
-MARKER_DIR = ROOT / "web" / "assets" / "marker"
+# D23 에서 `web/` 이 `Shared/` 로 갈렸는데 이 경로만 안 따라와서 스크립트가 죽어 있었다.
+MARKER_DIR = ROOT / "Shared" / "assets" / "marker"
 SRC_DIR = MARKER_DIR / "barcode"
 
 FONT_PATH = "/System/Library/Fonts/AppleSDGothicNeo.ttc"
@@ -53,6 +54,25 @@ SHEETS = [
 ]
 
 CAPTION_GAP = 8  # quiet zone 아래 이만큼 띄우고 한 줄 표기를 넣는다
+
+# --- 크기 실험 시트 (--test)
+#
+# 터틀봇3 **버거** 상판은 138×178mm 이고 라이다(LDS-02, 지름 약 70mm)가 가운데를 먹는다.
+# 남는 자리는 좌우 (138-70)/2 = **34mm**, 앞뒤 (178-70)/2 = **54mm** 다.
+# quiet zone 6mm 를 양쪽에 빼면 실제로 붙일 수 있는 마커는 **좌우 22mm · 앞뒤 42mm** 다.
+#
+# 그래서 아래로 10mm 까지 내려간다. 10mm 는 이론상 24cm 앞에서나 잡히는 크기라
+# **쓸 값이 아니라 절벽이 어디인지 재는 값**이다 — 실패하는 칸이 있어야 경계가 나온다.
+# 80mm 는 반대쪽 대조군이다. 이것까지 안 잡히면 크기가 아니라 **시험 방법이 틀린 것**이다.
+TEST_SIZES = [10, 15, 20, 25, 35, 45, 55, 80]
+TEST_PAGE = (210, 297)   # A4
+TEST_MARGIN = 12
+TEST_GAP = 8
+CAP_H = 5                # 크기 표기 한 줄이 차지하는 높이
+
+# 자르기 선과 quiet zone 사이의 흰 띠. **테이프는 여기에만 붙인다** —
+# quiet zone 을 덮으면 3%까지 견디던 여백이 0 이 되어 검출이 죽는다.
+TAPE_MM = 3
 
 GRAY = (170, 170, 170)
 INK = (0, 0, 0)
@@ -110,7 +130,7 @@ def build(name, page_mm, marker_mm, quiet_mm, top_mm, barcode, out_path):
     # --- 표기 한 줄. quiet zone **아래** CAPTION_GAP mm. 이 안쪽으로는 아무것도 그리지 않는다.
     #
     # 처음에는 인쇄·부착 지침 6줄을 넣었는데 **시트에 있을 이유가 없다** —
-    # 인쇄할 때 읽는 것이고, 그건 화면(web/index.html)과 문서에 있다.
+    # 인쇄할 때 읽는 것이고, 그건 화면(AR/index.html)과 문서에 있다.
     # 다만 **어느 마커이고 몇 mm인지**는 종이에 남아야 한다. 나중에 이 종이만 보고는
     # barcodeValue 를 알 방법이 없고, 코드 설정이 어긋나면 아무것도 안 뜬다.
     f_small = font(8)
@@ -189,14 +209,116 @@ def build(name, page_mm, marker_mm, quiet_mm, top_mm, barcode, out_path):
     }
 
 
+def quiet_for(marker_mm):
+    """작은 마커일수록 비율만으로는 여백이 종잇장이 된다 — 절대 하한 6mm 를 같이 건다.
+
+    25mm 마커의 8% 는 2mm 다. 인쇄 오차·자르기 오차가 그것보다 크다.
+    """
+    return max(round(marker_mm * 0.10), 6)
+
+
+def check_clean(path, boxes):
+    """quiet zone(+테이프 띠) 안에 검은 잉크가 없는지 **출력 픽셀로** 확인한다.
+
+    `build()` 의 자가검사와 같은 규칙이다. 규칙이 두 곳에 있으면 한쪽만 낡는다 —
+    그래서 실험 시트도 이 함수를 통과해야 파일이 남는다.
+    """
+    a = np.array(Image.open(path).convert("L"))
+    for b in boxes:
+        rx, ry = mm(b["x0"]), mm(b["y0"])
+        ring = a[ry:mm(b["y0"] + b["outer_mm"]), rx:mm(b["x0"] + b["outer_mm"])].copy()
+        # 마커 자리는 **붙일 때 쓴 좌표 그대로** 뺀다 (mm(a+b) != mm(a)+mm(b) — build() 주석 참조)
+        ex, ey = mm(b["mx0"]) - rx, mm(b["my0"]) - ry
+        side = mm(b["marker_mm"])
+        ring[ey:ey + side, ex:ex + side] = 255
+        dark = int((ring < 128).sum())
+        if dark:
+            raise SystemExit(f"{b['marker_mm']}mm: quiet zone 안에 검은 잉크 {dark}px")
+        stray = sorted(set(ring[ring < 250].tolist()) - {GRAY[0]})
+        if stray:
+            raise SystemExit(f"{b['marker_mm']}mm: quiet zone 안에 회색 안내선 아닌 값 {stray}")
+
+        mk = a[mm(b["my0"]):mm(b["my0"]) + side, mm(b["mx0"]):mm(b["mx0"]) + side]
+        r = float((mk < 128).mean())
+        if not 0.85 < r < 0.95:
+            raise SystemExit(f"{b['marker_mm']}mm: 마커 검정 비율 {r:.1%} — 제대로 안 들어갔다")
+
+
+def build_test(barcode, out_path):
+    """크기별 마커를 A4 한 장에 담는다. **잘라서 하나씩** 쓴다.
+
+    번호를 전부 같게 두는 것이 요점이다 — 크기만 바꾸면 `.env` 도 코드도 안 건드린다.
+    (`FR5_MARKER_MM` 은 화면의 '거리m' 환산에만 쓰이지 검출에는 안 쓰인다)
+    """
+    pw, ph = TEST_PAGE
+    img = Image.new("RGB", (mm(pw), mm(ph)), "white")
+    d = ImageDraw.Draw(img)
+    f_small = font(8)
+    f_cap = font(7)
+
+    d.text((mm(TEST_MARGIN), mm(TEST_MARGIN)),
+           f"FR5Web 마커 크기 실험 · 3x3_HAMMING63 · barcodeValue {barcode} 전부 동일"
+           f" · 100% 배율 · 무광 용지 · 버거 상판 가용 34~54mm",
+           font=f_small, fill=DIM)
+
+    src = SRC_DIR / f"{barcode}.png"
+    if not src.exists():
+        raise SystemExit(f"마커 원본이 없다: {src}")
+
+    boxes = []
+    x = TEST_MARGIN
+    y = TEST_MARGIN + 10
+    row_h = 0
+    for size in TEST_SIZES:
+        quiet = quiet_for(size)
+        pad = quiet + TAPE_MM
+        outer = size + 2 * pad
+        if x + outer > pw - TEST_MARGIN:          # 줄바꿈
+            x = TEST_MARGIN
+            y += row_h + CAP_H + TEST_GAP
+            row_h = 0
+        if y + outer + CAP_H > ph - TEST_MARGIN:
+            raise SystemExit(f"{size}mm 가 용지를 벗어난다 — TEST_SIZES 를 줄여라")
+
+        mk = Image.open(src).convert("RGB").resize((mm(size), mm(size)), Image.NEAREST)
+        mx0, my0 = x + pad, y + pad
+        img.paste(mk, (mm(mx0), mm(my0)))
+        d.rectangle([mm(x), mm(y), mm(x + outer), mm(y + outer)],
+                    outline=GRAY, width=max(1, mm(0.3)))
+        d.text((mm(x), mm(y + outer + 1)), f"{size}mm", font=f_cap, fill=DIM)
+
+        boxes.append({"x0": x, "y0": y, "outer_mm": outer, "mx0": mx0, "my0": my0,
+                      "marker_mm": size, "quiet_mm": quiet})
+        row_h = max(row_h, outer)
+        x += outer + TEST_GAP
+
+    img.save(out_path, dpi=(DPI, DPI))
+    check_clean(out_path, boxes)
+    return boxes
+
+
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--test", action="store_true",
+                    help="크기 실험 시트 (A4 한 장에 25·35·45·55·80mm)")
     # 원본은 쓰는 것만 남겼다 — 5(정본) · 2(예비) · 3(검출 테스트 음성 대조군).
     # 다른 번호가 필요하면 출처에서 다시 받는다 (docs/ref/STACK.md §마커).
     ap.add_argument("--barcode", type=int, default=5, help="바코드 번호 (원본이 있는 것: 2·3·5)")
     args = ap.parse_args()
 
     MARKER_DIR.mkdir(parents=True, exist_ok=True)
+
+    if args.test:
+        out = MARKER_DIR / f"marker-test-sizes-bc{args.barcode}.png"
+        boxes = build_test(args.barcode, out)
+        print(f"A4 실험 시트  {out.name}")
+        for b in boxes:
+            print(f"     마커 {b['marker_mm']:>3}mm · quiet {b['quiet_mm']}mm"
+                  f" · 테이프 띠 {TAPE_MM}mm · 오려낼 크기 {b['outer_mm']}mm")
+        print("\n  자르기: 연회색 선. 테이프는 선과 마커 사이 흰 띠에만 붙인다.")
+        print("  한 번에 하나만 카메라에 보인다 — 번호가 전부 같아서 여러 장이 보이면 엉킨다.")
+        return 0
+
     for name, page, marker_mm, quiet_mm, top_mm in SHEETS:
         out = MARKER_DIR / f"marker-print-{name}-{marker_mm}mm-bc{args.barcode}.png"
         info = build(name, page, marker_mm, quiet_mm, top_mm, args.barcode, out)

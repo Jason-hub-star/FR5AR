@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""마커 검출 실측용 합성 이미지 생성 — `web/test/marker-detect.html` 이 먹는다.
+"""마커 검출 실측용 합성 이미지 생성 — `AR/test/marker-detect.html` 이 먹는다.
 
 왜 스크립트로 두나
-  `web/test/marker-images/` 의 117장은 **생성물**이다. 손으로 만든 자산이 아니다.
+  `AR/test/marker-images/` 의 117장은 **생성물**이다. 손으로 만든 자산이 아니다.
   조건(크기·흐림·대비·JPEG·여백)을 바꿔 다시 재려면 여기를 고친다.
 
 무엇을 만드나

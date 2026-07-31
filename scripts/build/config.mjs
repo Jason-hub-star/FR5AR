@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * .env → web/config/*.json 생성.
+ * .env → Shared/data/config/*.json 생성.
  *
  * 왜 있나
  *   **브라우저는 환경변수를 읽을 수 없다.** `process.env` 가 없다.
  *   그래서 `.env` 를 SSOT 로 두고 여기서 JSON 으로 굽는다. 브라우저는 그 JSON 을 fetch 한다.
- *   `web/config/*.json` 은 **산출물이다 — 직접 고치지 않는다.**
+ *   `Shared/data/config/*.json` 은 **산출물이다 — 직접 고치지 않는다.**
  *
  * 왜 값 검증까지 하나
  *   바코드 번호가 인쇄물과 다르면 **아무것도 안 뜬다.** 콘솔 에러도 없이 조용히 실패한다.
@@ -96,7 +96,7 @@ const AVAILABLE_BARCODES = [2, 3, 5];
 if (barcode !== null && !AVAILABLE_BARCODES.includes(barcode)) {
   problems.push(
     `FR5_MARKER_BARCODE=${barcode} — 원본이 있는 것은 ${AVAILABLE_BARCODES.join('·')} 뿐이다. `
-    + '다른 번호는 출처에서 받아 web/assets/marker/barcode/ 에 넣어라 (STACK.md §마커)',
+    + '다른 번호는 출처에서 받아 Shared/assets/marker/barcode/ 에 넣어라 (STACK.md §마커)',
   );
 }
 
@@ -142,8 +142,8 @@ const gripper = {
 };
 
 const targets = [
-  ['web/config/marker-offset.json', marker],
-  ['web/config/gripper-mount.json', gripper],
+  ['Shared/data/config/marker-offset.json', marker],
+  ['Shared/data/config/gripper-mount.json', gripper],
 ];
 
 let drift = 0;

@@ -1,24 +1,32 @@
 #!/usr/bin/env bash
-# web/ 을 로컬에서 띄운다. 기본 8000, 인자로 포트 바꿀 수 있다.
-#   bash scripts/dev/serve.sh 8080
-# 주의 — 폰에서 카메라를 쓰려면 이걸로는 안 된다. HTTPS가 필요하다 (docs/ref/STACK.md §함정).
+# 로컬에서 화면을 띄운다. Vite dev 서버를 부른다.
+#
+#   bash scripts/dev/serve.sh            # AR (기본)
+#   bash scripts/dev/serve.sh dash       # Dashboard (아직 없다)
+#
+# **카메라는 HTTPS 에서만 열린다.** 폰 테스트는 배포본으로 한다 —
+# 로컬 IP(`http://192.168.x.x`)로는 브라우저가 카메라를 안 준다 (README §로컬).
+# 로컬에서 확인할 수 있는 것은 3D·모듈 해석·기준값이고, 카메라는 폰이다.
 
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-PORT="${1:-8000}"
+TARGET="${1:-ar}"
+case "$TARGET" in
+  ar)   WS=@fr5/ar ;;
+  dash) WS=@fr5/dashboard
+        [ -d Dashboard ] || { echo "FAIL  Dashboard/ 가 아직 없다 (L1 에서 만든다)"; exit 1; } ;;
+  *)    echo "모르는 대상: $TARGET  (ar | dash)"; exit 2 ;;
+esac
 
-if [ ! -d web ]; then
-  echo "FAIL  web/ 폴더가 없다. 아직 화면 코드를 안 만들었다."
-  exit 1
+[ -d node_modules ] || { echo "의존성이 없다 → npm install"; npm install || exit 1; }
+
+# 설정 JSON 은 .env 에서 굽는 산출물이다. 없으면 **빌드가 실패한다** (D18).
+if [ ! -f Shared/data/config/marker-offset.json ]; then
+  echo "설정 JSON 이 없다 → node scripts/build/config.mjs"
+  node scripts/build/config.mjs || exit 1
 fi
 
-IP=$(ipconfig getifaddr en0 2>/dev/null || echo "")
-
-echo "PC        http://localhost:$PORT"
-[ -n "$IP" ] && echo "같은 망   http://$IP:$PORT   (폰 카메라는 이 주소로 안 된다 — HTTPS 필요)"
-echo "중지      Ctrl+C"
-echo
-
-exec python3 -m http.server "$PORT" -d web
+echo "→ npm run dev -w $WS"
+exec npm run dev -w "$WS"
