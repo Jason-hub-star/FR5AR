@@ -1,0 +1,123 @@
+/* 관제화면 스타일. 공용 토큰은 @fr5/shared/tokens 에서 온다 —
+ * **상태 색(정상/경고/위험)이 AR 과 같아야 한다.** 안전 표시가 화면마다 다르면 오판한다. */
+@import '@fr5/shared/tokens/tokens.css';
+
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+/* **높이를 매직넘버로 빼지 않는다.** `calc(100vh - 104px)` 는 머리글이 두 줄이 되는
+ * 순간(폰) 숫자줄을 화면 밖으로 밀어낸다. 플렉스가 남는 높이를 3D 에 준다.
+ * `dvh` 를 쓰는 이유 — 폰 주소창이 접히면 `vh` 는 안 따라온다. */
+body { margin: 0; background: var(--c-bg); color: var(--c-fg); font: var(--f-body);
+       height: 100dvh; display: flex; flex-direction: column; }
+/* React 가 `#root` 를 사이에 끼운다 — 여기를 안 뚫으면 높이가 `main` 까지 못 내려가
+ * 3D 칸이 0 이 된다. 절대배치한 힌트·패널이 머리글 위로 겹쳐 올라온다. */
+#root { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+header { display: flex; align-items: baseline; gap: var(--s-3);
+         padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--c-line); }
+header h1 { margin: 0; font-size: 16px; }
+header .sub { color: var(--c-fg-mute); font-size: 12px; }
+
+nav { display: flex; gap: var(--s-1); padding: var(--s-2) var(--s-4);
+      border-bottom: 1px solid var(--c-line); }
+nav button { padding: 7px 12px; background: var(--c-btn); color: var(--c-btn-fg);
+             border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
+             font-size: 13px; cursor: pointer; }
+nav button[aria-selected="true"] { background: var(--c-ok); color: #06251a;
+                                   border-color: var(--c-ok); font-weight: 600; }
+
+main { padding: var(--s-4); }
+main h2 { margin: 0 0 var(--s-2); font-size: 15px; }
+.todo { margin: 0; padding: var(--s-3); color: var(--c-fg-mute); font-size: 13px;
+        background: var(--c-sunken); border: 1px dashed var(--c-line-strong);
+        border-radius: var(--r-box); }
+
+/* 데이터 출처 배지 — **목업을 실측으로 오인하지 않게** 항상 보인다 (SR_24) */
+.source { margin-left: auto; padding: 3px 8px; border-radius: 99px; font-size: 11px;
+          font-variant-numeric: tabular-nums; }
+.source[data-src="mock"]     { background: #f0b86222; color: var(--c-warn); }
+.source[data-src="sim"]      { background: #6fb3e022; color: var(--c-info); }
+.source[data-src="measured"] { background: #7fd6a222; color: var(--c-ok); }
+
+/* ── 배치안 뷰 ─────────────────────────────────────────────────────────────
+ * 3D 는 화면을 꽉 채운다 — 이게 메인뷰다. 숫자는 그 아래 얇게 붙는다.
+ */
+main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.pane { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.pane-head { display: flex; align-items: center; gap: var(--s-3);
+             padding: var(--s-2) var(--s-4); border-bottom: 1px solid var(--c-line); }
+.pane-head h2 { margin: 0; font-size: 14px; }
+
+.seg { display: flex; gap: 0; margin-left: auto; }
+.seg button { padding: 5px 11px; background: var(--c-btn); color: var(--c-btn-fg);
+              border: 1px solid var(--c-line-strong); border-radius: 0; font-size: 12px; cursor: pointer; }
+.seg button:first-child { border-radius: var(--r-ctl) 0 0 var(--r-ctl); }
+.seg button:last-child  { border-radius: 0 var(--r-ctl) var(--r-ctl) 0; }
+.seg button + button { border-left: 0; }
+.seg button[aria-selected="true"] { background: var(--c-fg); color: var(--c-bg); border-color: var(--c-fg); }
+
+.view3d { position: relative; flex: 1; min-height: 0; }
+.view3d-host { position: absolute; inset: 0; }
+.view3d-host canvas { display: block; }
+.view3d-status { position: absolute; left: var(--s-4); top: var(--s-3); margin: 0;
+                 padding: 5px 10px; background: var(--c-panel); border: 1px solid var(--c-line);
+                 border-radius: var(--r-ctl); font-size: 12px; color: var(--c-fg-dim); }
+
+.facts { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-5);
+         padding: var(--s-3) var(--s-4); border-top: 1px solid var(--c-line);
+         font-size: 12px; color: var(--c-fg-dim); font-variant-numeric: tabular-nums; }
+.facts b { color: var(--c-fg); font-weight: 600; }
+.facts .ok     { color: var(--c-ok); }
+.facts .warn   { color: var(--c-warn); }
+.facts .danger { color: var(--c-danger); }
+.facts .note { flex-basis: 100%; margin: 0; color: var(--c-fg-mute); font-size: 11px; }
+
+/* ── 편집 인터랙션 ───────────────────────────────────────────────────────── */
+.view3d-hint { position: absolute; left: var(--s-4); bottom: var(--s-3); margin: 0;
+               padding: 5px 10px; background: var(--c-panel); border: 1px solid var(--c-line);
+               border-radius: var(--r-ctl); font-size: 11px; color: var(--c-fg-mute); }
+.view3d-hint kbd { padding: 1px 5px; background: var(--c-btn); border: 1px solid var(--c-line-strong);
+                   border-radius: 2px; font: inherit; font-family: ui-monospace, monospace; }
+
+/* 고른 것 — 화면 위에 얹는다. 3D 를 가리지 않게 좌상단 한 줄 */
+.view3d-pick { position: absolute; left: var(--s-4); top: var(--s-3); display: flex; gap: var(--s-3);
+               align-items: baseline; padding: 6px 12px; background: var(--c-panel);
+               border: 1px solid var(--c-info); border-radius: var(--r-ctl); font-size: 12px; }
+.view3d-pick .dim { color: var(--c-fg-mute); }
+.view3d-pick .num { color: var(--c-info); font-variant-numeric: tabular-nums;
+                    font-family: ui-monospace, monospace; }
+
+.revert { margin-left: auto; padding: 5px 11px; background: var(--c-btn); color: var(--c-btn-fg);
+          border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
+          font-size: 12px; cursor: pointer; }
+.seg { margin-left: var(--s-2); }
+
+/* 시점 맞추기 · 회전 — 오른쪽 위. **회전은 폰용이다** (키보드가 없다) */
+.view3d-tools { position: absolute; right: var(--s-4); top: var(--s-3); display: flex; gap: var(--s-1); }
+.view3d-tools button { padding: 6px 11px; background: var(--c-panel); color: var(--c-fg-dim);
+                       border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
+                       font-size: 12px; cursor: pointer; }
+.view3d-tools button:disabled { opacity: .45; cursor: default; }
+
+.view3d-hint .narrow { display: none; }
+
+/* ── 폰 ────────────────────────────────────────────────────────────────────
+ * 3D 가 메인이므로 **높이를 3D 에 몰아준다.** 머리글·숫자줄을 얇게 만들고
+ * `100dvh` 를 쓴다 — `100vh` 는 주소창 높이를 빼주지 않아 아래가 잘린다. */
+@media (max-width: 820px) {
+  header { padding: var(--s-2) var(--s-3); flex-wrap: wrap; }
+  header .sub { flex-basis: 100%; }
+  nav, .pane-head { padding: var(--s-2) var(--s-3); flex-wrap: wrap; }
+  nav button { padding: 9px 13px; }            /* 손가락 목표 40px 확보 */
+  .pane-head h2 { font-size: 13px; }
+  .seg, .revert { margin-left: 0; }
+  .seg button, .revert, .view3d-tools button { padding: 8px 10px; }
+  .view3d-tools, .view3d-pick, .view3d-hint { left: var(--s-2); right: var(--s-2); }
+  .view3d-tools { justify-content: flex-end; left: auto; }
+  .view3d-pick { top: var(--s-2); flex-wrap: wrap; gap: var(--s-2); }
+  .view3d-hint { bottom: var(--s-2); text-align: center; }
+  .view3d-hint .wide { display: none; }
+  .view3d-hint .narrow { display: inline; }
+  .facts { padding: var(--s-2) var(--s-3); gap: 2px var(--s-3); font-size: 11px; }
+  .facts .note { display: none; }              /* 폰에서는 화면을 3D 에 준다 */
+}

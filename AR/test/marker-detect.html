@@ -11,12 +11,6 @@
      ArToolkitContext 는 **하나만 만든다.** 이미지마다 새로 만들면 매번
      1.2MB 프레임 버퍼와 WASM 컨트롤러를 할당해 렌더러가 얼어붙는다 (실제로 얼었다).
      context.update(el) 가 매 호출에 요소를 받으므로 이미지만 갈아 끼우면 된다. -->
-<script type="importmap">
-{ "imports": {
-    "three": "../js/vendor/three.module.js",
-    "threex": "../js/vendor/ar-threex.mjs"
-} }
-</script>
 <style>
   body { margin: 0; padding: 16px 18px; background: #14171a; color: #e8ecef;
          font: 13px/1.5 -apple-system, "Apple SD Gothic Neo", sans-serif; }
@@ -44,7 +38,8 @@
 
 <script type="module">
 import * as THREE from 'three';
-import { ArToolkitSource, ArToolkitContext, ArMarkerControls } from 'threex';
+// 'threex' bare 지정자는 importmap 이 만들던 것. Vite 에서는 파일 경로로 직접 쓴다.
+import { ArToolkitSource, ArToolkitContext, ArMarkerControls } from '../src/external/ar-threex.mjs';
 
 ArToolkitContext.baseURL = '../';
 const W = 640, H = 480;

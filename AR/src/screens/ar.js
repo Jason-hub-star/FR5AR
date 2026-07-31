@@ -1,169 +1,20 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<!-- user-scalable=no — 확대 제스처가 카메라 화면과 싸운다 -->
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>FR5 겹쳐 보기 (AR)</title>
+// ar.html 엔트리 — 폰이 실물 위에 겹쳐 보는 화면. **이 프로젝트에서 유일하게 동작하는 슬라이스다.**
+//
+// 이관 시 지킨 것 (수렴 루프 · rnd/MIGRATION-CONVERGE-LOOP-2026-07-30.md)
+//   · **URL 파라미터를 그대로 옮긴다.** 슬롯형 config 을 여기 섞지 않는다 —
+//     폰에서 실패하면 원인이 두 배가 된다 (D15 의 교훈)
+//   · **window 노출을 빼지 않는다.** 기준값 7개 대조가 거기 걸려 있다
+//     (evidence/2026-07-30-ar-baseline.md)
 
-<!-- three.js r185 는 module + core 로 쪼개져 있다. core 를 빼면 **에러 없이** 화면이 죽는다.
-     vendor 파일이 쓰는 bare 지정자를 전부 적어야 한다 (하나만 빠지면 모듈 해석에서 통째로 멈춘다):
-       grep -rhoE "from '[^']+'" web/js -->
-<script type="importmap">
-{ "imports": {
-    "three": "./js/vendor/three.module.js",
-    "threex": "./js/vendor/ar-threex.mjs",
-    "three/addons/controls/OrbitControls.js": "./js/vendor/OrbitControls.js",
-    "three/addons/loaders/STLLoader.js": "./js/vendor/STLLoader.js",
-    "three/addons/loaders/TGALoader.js": "./js/loaders/TGALoader.js",
-    "three/examples/jsm/loaders/STLLoader.js": "./js/vendor/STLLoader.js",
-    "three/examples/jsm/loaders/ColladaLoader.js": "./js/vendor/ColladaStub.js"
-} }
-</script>
-
-<style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
-  /* **body 에 배경을 주면 카메라 영상이 안 보인다.**
-     AR.js 는 카메라 영상을 `z-index: -2` 인 <video id="arjs-video"> 로 화면에 깐다.
-     CSS 페인트 순서상 음수 z-index 요소는 **루트(html)의 배경 위**에 그려지지만
-     **body 의 배경 아래**에 그려진다. 그래서 body 가 불투명하면 영상이 통째로 가려지고,
-     투명한 캔버스만 남아 **화면이 검게만 보인다** — 카메라가 정상 동작해도 그렇다.
-     실제로 이 증상을 겪었다. 배경은 html 에만 둔다. */
-  html { background: #000; }
-  body { margin: 0; height: 100%; overflow: hidden; background: transparent;
-         font: 14px/1.45 -apple-system, "Apple SD Gothic Neo", sans-serif; color: #fff;
-         -webkit-user-select: none; user-select: none; }
-  canvas { display: block; position: absolute; top: 0; left: 0; }
-  /* **영상 요소(#arjs-video)의 크기를 CSS로 건드리지 않는다.**
-     AR.js 가 `onResizeElement` + `copyElementSizeTo` 로 영상과 캔버스를 같은 크기로 맞춘다 —
-     그 대응이 깨지면 카메라 영상과 투영이 어긋나 로봇이 마커에서 밀린다.
-     `object-fit: cover` 로 화면을 꽉 채우고 싶은 유혹이 있지만 그게 정확히 그 대응을 깬다. */
-
-  #hud { position: fixed; top: 0; left: 0; right: 0; z-index: 10;
-         /* safe-area 는 **위쪽**에 줘야 한다. 아래에 주면 노치가 상태 표시를 덮는다 */
-         padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
-         display: flex; gap: 8px; align-items: center;
-         background: linear-gradient(#000000cc, #0000); pointer-events: none; }
-  #dot { width: 10px; height: 10px; border-radius: 50%; background: #6b7680; flex: none;
-         box-shadow: 0 0 0 3px #ffffff18; transition: background .15s; }
-  #dot.on { background: #4dd6a0; }
-  #status { font-size: 12px; color: #cfd8de; text-shadow: 0 1px 3px #000; }
-
-  #bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
-         padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-         display: flex; flex-wrap: wrap; gap: 7px; justify-content: center;
-         background: linear-gradient(#0000, #000000d9); }
-  button { padding: 9px 13px; min-height: 40px; border-radius: 9px;
-           background: #ffffff1c; color: #eaf1f6; border: 1px solid #ffffff30;
-           font-size: 13px; -webkit-tap-highlight-color: transparent; }
-  button.on { background: #4dd6a0; color: #06251a; border-color: #4dd6a0; font-weight: 600; }
-  button:disabled { opacity: .4; }
-
-  /* --- 패널 숨기기.
-     폰에서는 하단 버튼바가 카메라 화면의 아래쪽을 가린다. 실물 옆에 마커를 놓고
-     겹쳐 보거나 사진을 찍을 때 그 부분이 정작 봐야 할 곳이다.
-     숨김 상태에서도 **토글 버튼 하나는 남긴다** — 다 사라지면 되돌릴 방법이 없다. */
-  #hud, #bar { transition: opacity .18s, transform .18s; }
-  body.clean #hud { opacity: 0; transform: translateY(-100%); pointer-events: none; }
-  body.clean #bar { opacity: 0; transform: translateY(100%); pointer-events: none; }
-
-  /* **우상단에 둔다.** 하단에 두면 좁은 화면에서 버튼바가 2줄로 접힐 때 겹친다 —
-     "버튼바 높이 + 여유"를 상수로 넣는 방식은 줄 수가 바뀌면 깨진다.
-     좌상단은 HUD(상태 표시)가 쓰므로 우상단이 비어 있다. */
-  #toggle { position: fixed; z-index: 12; width: 44px; height: 44px; padding: 0;
-            top: calc(env(safe-area-inset-top) + 8px);
-            right: max(12px, env(safe-area-inset-right));
-            border-radius: 50%; background: #000000a6; border: 1px solid #ffffff33;
-            font-size: 17px; line-height: 1; display: grid; place-items: center; }
-
-  /* 좁은 화면에서는 버튼을 조금 좁혀 한 줄에 담기게 한다 — 접히면 화면을 더 가린다 */
-  @media (max-width: 420px) {
-    #bar { gap: 5px; padding-left: 8px; padding-right: 8px; }
-    #bar button { padding: 9px 8px; font-size: 12px; }
-  }
-
-  /* --- 조정판. 버튼바 바로 위에서 올라온다 */
-  #tune { position: fixed; z-index: 11; left: 8px; right: 8px;
-          bottom: calc(env(safe-area-inset-bottom) + 62px);
-          max-height: 60vh; overflow: auto; padding: 12px 13px;
-          background: #0c1013f2; border: 1px solid #2b333a; border-radius: 12px; }
-  #tune[hidden] { display: none; }
-  body.clean #tune { display: none; }
-  #tune label { display: block; margin-bottom: 11px; font-size: 12px; color: #cfd8de; }
-  #tune .hint { display: block; margin: 2px 0 5px; color: #7d888f; font-size: 11px; }
-  #tune .ctl { display: flex; gap: 6px; align-items: center; }
-  #tune input[type=range] { flex: 1; min-width: 0; }
-  #tune input[type=number] { width: 74px; padding: 6px; background: #14171a; color: #e8ecef;
-                             border: 1px solid #343b42; border-radius: 6px;
-                             font: 13px ui-monospace, monospace; font-variant-numeric: tabular-nums; }
-  #tune button { padding: 7px 11px; font-size: 12px; min-height: 36px; }
-  #diag { margin: 0; padding: 9px 10px; background: #05080a; border: 1px solid #232b31;
-          border-radius: 7px; white-space: pre-wrap;
-          font: 11px/1.6 ui-monospace, monospace; color: #9fd8bd; }
-  #diag[hidden] { display: none; }
-
-  #boot { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column;
-          gap: 10px; align-items: center; justify-content: center; padding: 24px;
-          background: #0b0e11; text-align: center; }
-  #boot[hidden] { display: none; }   /* display 를 명시했으므로 hidden 도 명시해야 먹는다 */
-  #boot h1 { margin: 0; font-size: 17px; }
-  #boot p { margin: 0; max-width: 30ch; font-size: 13px; color: #97a3ac; }
-  #bootBtn { background: #4dd6a0; color: #06251a; border: 0; font-weight: 600;
-             padding: 13px 22px; font-size: 15px; }
-  #pct { font-variant-numeric: tabular-nums; color: #4dd6a0; }
-  .err { color: #ff9b8a; }
-</style>
-</head>
-<body>
-
-<div id="boot">
-  <h1>FR5 겹쳐 보기</h1>
-  <p id="bootMsg">시작을 누르면 카메라 권한을 묻습니다.<br>
-    인쇄한 마커를 비추세요.</p>
-  <button id="bootBtn">시작</button>
-  <p id="bootNote" style="font-size:12px">모델 <span id="pct">0%</span> · 약 10MB</p>
-</div>
-
-<div id="hud"><div id="dot"></div><div id="status">준비 중…</div></div>
-
-<div id="bar">
-  <button id="bTest">① 상자만</button>
-  <button id="bRobot" class="on">② 로봇</button>
-  <button id="bPath">③ 궤적</button>
-  <button id="bZone">④ 안전 범위</button>
-  <button id="bPlay" disabled>▶ 재생</button>
-  <button id="bTune">⚙</button>
-</div>
-
-<!-- 조정판. 폰에서 콘솔을 못 보니 **크기·스무딩·진단을 화면에서** 다룬다. -->
-<div id="tune" hidden>
-  <label>마커 실측 크기
-    <span class="hint">인쇄물의 검은 사각형 한 변. 이 값이 틀리면 로봇 크기가 틀린다</span>
-    <span class="ctl"><input type="range" id="mmR" min="40" max="400" step="1">
-      <input type="number" id="mmN" min="40" max="400" step="1"> mm</span>
-  </label>
-  <label>깜빡임 억제
-    <span class="hint">마커를 놓쳐도 유지하는 시간. 강하게 하면 부드럽지만 반응이 늦다</span>
-    <span class="ctl" id="smRow">
-      <button data-sm="없음">없음</button><button data-sm="약">약</button>
-      <button data-sm="중">중</button><button data-sm="강">강</button>
-    </span>
-  </label>
-  <label><span class="ctl">
-    <button id="bDiag">진단 수치 보기</button>
-    <button id="bReset">수치 초기화</button>
-  </span></label>
-  <pre id="diag" hidden></pre>
-</div>
-
-<button id="toggle" type="button" aria-label="화면 표시 숨기기" aria-pressed="false">⤢</button>
-
-<script type="module">
+import './ar.css';
 import * as THREE from 'three';
-import { initAR } from './js/ar-marker.js';
-import { loadConfig, loadRobot } from './js/robot-view.js';
-import { interpolateJoints, tipPath, pathLength, makeTube, createPlayer } from './js/trajectory.js';
+import { loadConfig, loadRobot } from '@fr5/shared/view3d/robot/robot-view.js';
+import {
+  interpolateJoints, tipPath, pathLength, makeTube, createPlayer,
+} from '@fr5/shared/view3d/trajectory/trajectory.js';
+import { makeReachZone, FR5_REACH_M } from '@fr5/shared/view3d/safety/reach-zone.js';
+import { initAR } from '../features/marker/ar-marker.js';
+import { bindNumberPair } from '../features/ui/number-pair.js';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (s, cls = '') => { $('status').className = cls; $('status').textContent = s; };
@@ -181,22 +32,25 @@ key.position.set(1, 2, 1.5);
 scene.add(key);
 
 // ---- 설정 (마커 크기·바코드 번호는 인쇄물 실측값이다. 코드에 박지 않는다.)
-const { gripper: gcfg, marker: mcfg } = await loadConfig();
+// fetch 가 아니라 빌드 시 import 다 — 파일이 깨지면 빌드가 실패한다 (D18).
+const { gripper: gcfg, marker: mcfg } = loadConfig();
 
 // URL 로 덮어쓸 수 있게 한다 — 현장에서 파일을 고치지 않고 값을 바꿔야 할 때가 있고,
 // QR·링크로 팀원에게 "이 값으로 열어봐"를 넘길 수 있다.
 //   ?mm=143   마커 실측 크기
 //   ?bc=2     바코드 번호
-//   ?sm=강    깜빡임 억제
+//   ?sm=강    깜빡임 억제 (off·low·mid·high 도 받는다)
 //   ?diag=1   진단 수치 켜고 시작
 // **`has()` 로 먼저 확인한다.** `Q.get('bc')` 는 없을 때 `null` 을 주고
 // `Number(null) === 0` 이다. 하한이 0 인 값(바코드 번호)은 그 0 이 검사를 통과해
 // **파라미터를 안 줬는데 마커 번호가 0 으로 덮어써졌다.** 인쇄물이 #2 였으므로
-// 아무것도 검출되지 않아 로봇이 통째로 안 떴다 — 실제로 겪은 버그다.
+// 아무것도 검출되지 않아 로봇이 통째로 안 떴다 — 실제로 겪은 버그다 (D15).
 const Q = new URLSearchParams(location.search);
 if (Q.has('mm')) {
   const v = Number(Q.get('mm'));
-  if (Number.isFinite(v) && v >= 40 && v <= 400) mcfg.markerSizeMm = v;
+  // 하한은 ⚙ 슬라이더와 같아야 한다. 40 으로 두면 `?mm=35` 가 **조용히 무시**되고
+  // 설정 기본값이 그대로 쓰여, 크기를 바꿨다고 믿은 채 엉뚱한 값을 재게 된다.
+  if (Number.isFinite(v) && v >= 10 && v <= 400) mcfg.markerSizeMm = v;
 }
 if (Q.has('bc')) {
   const v = Number(Q.get('bc'));
@@ -206,23 +60,36 @@ if (Q.has('bc')) {
 // AR 경로는 로컬(카메라 없는 자동화)에서 검증할 수 없어서, 검증 못 한 것을 기본으로 두지 않는다.
 // 깜빡이면 ⚙ 에서 약→중→강 으로 올리고 진단 수치로 효과를 확인한다.
 // 폰에서 URL 에 한글을 타이핑하는 것은 고통이다 → 영문 별칭도 받는다.
+// **검출 캔버스 폭** (`?cv=640`). 0 이면 AR.js 자동 — 폰에서는 320 을 고른다.
+// 검출 한계가 "마커가 검출 캔버스에서 24px" 이라 이 값이 곧 검출 거리다 (ar-marker.js §검출 해상도).
+// 올리면 픽셀이 4배라 fps 를 먹는다. 그래서 기본을 바꾸지 않고 URL 로 재 본 뒤 정한다.
+const num = (k, lo, hi) => {
+  const v = Number(Q.get(k));
+  return Number.isInteger(v) && v >= lo && v <= hi ? v : 0;
+};
+// **카메라에 요청할 영상 크기** (`?src=1280`). AR.js 기본이 640×480 이다.
+// 소스가 검출 상한을 정한다 — 이걸 안 올리면 `cv` 를 키워도 소용없다.
+const SOURCE_W = num('src', 320, 3840);
+// 검출 캔버스 폭 (`?cv=640`). 안 주면 소스와 같게 맞춘다 — 줄이면 그만큼 버린다.
+const DETECT_CV = num('cv', 240, 3840) || SOURCE_W;
+
 const SM_ALIAS = { off: '없음', low: '약', mid: '중', high: '강' };
 const qSm = Q.get('sm');
 let smoothing = SM_ALIAS[qSm] ?? (['없음', '약', '중', '강'].includes(qSm) ? qSm : '없음');
 
 // ---- 모델. AR 을 켜기 전에 먼저 읽는다 — 카메라 권한 창과 10MB 다운로드가
 //      겹치면 무엇 때문에 멈춘 건지 구분이 안 된다.
+// 자산은 Shared/assets 가 publicDir 이라 루트에서 서빙된다 → '/FAIRINO_FR5/…'
 const { robot } = await loadRobot({
-  urdfUrl: './assets/FAIRINO_FR5/fairino5_v6.urdf',
+  urdfUrl: '/FAIRINO_FR5/fairino5_v6.urdf',
   gripperCfg: gcfg,
-  gripperDir: './assets/PGEA_100_40/',
+  gripperDir: '/PGEA_100_40/',
   onProgress: (a, b) => { $('pct').textContent = `${Math.round((a / b) * 100)}%`; },
 });
 $('pct').textContent = '100%';
 
 // ---- 마커 좌표계 구성
 //   AR.js 예제에서 마커 위 평면이 PlaneGeometry(1,1) 이다 → **마커가 1×1 단위를 차지한다.**
-//   우리 URDF 는 미터라 그대로 놓으면 1m 로봇이 마커 크기로 보인다.
 //
 // **카메라 요청은 사용자가 "시작"을 누른 뒤에 한다.** 모듈 평가 시점에 요청하면
 // 화면에는 아직 안내가 떠 있는데 권한 창이 먼저 뜬다 — 사용자가 무엇을 허용하는지 모른다.
@@ -239,9 +106,11 @@ function startAR() {
     renderer,
     scene,
     markerRoot,
-    cameraParametersUrl: './assets/marker/camera_para.dat',
+    cameraParametersUrl: '/marker/camera_para.dat',
     barcodeValue: mcfg.barcodeValue,
     smoothing,
+    detectCanvasWidth: DETECT_CV,
+    sourceWidth: SOURCE_W,
     onStatus: (s) => setStatus(s),
   });
   activeCamera = ar.camera;
@@ -301,32 +170,9 @@ robot.add(tube);
 const player = createPlayer(robot, frames, { secondsPerLoop: 4 });
 
 // ---- ④ 안전 범위. 반지름 = FR5 도달거리 922mm.
-//
-// 벽처럼 진하게 그리면 **주인공인 로봇이 안 보인다.** 설득이 목적이므로
-// 면은 아주 옅게 두고 바닥 테두리를 진하게 둔다 — "여기까지 오지 마라"는
-// 바닥 선 하나로 읽힌다.
-const REACH = 0.922;
-const zone = new THREE.Group();
-const wall = new THREE.Mesh(
-  new THREE.CylinderGeometry(REACH, REACH, 0.9, 48, 1, true),
-  new THREE.MeshBasicMaterial({
-    color: 0xffb347, transparent: true, opacity: 0.07,
-    side: THREE.DoubleSide, depthWrite: false,
-  }),
-);
-wall.rotation.x = Math.PI / 2; // stage 안은 아직 Z-up
-wall.position.z = 0.45;
-zone.add(wall);
-// 바닥 테두리 — 얇은 링을 눕혀서 쓴다. Line 은 굵기 조절이 안 된다.
-const rim = new THREE.Mesh(
-  new THREE.RingGeometry(REACH - 0.02, REACH, 64),
-  new THREE.MeshBasicMaterial({
-    color: 0xffb347, transparent: true, opacity: 0.85,
-    side: THREE.DoubleSide, depthWrite: false,
-  }),
-);
-rim.position.z = 0.002; // 바닥과 겹쳐 깜빡이는 것을 막는다
-zone.add(rim);
+// 그리는 코드는 shared 로 내렸다 — 대시보드도 같은 링으로 스테이션을 검사한다.
+const REACH = FR5_REACH_M;
+const zone = makeReachZone();
 zone.visible = false;
 stage.add(zone);
 
@@ -376,15 +222,15 @@ $('bTune').onclick = () => {
   $('bTune').classList.toggle('on', !$('tune').hidden);
 };
 
-function setMm(v) {
-  const n = Math.round(Math.min(400, Math.max(40, Number(v))));
-  if (!Number.isFinite(n)) return;
-  applyMarkerSize(n);
-  $('mmR').value = n; $('mmN').value = n;
-  saveTune();
-}
-$('mmR').addEventListener('input', (e) => setMm(e.target.value));
-$('mmN').addEventListener('input', (e) => setMm(e.target.value));
+// 되쓰기 규칙은 bindNumberPair 안에 있다 — 여기서 `$('mmN').value = n` 을 하면
+// 40mm 미만을 접두사로도 못 치는 그 버그가 돌아온다.
+const mmPair = bindNumberPair({
+  range: $('mmR'),
+  number: $('mmN'),
+  round: Math.round,          // 마커 크기는 정수 mm 다
+  onValue: (n) => { applyMarkerSize(n); saveTune(); },
+});
+const setMm = (v) => mmPair.set(v);   // window 노출 계약 유지 (AGENTS.md)
 setMm(mcfg.markerSizeMm);
 
 function setSm(level) {
@@ -397,6 +243,47 @@ for (const b of $('smRow').children) b.onclick = () => setSm(b.dataset.sm);
 setSm(smoothing);
 
 let showDiag = Q.get('diag') === '1';
+
+/**
+ * 진단 수치를 dev 서버로 흘려 `.diag/<날짜>.jsonl` 에 쌓는다 (`?log=1&tag=80mm-2m`).
+ *
+ * **`import.meta.env.DEV` 로 감싸서 배포 번들에서는 통째로 사라진다.**
+ * 받는 쪽(vite.config.js 의 diagSink)도 dev 서버에만 있다.
+ *
+ * `sendBeacon` 을 쓰는 이유 — 응답을 안 기다리고, 화면이 가려지거나 꺼져도
+ * 마지막 한 건이 나간다. `fetch` 로 하면 렌더 루프에 지연이 섞이고
+ * 폰을 주머니에 넣는 순간 끊긴다. **재는 도구가 재는 대상을 느리게 하면 안 된다.**
+ */
+const LOG_EVERY_MS = 1000;   // 화면 갱신(250ms)보다 성기게 — 파일이 4배 얇아진다
+// **기록은 진단판 표시와 별개다.** 처음엔 `showDiag` 안에 넣었다가
+// 진단판을 끈 순간 로그가 조용히 끊겼다 — 재는 사람이 화면을 정리하면
+// 데이터가 사라지는 설계였다.
+const logging = import.meta.env.DEV && Q.get('log') === '1';
+let sendDiag = () => {};
+if (logging) {
+  const tag = Q.get('tag') ?? '';
+  let lastSentAt = 0;
+  sendDiag = (st, now) => {
+    if (now - lastSentAt < LOG_EVERY_MS) return;
+    // 카메라가 열리기 전(`0×0`) 구간은 버린다 — 인식률 0% 가 "못 잡았다" 로 읽혀
+    // 나중에 표를 만들 때 성적을 깎는다. 실제로 158줄 중 37줄이 이것이었다.
+    if (!st.카메라?.[0]) return;
+    lastSentAt = now;
+    navigator.sendBeacon?.('/__diag', JSON.stringify({
+      t: new Date().toISOString(),
+      tag,
+      mm: mcfg.markerSizeMm,
+      bc: mcfg.barcodeValue,
+      sm: smoothing,
+      cv: DETECT_CV || 'auto',
+      src: SOURCE_W || 'auto',
+      // 사람이 선언한 구간. 0 이면 측정 버튼을 안 누른 채 흘러가는 줄이다
+      run: measureUntil ? runNo : 0,
+      sid: SID,   // 페이지를 다시 연 판을 가른다 (위 §SID)
+      ...st,
+    }));
+  };
+}
 function applyDiag() {
   $('diag').hidden = !showDiag;
   $('bDiag').textContent = showDiag ? '진단 수치 숨기기' : '진단 수치 보기';
@@ -404,6 +291,49 @@ function applyDiag() {
   if (showDiag) $('tune').hidden = false;
 }
 $('bDiag').onclick = () => { showDiag = !showDiag; applyDiag(); };
+
+// ---- 실험 측정 — **한 판을 폰에서 끝낸다.**
+//
+// 구간을 무엇으로 가르나가 이 기능의 전부다. 처음엔 URL 의 `tag` 로 갈랐는데
+// 폰에서 URL 을 고치는 게 고통이라 실제로는 안 바뀌었고, 결과가 한 태그에
+// 0.46m 부터 2.05m 까지 섞여 들어왔다 — **한 거리의 값이 아닌 숫자**가 된다.
+// 그래서 사람이 "지금부터 잰다" 를 누르게 하고, 로그에 `run` 번호를 박는다.
+// report-diag.py 가 그 번호로 구간을 가른다 — 추론이 아니라 선언이다.
+const MEASURE_MS = 30_000;
+// **페이지를 다시 열면 `run` 이 1 부터 다시 센다.** 그래서 판 번호만으로는
+// 어제의 #1 과 방금의 #1 이 구분되지 않는다 — 실제로 두 판이 한 구간으로 합쳐져
+// 성적이 91% 에서 0% 로 뒤집혔다. 열 때마다 도장을 하나 찍어 같이 보낸다.
+const SID = Date.now().toString(36).slice(-5);
+let runNo = 0;
+let measureUntil = 0;
+let measureMm = 0;
+let lastSt = null;
+
+function tickMeasure(st, now) {
+  if (!measureUntil) return;
+  const left = measureUntil - now;
+  if (left > 0) {
+    $('mState').textContent = `재는 중 ${Math.ceil(left / 1000)}s — 움직이지 마세요`;
+    return;
+  }
+  measureUntil = 0;
+  $('bMeasure').disabled = false;
+  // 끝난 판의 성적을 화면에 남긴다. 폰만 보고 다음 판을 판단할 수 있어야 한다.
+  $('mState').textContent = `#${runNo} ${measureMm}mm · ${st.마커px ?? '?'}px`
+    + ` · 인식률 ${st.인식률}% · 기울기 ${st.기울기도 ?? '?'}°`
+    + (st.회전급변도 > 30 ? ' · ⚠뒤집힘' : '');
+}
+
+$('bMeasure').onclick = () => {
+  if (!ar?.ready()) { $('mState').textContent = '카메라가 아직 안 열렸다'; return; }
+  if (measureUntil) return;                 // 이미 재는 중이다
+  runNo += 1;
+  measureMm = mcfg.markerSizeMm;
+  ar.resetStats();                          // 누적값을 전부 비운다 — 앞 판이 섞이면 안 된다
+  measureUntil = performance.now() + MEASURE_MS;
+  $('bMeasure').disabled = true;
+  $('mState').textContent = `재는 중 ${MEASURE_MS / 1000}s`;
+};
 $('bReset').onclick = () => ar?.resetStats();
 applyDiag();
 
@@ -471,13 +401,18 @@ renderer.setAnimationLoop((now) => {
   }
 
   // 진단 수치는 초당 4회만 갱신한다 — 매 프레임 DOM 을 고치면 그 자체가 느려진다
-  if (showDiag && ar && now - lastDiagAt > 250) {
+  if (ar && now - lastDiagAt > 250) {
     lastDiagAt = now;
     const st = ar.stats(mcfg.markerSizeMm);
-    $('diag').textContent = [
+    lastSt = st;
+    tickMeasure(st, now);
+    sendDiag(st, now);
+    if (showDiag) $('diag').textContent = [
       `fps ${st.fps}   인식률 ${st.인식률}%   놓침 ${st.놓침}회 / ${st.프레임}프레임`,
       `지금  원시 ${st.보임 ? '인식' : '놓침'} · 표시 ${st.표시중 ? 'ON' : 'OFF'}`
         + (st.거리m !== null ? `   거리 ${st.거리m}m` : ''),
+      `마커 ${st.마커px ?? '—'}px (한계 24)   기울기 ${st.기울기도 ?? '—'}°`
+        + `   급변 ${st.회전급변도}°   최장끊김 ${(st.최장끊김ms / 1000).toFixed(1)}s`,
       `카메라 ${st.카메라?.join('×') ?? '?'}   검출캔버스 ${st.캔버스?.join('×') ?? '?'}`,
       `마커 #${mcfg.barcodeValue} · ${mcfg.markerSizeMm}mm · 스케일 ${scaleRoot.scale.x.toFixed(2)}배 · 억제 ${smoothing}`,
     ].join('\n');
@@ -486,7 +421,9 @@ renderer.setAnimationLoop((now) => {
   renderer.render(scene, activeCamera);
 });
 
-// 헤드리스 검증용 노출
+// 헤드리스 검증용 노출.
+// **빼지 않는다** — 기준값 7개 대조가 여기 걸려 있다 (evidence/2026-07-30-ar-baseline.md).
+// 빼면 판정이 다시 "폰에서 되는 것 같다" 로 내려앉는다.
 Object.assign(window, {
   THREE, robot, scene, renderer, stage, scaleRoot, tube, zone, player,
   points, mcfg, gcfg,
@@ -521,6 +458,3 @@ Object.assign(window, {
     마커보임: markerRoot.visible,
   }),
 });
-</script>
-</body>
-</html>

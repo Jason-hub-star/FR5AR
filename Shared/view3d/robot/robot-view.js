@@ -5,25 +5,34 @@
 //   내부(URDF·three.js): 미터 · 라디안
 //
 // 함정 (docs/evidence/2026-07-29-urdf-web-render.md 실측)
-//   ① three.js r185 는 three.module.js + three.core.js 로 쪼개져 있다.
-//      core 를 안 올리면 **에러 없이** 화면이 죽는다. importmap 에 둘 다 넣어라.
-//   ② STL 은 비동기로 늦게 붙는다. load 콜백 시점에 메시가 0개다 → onReady 를 써라.
-//   ③ 그리퍼 STL 은 밀리미터, 팔 URDF 는 미터다. meshScale 을 빼면 1000배로 뜬다.
+//   ① STL 은 비동기로 늦게 붙는다. load 콜백 시점에 메시가 0개다 → manager.onLoad 를 기다려라.
+//   ② 그리퍼 STL 은 밀리미터, 팔 URDF 는 미터다. meshScale 을 빼면 1000배로 뜬다.
+//
+// (해소됨) three.js 를 손으로 importmap 에 매핑하던 함정 —
+//   r185 가 three.module.js + three.core.js 로 쪼개져 있어 core 를 빼면 에러 없이 화면이 죽었다.
+//   Vite 로 옮기면서 npm 이 해결한다 (docs/evidence/2026-07-30-vite-gate.md).
 
 import * as THREE from 'three';
-import URDFLoader from './vendor/URDFLoader.js';
-import { STLLoader } from './vendor/STLLoader.js';
+import URDFLoader from 'urdf-loader';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 
 const DEG = Math.PI / 180;
 const MM = 0.001; // 밀리미터 → 미터
 
-/** 설정 파일 두 개를 읽는다. 값을 코드에 박지 않기 위한 유일한 경로. */
-export async function loadConfig(base = './config/') {
-  const [gripper, marker] = await Promise.all([
-    fetch(`${base}gripper-mount.json`).then((r) => r.json()),
-    fetch(`${base}marker-offset.json`).then((r) => r.json()),
-  ]);
-  return { gripper, marker };
+// 설정은 **빌드 시 import 한다. fetch 하지 않는다.**
+// 파일이 없거나 깨지면 빌드가 실패한다 — 런타임에 조용히 실패하면
+// 화면에 아무것도 안 뜨는데 콘솔 에러도 없다 (D15·D18, BUILD-VITE.md §설정).
+// 두 JSON 은 .env 에서 굽는 산출물이다 → node scripts/build/config.mjs
+import gripperConfig from '../../data/config/gripper-mount.json';
+import markerConfig from '../../data/config/marker-offset.json';
+
+/** 설정 두 개. 값을 코드에 박지 않기 위한 유일한 경로. */
+export function loadConfig() {
+  // 조정 화면이 값을 직접 고치므로 사본을 준다 — 원본을 고치면 다른 화면이 같이 바뀐다.
+  return {
+    gripper: structuredClone(gripperConfig),
+    marker: structuredClone(markerConfig),
+  };
 }
 
 /**
@@ -48,7 +57,7 @@ export function loadRobot({ urdfUrl, gripperCfg, gripperDir, onProgress }) {
     manager.onProgress = (_url, loaded, total) => onProgress?.(loaded, total);
     manager.onError = (url) => failed.push(url);
 
-    // ② 여기서 세면 0개다. manager.onLoad 까지 기다린다.
+    // ① 여기서 세면 0개다. manager.onLoad 까지 기다린다.
     manager.onLoad = () => {
       if (failed.length) {
         reject(new Error(`메시 로딩 실패 ${failed.length}개: ${failed.join(', ')}`));
@@ -87,7 +96,7 @@ function attachGripper(robot, cfg, dir, manager) {
   mount.name = 'gripperMount';
   const meshRoot = new THREE.Group();
   meshRoot.name = 'gripperMeshes';
-  meshRoot.scale.setScalar(cfg.meshScale); // ③ 밀리미터 보정
+  meshRoot.scale.setScalar(cfg.meshScale); // ② 밀리미터 보정
   mount.add(meshRoot);
   parent.add(mount);
 

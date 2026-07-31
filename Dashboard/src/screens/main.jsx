@@ -1,0 +1,49 @@
+// 관제화면 엔트리. **탭이면 된다 — 라우터를 넣지 않는다** (CONSOLE-REACT.md §의존성).
+//
+// 지금은 골격이다. 세 기능이 각각 언제 살아나는지는 그 파일 머리에 적어 뒀다.
+// 여기서 보증하는 것은 하나 — **React + Vite + @fr5/shared 배선이 실제로 된다.**
+
+import './main.css';
+import { useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { FR5_REACH_M } from '@fr5/shared/view3d/safety/reach-zone.js';
+import { LayoutEditor } from '../features/layout/LayoutEditor.jsx';
+import { MetricsCompare } from '../features/metrics/MetricsCompare.jsx';
+import { RobotControl } from '../features/control/RobotControl.jsx';
+
+const TABS = [
+  ['layout', '배치안', LayoutEditor],
+  ['metrics', '생산성 비교', MetricsCompare],
+  ['control', '로봇 조작', RobotControl],
+];
+
+// 지표 출처. 지금은 목업뿐이다 — 실물이 붙으면 Shared/data/datasource/ 가 바꿔 끼운다.
+const SOURCE = 'mock';
+
+function App() {
+  const [tab, setTab] = useState('layout');
+  const Active = TABS.find(([id]) => id === tab)[2];
+  return (
+    <>
+      <header>
+        <h1>FR5 관제화면</h1>
+        <span className="sub">배치안 편집 · 생산성 비교 — 도달거리 {FR5_REACH_M * 1000}mm</span>
+        {/* 출처 배지는 항상 보인다. 목업을 실측으로 착각한 채 보고하는 것이 가장 비싼 사고다 */}
+        <span className="source" data-src={SOURCE}>출처 {SOURCE}</span>
+      </header>
+      <nav>
+        {TABS.map(([id, label]) => (
+          <button key={id} type="button" aria-selected={tab === id} onClick={() => setTab(id)}>
+            {label}
+          </button>
+        ))}
+      </nav>
+      <main><Active /></main>
+    </>
+  );
+}
+
+createRoot(document.getElementById('root')).render(<App />);
+
+// 헤드리스 검증용 노출 — AR 과 같은 방식이다 (evidence/2026-07-30-ar-baseline.md).
+Object.assign(window, { FR5_REACH_M, SOURCE, TABS: TABS.map(([id]) => id) });
