@@ -46,18 +46,21 @@ try {
   check('미연결 phase 표시 DISCONNECTED',
     !!(await p.eval(`document.querySelector('.safetybar').textContent.includes('DISCONNECTED')`)));
 
-  // 2. 실기 프로필 연결 시도 → 사람이 읽는 거부 사유 (fail-closed 경로)
+  // 2. 불량 mock 프로필 연결 시도 → 사람이 읽는 거부 사유 (fail-closed 경로).
+  //    실기 프로필은 시험에서 건드리지 않는다 — 로봇 유무에 따라 결과가 갈리고, 있으면 실기를 만진다
   await p.waitFor(`document.querySelectorAll('.diag select option').length === 4`);
-  await p.eval(`document.querySelector('.diag button.primary').click()`);
-  const refusal = await p.waitFor(`document.querySelector('.refusal')?.textContent`, { timeoutMs: 5000 });
-  check('실기 프로필 → 거부 사유 표시 (DLL 미설정 fail-closed)', !!refusal && refusal.includes('FAIRINO_DLL'));
-
-  // 3. mock 프로필로 연결 → OBSERVE_ONLY
-  await p.eval(`(() => {
+  const pickProfile = (id) => p.eval(`(() => {
     const sel = document.querySelector('.diag select');
-    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, 'fr5-mock-a');
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, ${JSON.stringify(id)});
     sel.dispatchEvent(new Event('change', { bubbles: true }));
   })()`);
+  await pickProfile('fr5-mock-broken');
+  await p.eval(`document.querySelector('.diag button.primary').click()`);
+  const refusal = await p.waitFor(`document.querySelector('.refusal')?.textContent`, { timeoutMs: 5000 });
+  check('불량 프로필 → 거부 사유 표시 (모델 불일치 fail-closed)', !!refusal && refusal.includes('모델 불일치'));
+
+  // 3. mock 프로필로 연결 → OBSERVE_ONLY
+  await pickProfile('fr5-mock-a');
   await p.eval(`document.querySelector('.diag button.primary').click()`);
   check('connect → 안전 바 OBSERVE_ONLY',
     !!(await p.waitFor(`document.querySelector('.safetybar').textContent.includes('OBSERVE_ONLY')`, { timeoutMs: 5000 })));
