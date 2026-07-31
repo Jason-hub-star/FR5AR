@@ -99,14 +99,14 @@ FR5/
 
 ## 두 프로젝트가 `Shared/` 를 어떻게 쓰나
 
-**npm workspaces.** 현재 루트 `package.json` 하나가 실행 패키지 넷을 묶는다.
+**npm workspaces.** 현재 루트 `package.json` 하나가 실행 패키지 다섯을 묶는다.
 
 ```jsonc
 // FR5Web/package.json
-{ "private": true, "workspaces": ["Shared", "AR", "Dashboard", "TurtleBot"] }
+{ "private": true, "workspaces": ["Shared", "AR", "Dashboard", "TurtleBot", "FR5"] }
 ```
 
-- 루트에서 `npm install` 한 번. lockfile 하나. `FR5`는 실행 패키지가 생길 때만 추가한다
+- 루트에서 `npm install` 한 번. lockfile 하나. `FR5`는 2026-07-31 실행 패키지가 생겨 추가됐다
 - 두 프로젝트가 `@fr5/shared` 를 보통 패키지처럼 import 한다
 - 대안은 Vite `resolve.alias` + `server.fs.allow` 지만, dev 서버에서 경로 허용을
   따로 열어줘야 해서 걸림돌이 하나 더 생긴다. **workspaces 를 쓴다**

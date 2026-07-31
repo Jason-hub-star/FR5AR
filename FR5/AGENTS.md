@@ -21,5 +21,6 @@
 | `bridge/` | FastAPI·안전·조종권·상태·웹 빌드 서빙 경계 |
 | `bridge/robot_adapter/` | mock과 FAIRINO SDK 교체 경계 |
 
-지금은 문서성 골격뿐이다. 패키지·런타임 코드는 착수 승인 전 만들지 않는다.
+P0(브리지 profile·preflight·상태 스트림)·P1(Live 화면·3D 쌍둥이)은 2026-07-31 mock 으로
+닫혔다 — 증거는 `docs/evidence/2026-07-31/fr5-bridge-p0.md`·`fr5-live-p1.md`.
 상세 순서와 5개 패널은 `docs/ref/FR5-IMPLEMENTATION-PLAN.md`를 따른다.

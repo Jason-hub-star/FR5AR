@@ -1,0 +1,75 @@
+/* FR5 조작 스타일 — 공용 토큰은 @fr5/shared/tokens 에서 온다 (D38 에디토리얼 아카데믹).
+ * 안전 상태만 정상/경고/위험색을 쓰고, 선택·주요 동작은 중립 흑백이다 (FR5/src/README.md). */
+@import '@fr5/shared/tokens/tokens.css';
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--c-bg); color: var(--c-fg); font: var(--f-body);
+       height: 100dvh; display: flex; flex-direction: column; }
+#root { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+header { display: flex; align-items: baseline; gap: var(--s-3);
+         padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--c-line); }
+header h1 { margin: 0; font-size: 16px; }
+header .sub { color: var(--c-fg-mute); font-size: 12px; }
+header .source { margin-left: auto; padding: 3px 8px; border-radius: 99px; font-size: 11px;
+                 font-family: ui-monospace, monospace; }
+header .source[data-src="mock"] { background: var(--c-warn-soft); color: var(--c-warn); }
+header .source[data-src="real"] { background: var(--c-ok-soft); color: var(--c-ok); }
+header .source[data-src="none"] { background: var(--c-sunken); color: var(--c-fg-mute); }
+
+/* 상시 안전 바 — 어느 패널에서도 사라지지 않는다 */
+.safetybar { display: flex; flex-wrap: wrap; gap: var(--s-1);
+             padding: var(--s-2) var(--s-4); border-bottom: 1px solid var(--c-line);
+             background: var(--c-sunken); }
+.safeitem { padding: 3px 9px; border-radius: var(--r-ctl); font-size: 12px;
+            border: 1px solid var(--c-line); color: var(--c-fg-mute); }
+.safeitem b { font-weight: 600; margin-right: 4px; color: var(--c-fg-dim); }
+.safeitem[data-tone="ok"] { background: var(--c-ok-soft); color: var(--c-ok); border-color: transparent; }
+.safeitem[data-tone="warn"] { background: var(--c-warn-soft); color: var(--c-warn); border-color: transparent; }
+.safeitem[data-tone="danger"] { background: var(--c-danger-soft); color: var(--c-danger); border-color: transparent; }
+
+nav { display: flex; gap: var(--s-1); padding: var(--s-2) var(--s-4);
+      border-bottom: 1px solid var(--c-line); }
+nav button { padding: 7px 14px; background: var(--c-btn); color: var(--c-btn-fg);
+             border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
+             font-size: 13px; cursor: pointer; }
+nav button[aria-selected="true"] { background: var(--c-selected); color: var(--c-selected-fg); }
+nav button:disabled { opacity: 0.4; cursor: default; }
+
+main { flex: 1; min-height: 0; }
+.live { height: 100%; display: flex; }
+.twin { flex: 1; min-width: 0; position: relative; }
+.twin canvas { display: block; }
+
+.live aside { width: 300px; overflow-y: auto; padding: var(--s-3);
+              display: flex; flex-direction: column; gap: var(--s-3);
+              border-left: 1px solid var(--c-line); }
+.card { background: var(--c-card); border: 1px solid var(--c-line);
+        border-radius: var(--r-card); padding: var(--s-3); }
+.card h2 { margin: 0 0 var(--s-2); font-size: 13px; color: var(--c-fg-dim); }
+
+.diag label { display: block; font-size: 12px; color: var(--c-fg-mute); margin-bottom: var(--s-2); }
+.diag select { display: block; width: 100%; margin-top: 4px; padding: 6px 8px;
+               border: 1px solid var(--c-input); border-radius: var(--r-ctl);
+               background: var(--c-sunken); color: var(--c-fg); font: inherit; }
+.diag button { width: 100%; padding: 8px; border: 1px solid var(--c-line-strong);
+               border-radius: var(--r-ctl); background: var(--c-btn); color: var(--c-btn-fg);
+               font-size: 13px; cursor: pointer; }
+.diag button.primary { background: var(--c-primary); color: var(--c-primary-fg); }
+.diag .refusal { margin: var(--s-2) 0 0; padding: var(--s-2); font-size: 12px;
+                 background: var(--c-danger-soft); color: var(--c-danger);
+                 border-radius: var(--r-ctl); }
+.diag dl { margin: var(--s-2) 0 0; font-size: 12px; display: grid;
+           grid-template-columns: auto 1fr; gap: 4px var(--s-2); }
+.diag dt { color: var(--c-fg-mute); }
+.diag dd { margin: 0; font-family: ui-monospace, monospace; }
+
+table.joints, table.tcp { width: 100%; border-collapse: collapse; font-size: 13px; }
+.card th { text-align: left; font-weight: 500; color: var(--c-fg-mute); padding: 3px 0; }
+.card td { text-align: right; font-family: ui-monospace, monospace; padding: 3px 0; }
+
+@media (max-width: 760px) {   /* 폰 — 3D 위 / 값 아래 */
+  .live { flex-direction: column; }
+  .twin { min-height: 45dvh; }
+  .live aside { width: auto; border-left: 0; border-top: 1px solid var(--c-line); }
+}
