@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 // 계약 경로는 /api 접두어가 없다 (API-CONTRACT). dev 는 경로별로 브리지에 넘긴다.
 const BRIDGE = `http://localhost:${process.env.FR5_PORT ?? 5055}`;
-const API_PATHS = ['/robots', '/connect', '/version', '/disconnect', '/state', '/owner', '/points', '/preview'];
+const API_PATHS = ['/robots', '/connect', '/version', '/disconnect', '/state', '/owner',
+  '/arm', '/disarm', '/points', '/preview'];
 
 export default defineConfig({
   // 정적 자산은 Shared/assets 하나뿐이다. 복사하지 않는다 (AR 규칙 미러).

@@ -90,13 +90,30 @@ POST /disconnect
 ## 명령 (클라이언트 → 서버)
 
 WebSocket 같은 연결로 올린다. **조종권을 가진 클라이언트의 명령만 실행한다.**
+신원은 TB 와 같은 hello 바인딩이다 (2026-07-31, D41) — `stop` 만 hello 없이도 받는다.
 
 ```jsonc
+{ "cmd": "hello",   "who": "kim" }      // 이 연결의 신원. 명령 전 1회
 { "cmd": "jog",     "joint": 2, "deltaDeg": 1.0 }
 { "cmd": "moveJ",   "jointsDeg": [0,0,0,0,0,0], "speedPct": 10 }
 { "cmd": "gripper", "open": true }
-{ "cmd": "stop" }                       // 조종권 없어도 항상 받는다
+{ "cmd": "stop" }                       // 조종권·신원 없어도 항상 받는다
 ```
+
+### 명령 승격 — ARMED (2026-07-31, D41)
+
+observe-only 연결은 명령을 받지 않는다. 승격은 별도 REST 한 번이며 **서버가 SAFETY-RULES 의
+게이트를 전부 통과시켜야** `phase: ARMED` 가 된다. 실행 순서는 §실기 연결의 2단계 그대로다
+(서보 on → SetRealtimeStateSamplePeriod(33) → ExitDragTeach → SetMode(0)).
+
+```text
+POST /arm     { "who": "kim", "confirm": "현장확인" }   → { ok, phase, reasons }
+POST /disarm  { "who": "kim" }                          → 서보 내리고 OBSERVE_ONLY 로
+```
+
+- `confirm: "현장확인"` 리터럴이 없으면 거부 — 현장에 사람이 있음을 클라이언트가 명시한다
+- 조종권 보유자만 arm 할 수 있고, 조종권을 잃으면 서버가 disarm 한다
+- jog/moveJ/gripper 는 `ARMED` 에서만, 매 명령마다 안전 게이트를 다시 통과해야 실행된다
 
 ### 안전 규칙 (서버가 강제한다 — 클라이언트를 믿지 않는다)
 

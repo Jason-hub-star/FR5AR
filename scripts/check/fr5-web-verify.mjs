@@ -50,7 +50,7 @@ try {
   await p.waitFor(`document.querySelectorAll('.diag select option').length === 4`);
   await p.eval(`document.querySelector('.diag button.primary').click()`);
   const refusal = await p.waitFor(`document.querySelector('.refusal')?.textContent`, { timeoutMs: 5000 });
-  check('실기 프로필 → 거부 사유 표시 (SDK 미확인 fail-closed)', !!refusal && refusal.includes('미구현'));
+  check('실기 프로필 → 거부 사유 표시 (DLL 미설정 fail-closed)', !!refusal && refusal.includes('FAIRINO_DLL'));
 
   // 3. mock 프로필로 연결 → OBSERVE_ONLY
   await p.eval(`(() => {
@@ -86,7 +86,40 @@ try {
   check('3D 캔버스 픽셀이 흐른다 (mock 숨쉬기 실렌더)', pixelChanged(shot1, shot2));
   await p.screenshot(`${OUT}/fr5-live-p1.png`);
 
-  // 6. 브리지 재기동 → 웹이 스스로 다시 붙고 재연결 횟수가 남는다 (V0 AC)
+  // 6. P2 — 조종권 → ARM(현장확인) → jog 실이동 → DISARM
+  const setInput = (sel, value, proto = 'HTMLInputElement') => p.eval(`(() => {
+    const el = document.querySelector(${JSON.stringify(sel)});
+    Object.getOwnPropertyDescriptor(${proto}.prototype, 'value').set.call(el, ${JSON.stringify(value)});
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  })()`);
+  const clickText = (text, scope = '.control') => p.eval(
+    `[...document.querySelectorAll('${scope} button')].find(b => b.textContent.includes(${JSON.stringify(text)}))?.click() ?? 'notfound'`);
+
+  check('상시 STOP 버튼 존재', !!(await p.eval(`!!document.querySelector('.safetybar .estop')`)));
+  await setInput('header .who input', 'kim');
+  await clickText('조종권 잡기');
+  check('조종권 claim → 안전 바에 kim',
+    !!(await p.waitFor(`document.querySelector('.safetybar').textContent.includes('조종권 kim')`, { timeoutMs: 4000 })));
+  check('현장확인 전 ARM 비활성',
+    (await p.eval(`document.querySelector('.control button.arm')?.disabled`)) === true);
+  await p.eval(`document.querySelector('.control .confirm input').click()`);
+  await clickText('ARM');
+  check('ARM → phase ARMED + 서보 ON',
+    !!(await p.waitFor(`document.querySelector('.safetybar').textContent.includes('ARMED') && document.querySelector('.safetybar').textContent.includes('서보 ON')`, { timeoutMs: 5000 })));
+  const j1Before = parseFloat(await p.eval(`document.querySelector('.joints td').textContent`));
+  await p.eval(`[...document.querySelectorAll('.jogrow')][0].querySelectorAll('button')[1].click()`);
+  const j1Target = (j1Before + 1).toFixed(2);
+  check('jog +1° → 3D·표의 관절값이 정확히 +1° 도달',
+    !!(await p.waitFor(`Math.abs(parseFloat(document.querySelector('.joints td').textContent) - ${j1Before + 1}) < 0.01`, { timeoutMs: 8000 })),
+    `j1 ${j1Before.toFixed(2)}→${j1Target}`);
+  await p.eval(`document.querySelector('.safetybar .estop').click()`);
+  await clickText('DISARM');
+  check('DISARM → 서보 OFF 복귀',
+    !!(await p.waitFor(`document.querySelector('.safetybar').textContent.includes('서보 OFF')`, { timeoutMs: 5000 })));
+  await clickText('조종권 반납');
+  await p.screenshot(`${OUT}/fr5-live-p2.png`);
+
+  // 7. 브리지 재기동 → 웹이 스스로 다시 붙고 재연결 횟수가 남는다 (V0 AC)
   bridge.kill();
   await p.waitFor(`document.querySelector('.safetybar').textContent.includes('DISCONNECTED') || true`, { timeoutMs: 3000 }).catch(() => {});
   await new Promise((r) => setTimeout(r, 1500));

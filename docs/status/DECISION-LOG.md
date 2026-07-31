@@ -44,7 +44,9 @@
 | D38 | **codegate 에디토리얼 아카데믹이 시각 정본** — 의미 토큰만 미러링 | 07-31 |
 | D37 | **증거는 날짜가 폴더다** — `evidence/YYYY-MM-DD/<주제>.md`. 게이트가 강제 | 07-31 |
 | D39 | **FR5는 robot profile + observe-only 사전검증** 뒤에만 명령 상태로 승격 | 07-31 |
+| D40 | **실기가 낸 값을 기본값으로 박는다** — 마커 #5 · `src=1280&cv=960`. AR 배포는 `fr5ar` | 07-31 |
 | D40 | FR5 상태 스트림에 **phase·failReason** 노출 — 화면이 상태기계를 보고 잠근다 | 07-31 |
+| D41 | 실기 어댑터는 **검증된 C# SDK(libfairino.dll)를 dotnet 서브프로세스**로 재사용 | 07-31 |
 
 ---
 
@@ -816,5 +818,63 @@ OWNER_HELD→ARMED→EXECUTING`, 실패는 `FAIL_CLOSED`)의 현재 칸과 사�
 **이유** — 안전 판정을 서버가 하더라도 화면이 지금 어느 칸인지 모르면 "눌렀는데 왜 거부됐나"를
 설명할 수 없다. fail-closed 사유를 사람이 읽게 만드는 것이 P0 의 완료 증거다
 (`ref/FR5-IMPLEMENTATION-PLAN.md` §구현 순서 P0).
+
+**날짜**: 2026-07-31
+
+## D41. 실기 어댑터는 검증된 C# SDK 를 dotnet 서브프로세스로 재사용한다
+
+**결정** — `FR5/bridge/robot_adapter/` 의 실기 경로는 Python SDK 가 아니라, 2026-07-31
+macOS Arm64 에서 실기 readback 에 성공한 **libfairino.dll(C#SDK-V1.2.4)** 을 작은 dotnet
+콘솔 앱으로 감싸 JSON-lines(stdin/stdout)로 부린다. 명령 승격은 `POST /arm`
+(`confirm:"현장확인"` 리터럴 강제) 한 곳이고, WS 명령은 TB 와 같은 hello 신원 바인딩을 쓴다.
+
+**이유** — libfairino.dll 은 관리형(.NET) 어셈블리다 (`file`: Mono/.Net assembly,
+의존: mscorlib·System.Net.Sockets — 네이티브 없음). 즉 이 맥에서 이미 실기로 검증된
+프로토콜 구현이 그대로 있다. 반면 공식 Python SDK 는 리눅스 `.so` 에 묶여 macOS 미확인
+블로커가 그대로다 (PROJECT-STATUS §블로커). 검증된 것을 재사용하는 쪽이 추측 구현보다 싸고 안전하다.
+
+**경계** — SDK 호출명·시그니처는 Unity `LiveFairinoClient.cs` 의 실기 검증 코드에서만 가져온다
+(RPC/CloseRPC · GetRobotRealTimeState(`jt_cur_pos`·`tl_cur_pos`) · RobotEnable(byte) ·
+Mode(int) · DragTeachSwitch(byte) · MoveJ 11인자 · StopMotion — `STACK.md` §FR5 C# SDK 등재).
+dll 은 저장소에 커밋하지 않고 경로 설정으로 참조한다 (배포 저장소가 공개다). Python SDK 가
+Linux 브리지에서 검증되면 어댑터만 교체한다 — 계약·웹은 모른다.
+
+**날짜**: 2026-07-31
+
+---
+
+## D40. 실기가 낸 값을 기본값으로 박는다 — URL 에만 남기지 않는다
+
+**계기** — 배포본을 폰에서 열었더니 **로봇이 안 떴고 카메라가 480×640** 이었다.
+버전은 맞았다. 기본값이 틀렸다.
+
+**무엇이 틀렸나 둘**
+
+1. **마커 번호.** 설정이 `#2` 인데 인쇄해 쓰는 시트는 **`#5`** 였다
+   (`Shared/assets/marker/marker-test-sizes-bc5.png`). 번호가 다르면 검출기가 통째로 무시한다
+2. **해상도.** AR.js 기본이 카메라 640×480 · 검출 320×240 이라 **인식률 58%** 다.
+   D26·D27 에서 둘을 올려 **100%** 를 봤는데, 그 값을 `?src=1280&cv=960` **URL 에만** 남겼다
+
+**결정** — 실기가 낸 값이 기본값이다.
+`.env` 를 `FR5_MARKER_BARCODE=5` · `FR5_MARKER_MM=45` 로, `ar.js` 의 기본을
+`src=1280` · `cv=960` 으로 바꿨다. 되돌리려면 `?src=640&cv=320`.
+
+**왜** — **측정해서 알아낸 값을 URL 에만 두면, 주소를 모르는 사람에게는 그냥 안 되는 화면이다.**
+팀원은 링크만 받는다. 기본값이 곧 그 사람이 보는 전부다.
+
+**대가** — **fps 13~14** (GAP-MATRIX OPEN). 끊기는 쪽이 안 잡히는 쪽보다 낫다고 보고 골랐다.
+
+**같이 고친 것** — `config.mjs` 의 `FR5_MARKER_MM` 하한이 **40** 이라 크기 시험 시트의
+10~35mm 를 설정으로 못 박았다. ⚙ 슬라이더는 이미 10 이었다 —
+**같은 값을 두 곳이 다르게 제한하면 한 곳은 반드시 거짓말을 한다.** 10 으로 맞췄다.
+
+**AR 배포 대상은 새 프로젝트 `fr5ar`** (이관 E 단계). 기존 `web`(= `web-nine-rho-89`)은
+팀이 보고 있는 **이관 전 데모**라 건드리지 않는다. 방식은 D24 와 같은 **산출물 업로드** —
+`AR/vercel.json` 의 `buildCommand` 는 이관 전 유물이고, 모노레포 하위 폴더에서
+`npm install` 이 `@fr5/shared` 를 못 푼다. 스크립트 `scripts/dev/deploy-ar.sh`.
+
+**함정** — 산출물만 올리면 `AR/vercel.json` 이 안 따라간다.
+**카메라 권한 헤더(`Permissions-Policy: camera=(self)`)가 빠지면 AR 이 통째로 죽는다.**
+스크립트가 다시 쓴다. 배포본에서 헤더를 확인했다.
 
 **날짜**: 2026-07-31

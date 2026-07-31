@@ -28,6 +28,34 @@ header .source[data-src="none"] { background: var(--c-sunken); color: var(--c-fg
 .safeitem[data-tone="warn"] { background: var(--c-warn-soft); color: var(--c-warn); border-color: transparent; }
 .safeitem[data-tone="danger"] { background: var(--c-danger-soft); color: var(--c-danger); border-color: transparent; }
 
+.safetybar .estop { margin-left: auto; padding: 4px 18px; border-radius: var(--r-ctl);
+                    border: 1px solid var(--c-danger); background: var(--c-danger);
+                    color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; }
+.safetybar .estop:active { filter: brightness(0.85); }
+
+header .who { margin-left: auto; font-size: 12px; color: var(--c-fg-mute);
+              display: flex; align-items: center; gap: 6px; }
+header .who input { width: 9em; padding: 3px 8px; border: 1px solid var(--c-input);
+                    border-radius: var(--r-ctl); background: var(--c-sunken); color: var(--c-fg);
+                    font: inherit; }
+header .source { margin-left: 0; }
+
+.control button { width: 100%; padding: 8px; border: 1px solid var(--c-line-strong);
+                  border-radius: var(--r-ctl); background: var(--c-btn); color: var(--c-btn-fg);
+                  font-size: 13px; cursor: pointer; margin-bottom: var(--s-2); }
+.control button.primary { background: var(--c-primary); color: var(--c-primary-fg); }
+.control button.arm { background: var(--c-warn-soft); color: var(--c-warn);
+                      border-color: var(--c-warn); font-weight: 700; }
+.control button:disabled { opacity: 0.45; cursor: default; }
+.control .confirm { display: flex; gap: 6px; align-items: flex-start; font-size: 12px;
+                    color: var(--c-fg-dim); margin-bottom: var(--s-2); }
+.control .hint { font-size: 11px; color: var(--c-fg-mute); margin: var(--s-1) 0 0; }
+.jog { margin-top: var(--s-2); }
+.jogrow { display: grid; grid-template-columns: 2em 1fr 1fr; gap: var(--s-1);
+          margin-bottom: 4px; align-items: center; font-size: 13px;
+          font-family: ui-monospace, monospace; }
+.jogrow button { margin: 0; padding: 6px 0; }
+
 nav { display: flex; gap: var(--s-1); padding: var(--s-2) var(--s-4);
       border-bottom: 1px solid var(--c-line); }
 nav button { padding: 7px 14px; background: var(--c-btn); color: var(--c-btn-fg);

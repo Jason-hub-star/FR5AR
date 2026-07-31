@@ -80,7 +80,10 @@ function bool(key) {
 }
 
 // ---- 값 읽고 검증
-const markerMm = num('FR5_MARKER_MM', 40, 400);
+// 하한은 **⚙ 슬라이더와 같아야 한다**(10). 여기만 40 이면 크기 시험 시트의
+// 10~35mm 를 설정으로 못 박고 매번 URL·슬라이더로 넣어야 한다 —
+// 같은 값을 두 곳이 다르게 제한하면 한 곳은 반드시 거짓말을 한다.
+const markerMm = num('FR5_MARKER_MM', 10, 400);
 const barcode = int('FR5_MARKER_BARCODE', 0, 7);
 const markerToRobot = vec3('FR5_MARKER_TO_ROBOT_MM');
 const markerVerified = bool('FR5_MARKER_VERIFIED');

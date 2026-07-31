@@ -48,10 +48,26 @@ Vercel 배포(D11) · 폰 실기 확인(D15) · 깃허브 공개(D14) · Vite �
   `192.168.57.2:8080` 연결, C#SDK-V1.2.4로 컨트롤러/서보/엔드 버전과 6축·TCP를 읽었다.
   Enable·모드·모션·그리퍼 명령은 보내지 않았다 (`evidence/2026-07-31/fr5-live-readback.md`).
 
+## FR5 트랙 (2026-07-31 P0~P2 완료)
+
+**FR5 웹 조작기가 실기 관문까지 섰다.** `FR5/bridge`(FastAPI)+`FR5/src`(React+3D) 완성:
+
+- **P0** — robot profile·observe-only preflight fail-closed (mock 검증 18/18, D40)
+- **P1** — Live 화면·3D 쌍둥이·33ms 상태 스트림·WS 재연결 (실렌더 15/15)
+- **P2** — 조종권 1명(409)·`/arm`(현장확인 리터럴)·guarded jog/stop — SAFETY-RULES 게이트
+  전부 서버 강제, stop 상시 통과, owner 소실 = 자동 disarm (mock 33/33 · 실렌더 21/21)
+- **실기 경로 확보(D41)** — Python SDK 블로커를 우회: 검증된 C# SDK(libfairino.dll)를
+  Unity Mono 서브프로세스로 재사용. 실기 `192.168.57.2` observe-only **E2E 통과**
+  (`evidence/2026-07-31/fr5-cs-adapter.md`). ROBOT_STATE_PKG 78필드 전수 덤프
+- **배포 형태** — 브리지가 웹 빌드를 같은 주소에서 서빙. 주소를 여는 팀원 누구나 조작 후보
+  (로그인 없음 — 보호는 조종권·게이트·stop)
+
+**남은 실기 게이트** — arm(서보 ON)·jog 실동작 1회는 **현장 확인 후** 승격 (하드룰 3).
+절차는 `evidence/2026-07-31/fr5-p2-owner-jog.md` §확인하지 않은 범위.
+
 ## 미착수
 
-- `FR5/` 웹+브리지 문서성 골격만 생성(D36). 런타임·패키지·배포 설정 없음
-- `FR5/bridge/` 브리지 서버 코드 없음
+- FR5 P3~(Teach·Program·Optimize·History 패널) · 그리퍼 시그니처 검증
 - 그리퍼 손가락 개폐 (prismatic 관절) — 데모 범위 밖. 벌어진 채로 고정
 - URDF 확장 (그리퍼를 코드가 아니라 URDF에 넣기) — 장착값은 이미 실측해 뒀다
 - (완료 2026-07-29) URDF+STL과 그리퍼 메시를 `Shared/assets/`로 복사 — 팔 58,482 + 그리퍼 70,102 = 128,584 삼각형
@@ -62,7 +78,8 @@ Vercel 배포(D11) · 폰 실기 확인(D15) · 깃허브 공개(D14) · Vite �
 
 1. **저장을 팀 공유로** — 이관 H. `Shared/data/config/` 슬롯 (지금은 브라우저 한 대뿐, D34)
 2. ~~폰에서 편집기 확인~~ **완료 2026-07-31** — 주인님이 폰에서 확인 ("잘됨")
-3. **E — 새 Vercel 프로젝트 `fr5ar`(소문자)로 `AR/` 배포.** 기존 `web` 은 안 건드린다 → **지시 받고**
+3. ~~E — 새 Vercel 프로젝트 `fr5ar` 로 `AR/` 배포~~ **완료 2026-07-31** —
+   `https://fr5ar.vercel.app` · 기존 `web` 은 안 건드렸다. **폰 확인이 남았다** (D40)
 4. **고정 카메라 1단계** — 호모그래피 4점 보정. 환경 무관이라 지금 지어도 안 버려진다
 5. L2 AR 검증 → L3 비교 (목업)
 
@@ -94,8 +111,8 @@ ROS 2 Jazzy · Nav2). 팀원 전원이 URL 하나로 켜고·몰고·매핑하�
   **팀원과 합의해야 하는 유일한 블로커**이고, L3의 판정에 걸린다
 - 실험 시나리오(스테이션 종류·개수)·작업대 높이 미확정 — L1을 부분적으로 막는다
   (AMR 기종은 풀렸다 — TurtleBot3 Burger ×2, D31)
-- Fairino **Python** SDK 설치 경로·macOS 동작 미확인 (PyPI 없음) — V0 어댑터를 막는다.
-  C# SDK macOS readback은 2026-07-31 통과했지만 Python 성공을 뜻하지 않는다
+- ~~Fairino Python SDK 미확인이 V0 어댑터를 막는다~~ → **해소(D41)** — 검증된 C# SDK 를
+  Unity Mono 서브프로세스로 재사용해 실기 경로가 섰다. Python SDK 는 Linux 브리지 때 재평가
 
 ## 핸드오프 (2026-07-31 · 편집기 골 사다리 + 배포)
 

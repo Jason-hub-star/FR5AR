@@ -90,13 +90,102 @@ try {
   const failed = (await api('/state')).json;
   check('/state → FAIL_CLOSED + failReason', failed.phase === 'FAIL_CLOSED' && !!failed.failReason && failed.connected === false);
 
-  // 8. 실기 프로필 — Python SDK 미확인이므로 연결 거부 (네트워크를 건드리지 않는다)
+  // 8. 실기 프로필 — 이 시험은 FAIRINO_DLL 없이 돈다 → 어댑터가 네트워크 이전에 fail-closed
   const real = await api('/connect', { robotId: 'fr5-lab-a' });
-  check('fairino 프로필 → 미구현 fail-closed', real.json.ok === false && (real.json.reasons || []).join(' ').includes('미구현'));
+  check('fairino 프로필 → DLL 미설정 fail-closed', real.json.ok === false && (real.json.reasons || []).join(' ').includes('FAIRINO_DLL'));
 
   // 9. observeOnly:false 승격 시도 → 거부
   const promo = await api('/connect', { robotId: 'fr5-mock-a', observeOnly: false });
   check('observeOnly:false → 거부 (P0 은 관측만)', promo.json.ok === false);
+
+  // ── P2 — 조종권·arm·guarded jog/stop (mock 전체 사이클) ──────────────────
+  const wsClient = (hello) => new Promise((resolve, reject) => {
+    const sock = new WebSocket(`ws://127.0.0.1:${PORT}/ws/state`);
+    const refusals = [];
+    sock.onmessage = (e) => {
+      const m = JSON.parse(e.data);
+      if (m.ok === false) refusals.push(m.reason);
+    };
+    sock.onopen = () => {
+      if (hello) sock.send(JSON.stringify({ cmd: 'hello', who: hello }));
+      resolve({ sock, refusals, send: (m) => sock.send(JSON.stringify(m)) });
+    };
+    sock.onerror = () => reject(new Error('ws error'));
+  });
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const getState = async () => (await api('/state')).json;
+
+  await api('/connect', { robotId: 'fr5-mock-a' });
+  const kim = await wsClient('kim');
+  const lee = await wsClient('lee');
+  const anon = await wsClient(null);
+
+  // 조종권 — 두 번째 사람은 409
+  check('owner claim kim', (await api('/owner/claim', { who: 'kim' })).json.ok === true);
+  const dup2 = await api('/owner/claim', { who: 'lee' });
+  check('두 번째 claim 409 (명령 주인 한 명)', dup2.status === 409 && dup2.json.ok === false);
+  check('claim 후 phase OWNER_HELD', (await getState()).phase === 'OWNER_HELD');
+
+  // ARMED 전 명령 거부 · 조종권 없는 명령 거부
+  kim.send({ cmd: 'jog', joint: 0, deltaDeg: 1 });
+  await sleep(200);
+  check('ARM 전 jog 거부 + 사유 회신', kim.refusals.some((r) => r.includes('ARMED')));
+  lee.send({ cmd: 'jog', joint: 0, deltaDeg: 1 });
+  await sleep(200);
+  check('조종권 없는 jog 거부', lee.refusals.some((r) => r.includes('조종권')));
+
+  // arm — confirm 리터럴·조종권 강제
+  const noConfirm = await api('/arm', { who: 'kim' });
+  check('confirm 없는 arm 403', noConfirm.status === 403);
+  const wrongOwner = await api('/arm', { who: 'lee', confirm: '현장확인' });
+  check('조종권 없는 arm 403', wrongOwner.status === 403);
+  const armed = await api('/arm', { who: 'kim', confirm: '현장확인' });
+  check('arm → ARMED + 서보 ON', armed.json.phase === 'ARMED' && (await getState()).enabled === true);
+
+  // 상한 — 초과는 자르지 않고 거부한다
+  kim.send({ cmd: 'jog', joint: 0, deltaDeg: 10 });
+  await sleep(200);
+  check('관절 5° 상한 초과 jog 거부', kim.refusals.some((r) => r.includes('5')));
+  const before = await getState();
+  kim.send({ cmd: 'moveJ', jointsDeg: before.jointsDeg, speedPct: 50 });
+  await sleep(200);
+  check('속도 10% 상한 초과 moveJ 거부', kim.refusals.some((r) => r.includes('속도 상한')));
+
+  // 유효한 jog — 실제로 그만큼 움직인다 (mock 은 속도 비례 보간)
+  const j1a = before.jointsDeg[0];
+  kim.send({ cmd: 'jog', joint: 0, deltaDeg: 2 });
+  let reached = null;
+  for (let i = 0; i < 30 && !reached; i++) {
+    await sleep(100);
+    const s = await getState();
+    if (Math.abs(s.jointsDeg[0] - (j1a + 2)) < 0.01 && s.motionQueueLength === 0) reached = s;
+  }
+  check('jog +2° → 목표 도달 + 큐 소진', !!reached, reached ? `j1 ${j1a.toFixed(2)}→${reached.jointsDeg[0].toFixed(2)}` : '미도달');
+  check('이동 중 EXECUTING 노출', true);   // 아래 stop 시험에서 실측
+
+  // stop — 신원 없는 소켓도 항상 통과 (제3원칙)
+  kim.send({ cmd: 'jog', joint: 0, deltaDeg: 4 });
+  await sleep(200);
+  const moving = await getState();
+  check('이동 중 phase EXECUTING', moving.phase === 'EXECUTING');
+  anon.send({ cmd: 'stop' });
+  await sleep(300);
+  const s1 = await getState();
+  await sleep(300);
+  const s2 = await getState();
+  check('무신원 stop → 즉시 정지 (관절 정지·큐 0)',
+    s1.motionQueueLength === 0 && Math.abs(s1.jointsDeg[0] - s2.jointsDeg[0]) < 1e-9
+    && Math.abs(s2.jointsDeg[0] - (j1a + 2 + 4)) > 0.5);
+
+  // 조종권 반납 → 자동 disarm (주인 없는 ARMED 를 남기지 않는다)
+  await api('/owner/release', { who: 'kim' });
+  await sleep(200);
+  const released = await getState();
+  check('owner release → 자동 disarm (서보 OFF · OBSERVE_ONLY)',
+    released.enabled === false && released.phase === 'OBSERVE_ONLY');
+
+  kim.sock.close(); lee.sock.close(); anon.sock.close();
+  await api('/disconnect', {});
 } catch (e) {
   check('실행 자체', false, String(e.message || e));
 } finally {

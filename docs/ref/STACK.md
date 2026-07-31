@@ -220,3 +220,37 @@ def preview_path(q_from, q_to, steps=100):
 
 **실측 (2026-07-30 골격)** — 빌드 통과. JS **60KB gzip** · CSS 1.9KB.
 `ar-threex`(1.6MB)가 **번들에 안 실린다**는 것을 확인했다 — 폴더 분리가 실제로 작동한다.
+
+## FR5 실기 C# SDK 경로 — 2026-07-31 등재 (D41)
+
+`/스택가드` 규약 — 아래 호출명·시그니처는 추측이 아니라 **실기 readback 에 성공한
+Unity `LiveFairinoClient.cs` 원본 대조**다 (evidence/2026-07-31/fr5-live-readback.md).
+
+| 항목 | 값 | 검증 상태 |
+|---|---|---|
+| SDK | `libfairino.dll` C#SDK-V1.2.4 — 관리형 .NET 어셈블리 (네이티브 없음, System.Net.Sockets) | macOS Arm64 실기 readback 통과 |
+| dll 위치 | `FR5UNITY/robotapp/Assets/Plugins/Fairino/libfairino.dll` — 저장소에 커밋 안 함, `FAIRINO_DLL` 환경변수로 참조 | `file` 로 확인 |
+| 런타임 | **Unity 번들 Mono 6.13** (`…/6000.3.11f1/…/MonoBleedingEdge`) — dll 이 `DefineDynamicAssembly` 등 .NET Framework 전용 API 를 써서 **최신 dotnet 에선 안 돈다** (2026-07-31 실측). 컴파일도 같은 Mono 의 csc.exe (`fairino_cs/build.sh`) | 실기 readback 재통과 |
+| 진입 클래스 | `fairino.Robot` — `Activator.CreateInstance` 후 인스턴스 메서드 | Unity 대조 |
+
+| 호출 | 시그니처 (Unity 대조) | 용도 |
+|---|---|---|
+| `RPC(ip)` / `CloseRPC()` | 문자열 ip / 없음 | 연결·해제 (포트는 8080 고정, SDK 내부) |
+| `GetSDKVersion` `GetSoftwareVersion` | out/ref 문자열류 — 리플렉션 후보 매칭 | 버전 |
+| `GetRobotRealTimeState(ref ROBOT_STATE_PKG)` | 필드: `jt_cur_pos[6]` `tl_cur_pos[6]` `robot_mode` `mc_queue_len` `EmergencyStop` `collisionState` `rbtEnableState` 등 — **이름 후보 리스트로 읽고 없으면 결측 처리(fail-closed)** | 상태 |
+| `GetSafetyCode()` | 반환 int | 안전코드 |
+| `Set/GetRobotRealtimeStateSamplePeriod(int ms)` | 33 목표 | 폴링 주기 |
+| `RobotEnable((byte)0/1)` | 실패 시 int 재시도 (Unity 폴백 그대로) | 서보 |
+| `Mode(int)` 0=auto 1=manual | | 모드 |
+| `DragTeachSwitch((byte)0/1)` | | 드래그 티칭 |
+| `MoveJ(JointPos, tool, user, vel(f), acc(f), 100f, ExaxisPos, 0f, (byte)0, DescPose)` | 11인자 — `fairino.JointPos/ExaxisPos/DescPose` 생성도 리플렉션 | 조그(작은 delta)·이동 |
+| `StopMotion()` | | 정지 |
+
+**실측 추가 (2026-07-31 실기 전수 덤프)** —
+- `ROBOT_STATE_PKG` 는 **78필드**. `cmdPointError`·`strangePosFlag`·드래그티칭 필드는 **없다**
+  → 드리프트는 `lastServoTarget` 자체 계산(#9 대안), 드래그티칭은 `IsInDragTeach(ref byte)` 메서드
+- `GetSoftwareVersion`/`GetFirmwareVersion` 은 code 0 인데 **빈 문자열**을 돌려준다 —
+  모델·컨트롤러 문자열 검증은 불가. `GetSDKVersion` 만 "C#SDK-V1.2.4  Web-3.9.3" 반환
+- SDK 가 **stdout 에 중국어 로그를 섞는다** — JSON-lines 소비자는 비JSON 줄을 버려야 한다
+
+**미확인 (쓰기 전 재검증)** — `ActGripper`/`MoveGripper` 시그니처 (P3 그리퍼 전).

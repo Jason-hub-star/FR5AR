@@ -21,6 +21,8 @@
 | `bridge/` | FastAPI·안전·조종권·상태·웹 빌드 서빙 경계 |
 | `bridge/robot_adapter/` | mock과 FAIRINO SDK 교체 경계 |
 
-P0(브리지 profile·preflight·상태 스트림)·P1(Live 화면·3D 쌍둥이)은 2026-07-31 mock 으로
-닫혔다 — 증거는 `docs/evidence/2026-07-31/fr5-bridge-p0.md`·`fr5-live-p1.md`.
+P0(브리지 profile·preflight)·P1(Live 화면·3D)·P2(조종권·arm·guarded jog/stop)는 2026-07-31
+닫혔다 — mock 33/33·실렌더 21/21, 실기는 observe-only E2E 까지. 증거는
+`docs/evidence/2026-07-31/fr5-{p0-p1-mock,cs-adapter,p2-owner-jog}.md`.
+실기 arm·jog 는 현장 확인 후 별도 승격한다 (하드룰 3).
 상세 순서와 5개 패널은 `docs/ref/FR5-IMPLEMENTATION-PLAN.md`를 따른다.
