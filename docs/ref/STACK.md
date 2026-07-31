@@ -253,4 +253,9 @@ Unity `LiveFairinoClient.cs` 원본 대조**다 (evidence/2026-07-31/fr5-live-re
   모델·컨트롤러 문자열 검증은 불가. `GetSDKVersion` 만 "C#SDK-V1.2.4  Web-3.9.3" 반환
 - SDK 가 **stdout 에 중국어 로그를 섞는다** — JSON-lines 소비자는 비JSON 줄을 버려야 한다
 
+**오류코드 정본** — `manual.fairino.support` §Error Code (2026-07-31 대조):
+`-4 = xmlrpc 인터페이스 실행 실패`(컨트롤러가 거부 — 펜던트 제어권·모드·안전회로 확인) ·
+`-3 = xmlrpc 통신 실패` · `-2 = 컨트롤러 통신 이상` · `-1 = 기타`.
+Unity `FairinoErrorTranslator` 의 `-4="비상정지"` 매핑은 **공식과 다르다** — 공식이 이긴다.
+
 **미확인 (쓰기 전 재검증)** — `ActGripper`/`MoveGripper` 시그니처 (P3 그리퍼 전).

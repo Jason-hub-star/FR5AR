@@ -25,6 +25,10 @@ class RobotAdapter:
         raise NotImplementedError
 
     # ── 명령 계열 — ARMED 승격 뒤에만 브리지가 부른다 ──────────────────────
+    def reset_errors(self) -> None:
+        """잠복 fault 해제 (ResetAllError). arm 시퀀스 맨 앞에서만 부른다."""
+        raise NotImplementedError
+
     def enable(self, on: bool) -> None:
         """서보 on/off."""
         raise NotImplementedError

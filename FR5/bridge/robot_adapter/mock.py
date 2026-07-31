@@ -51,6 +51,9 @@ class MockFr5Adapter(RobotAdapter):
             v["model"] = self._fault["model"]
         return v
 
+    def reset_errors(self):
+        self._require()
+
     def enable(self, on):
         self._require()
         self._enabled = bool(on)

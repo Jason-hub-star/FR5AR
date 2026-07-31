@@ -13,6 +13,16 @@ from .base import RobotAdapter
 HERE = Path(__file__).parent
 RESPONSE_TIMEOUT_S = 20.0       # RPC 연결 시도가 제일 길다 — SDK 내부 타임아웃보다 넉넉히
 
+# SDK 반환 코드 → 사람 말. 정본: manual.fairino.support §Error Code (2026-07-31 대조).
+# Unity 번역기의 -4="비상정지" 매핑은 공식 문서와 달랐다 — 공식이 이긴다 (STACK.md).
+ERROR_TRANSLATE = {
+    -1: "기타 오류 — 컨트롤러 로그 확인 필요",
+    -2: "컨트롤러 통신 이상 — 연결·전원 확인",
+    -3: "xmlrpc 통신 실패 — 네트워크·IP 확인",
+    -4: "컨트롤러가 실행을 거부(xmlrpc 인터페이스 실행 실패) — 웹 펜던트가 제어권을 쥐고 있거나 "
+        "수동 모드·비상정지·안전회로 상태를 확인",
+}
+
 
 class FairinoAdapter(RobotAdapter):
     def __init__(self, profile):
@@ -56,7 +66,10 @@ class FairinoAdapter(RobotAdapter):
                     continue
                 if res.get("ok"):
                     return res
-                raise ConnectionError(f"SDK {op} 실패 — {res.get('error')} (code={res.get('code')})")
+                code = res.get("code")
+                hint = ERROR_TRANSLATE.get(code)
+                detail = f"{hint} (code={code})" if hint else f"{res.get('error')} (code={code})"
+                raise ConnectionError(f"SDK {op} 실패 — {detail}")
             raise ConnectionError(f"SDK {op} 응답 시간 초과")
 
     # ── RobotAdapter ──────────────────────────────────────────────────────
@@ -117,6 +130,9 @@ class FairinoAdapter(RobotAdapter):
         if "lastServoTarget" in s:
             state["lastServoTargetDeg"] = s["lastServoTarget"]
         return state
+
+    def reset_errors(self):
+        self._rpc("reset")
 
     def enable(self, on):
         self._rpc("enable", on=1 if on else 0)

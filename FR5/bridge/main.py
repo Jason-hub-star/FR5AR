@@ -254,6 +254,7 @@ async def arm(body: dict):
             return reasons
         a = session["adapter"]
         # 순서는 계약 §2단계 — 서보를 먼저 올린다 (서보 OFF 에선 auto 교정 거부, 유니티 실측)
+        a.reset_errors()          # 잠복 fault 해제 — 사람이 현장확인한 arm 안에서만
         a.enable(True)
         a.set_sample_period(SAMPLE_MS)
         a.exit_drag_teach()
@@ -378,6 +379,20 @@ async def ws_state(ws: WebSocket):
         if who:
             owner.session_close(who)
         log("ws-close", str(ws.client))
+
+
+@app.on_event("shutdown")
+async def _shutdown():
+    # 브리지가 죽을 때 CloseRPC 없이 나가면 컨트롤러가 세션을 쥔 채 남아
+    # 펜던트 로그인까지 막을 수 있다 (2026-07-31 실측 추정) — 반드시 정리하고 나간다
+    if session["adapter"]:
+        if session["armed"]:
+            _disarm_hw("shutdown")
+        try:
+            session["adapter"].disconnect()
+        except Exception:
+            pass
+        log("shutdown-disconnect", "세션 정리")
 
 
 # ── 웹 정적 서빙 — 빌드가 있으면 같은 주소에서 화면을 낸다 (API 라우트가 먼저 매칭된다)

@@ -112,8 +112,14 @@ static class App
                 var on = ToInt(req["on"]);
                 int c1;
                 var code = TryCall("RobotEnable", out c1, (byte)on) ? c1 : Call("RobotEnable", on);
+                if (code != 0)                    // Unity 폴백 그대로 — byte 실패면 int 오버로드 재시도
+                {
+                    int c2;
+                    if (TryCall("RobotEnable", out c2, on) && c2 == 0) code = 0;
+                }
                 return Code(code);
             }
+            case "reset": { Require(); return Code(Call("ResetAllError")); }
             case "mode": { Require(); return Code(Call("Mode", ToInt(req["mode"]))); }
             case "dragteach": { Require(); return Code(Call("DragTeachSwitch", (byte)ToInt(req["on"]))); }
             case "movej": return MoveJ(req);
