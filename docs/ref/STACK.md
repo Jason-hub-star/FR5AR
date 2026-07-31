@@ -221,7 +221,21 @@ def preview_path(q_from, q_to, steps=100):
 **실측 (2026-07-30 골격)** — 빌드 통과. JS **60KB gzip** · CSS 1.9KB.
 `ar-threex`(1.6MB)가 **번들에 안 실린다**는 것을 확인했다 — 폴더 분리가 실제로 작동한다.
 
-## FR5 실기 C# SDK 경로 — 2026-07-31 등재 (D41)
+## FR5 실기 Python SDK — 2026-07-31 등재 (D42 · 현행)
+
+| 항목 | 값 | 검증 상태 |
+|---|---|---|
+| SDK | `fairino-python-sdk` **v2.2.3_robot3.9.3** (Apache-2.0) — `FR5/bridge/robot_adapter/fairino_sdk/` 벤더링 | 실기 첫 조그 성공 |
+| 구현 | **순수 표준 라이브러리** — xmlrpc(20003) 명령 + socket(20004) 실시간 `RobotStatePkg` | 원본 import 전수 확인 |
+| 실기 정체 | 모델 `FR5-V1-002(V6.0)` · 웹 `v3.9.3.1` · 컨트롤러 `V3.9.15-QX` (`GetSoftwareVersion`) | 실측 — 프로필 검증값 |
+| 함정 | xmlrpc 연결 1개·동시성 취약 → 어댑터 단일 잠금. 브리지 밖 병행 접속 금지 | Request-sent 실측 |
+| 함정 | `robot_state_pkg` 는 첫 프레임 전엔 **클래스**다 — 인스턴스 확인 후 사용 | 원본 확인 |
+
+## ~~FR5 실기 C# SDK 경로~~ — 폐기 (D41→D42 · 2026-07-31)
+
+**쓰지 않는다.** macOS Mono 에서 xmlrpc 클라이언트가 쓰기마다 예외 → SDK 가 삼켜
+가짜 성공/-4 반환 + 컨트롤러 xmlrpc 서비스까지 다운시켰다 (`evidence/2026-07-31/fr5-first-motion.md`).
+아래 표는 당시 검증 기록으로만 남긴다.
 
 `/스택가드` 규약 — 아래 호출명·시그니처는 추측이 아니라 **실기 readback 에 성공한
 Unity `LiveFairinoClient.cs` 원본 대조**다 (evidence/2026-07-31/fr5-live-readback.md).

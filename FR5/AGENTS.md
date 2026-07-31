@@ -23,6 +23,6 @@
 
 P0(브리지 profile·preflight)·P1(Live 화면·3D)·P2(조종권·arm·guarded jog/stop)는 2026-07-31
 닫혔다 — mock 33/33·실렌더 21/21, 실기는 observe-only E2E 까지. 증거는
-`docs/evidence/2026-07-31/fr5-{p0-p1-mock,cs-adapter,p2-owner-jog}.md`.
-실기 arm·jog 는 현장 확인 후 별도 승격한다 (하드룰 3).
+`docs/evidence/2026-07-31/fr5-{p0-p1-mock,p2-owner-jog,first-motion}.md`.
+실기 첫 조그는 2026-07-31 통과 — 실기 경로는 순수 파이썬 SDK 다 (D42).
 상세 순서와 5개 패널은 `docs/ref/FR5-IMPLEMENTATION-PLAN.md`를 따른다.

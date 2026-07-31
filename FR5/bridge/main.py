@@ -255,7 +255,14 @@ async def arm(body: dict):
         a = session["adapter"]
         # 순서는 계약 §2단계 — 서보를 먼저 올린다 (서보 OFF 에선 auto 교정 거부, 유니티 실측)
         a.reset_errors()          # 잠복 fault 해제 — 사람이 현장확인한 arm 안에서만
-        a.enable(True)
+        try:
+            a.enable(True)
+        except Exception as e:
+            # 실측(2026-07-31): FW Web-3.9.3 이 SDK V1.2.4 의 RobotEnable 만 -4 로 거부한다.
+            # 사람이 펜던트에서 서보를 올렸다면 그걸 인정한다 — 실제 상태가 판정한다 (fail-closed 유지)
+            if not read_fresh_state().get("enabled"):
+                raise ConnectionError(
+                    f"{e} · 펜던트에서 로봇 Enable(활성화) 후 다시 ARM 하면 이어갈 수 있다")
         a.set_sample_period(SAMPLE_MS)
         a.exit_drag_teach()
         a.set_mode(0)
@@ -299,6 +306,12 @@ def _do_motion(target_deg, speed_pct):
     session["adapter"].move_j(target_deg, speed_pct,
                               coord.get("toolId", 0), coord.get("userId", 0))
     log("moveJ", f"target={[round(v, 3) for v in target_deg]} speed={speed_pct}")
+    time.sleep(0.25)                     # 컨트롤러가 지령을 등록했는지 — 실기 진단 (2026-07-31)
+    after = read_fresh_state()
+    log("moveJ-after", f"queue={after.get('motionQueueLength')} "
+        f"servoTarget={[round(v, 2) for v in (after.get('lastServoTargetDeg') or [])]} "
+        f"robotState={after.get('robotState')} programState={after.get('programState')} "
+        f"motionDone={after.get('motionDone')}")
     return []
 
 

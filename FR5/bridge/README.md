@@ -9,8 +9,8 @@ FAIRINO FR5의 유일한 명령 관문이다. 계약은 `docs/ref/API-CONTRACT.m
 - 조종권 한 명(`/owner/*` · hello 신원, 409) · `/arm`(`confirm:"현장확인"` 강제) · `/disarm`
 - guarded jog/moveJ — SAFETY-RULES 게이트(속도 10%·관절 5°·URDF 한계·신선도·드리프트) ·
   **stop 은 신원·조종권 무관 항상 통과** · owner 소실 = 자동 disarm
-- `robot_adapter/` — mock 과 **fairino(검증된 libfairino.dll + Unity Mono 서브프로세스, D41)**.
-  실기 observe-only E2E 통과 (`docs/evidence/2026-07-31/fr5-cs-adapter.md`)
+- `robot_adapter/` — mock 과 **fairino(공식 Python SDK 순수 표준 라이브러리 벤더링, D42)**.
+  실기 첫 조그 통과 (`docs/evidence/2026-07-31/fr5-first-motion.md`)
 - 빌드된 웹(`FR5/dist`)을 같은 주소에서 LAN 서빙 — 주소를 여는 누구나 조작 후보 (팀 신뢰)
 - 실행 `bash scripts/dev/fr5-dev.sh` (실기: `FAIRINO_DLL=<libfairino.dll 경로>` 필요) ·
   검증 `node scripts/check/fr5-{bridge,web}-verify.mjs`
@@ -21,6 +21,6 @@ FAIRINO FR5의 유일한 명령 관문이다. 계약은 `docs/ref/API-CONTRACT.m
 - Vision은 명령 대신 `POST /proposal`을 보내며 안전 게이트 통과분만 실행
 - 지점·경로·슬롯·실행 기록의 API 경계 (P3~)
 
-`robot_adapter/` 밖에서 FAIRINO SDK를 직접 부르지 않는다. 실기 경로는 Python SDK 가 아니라
-**검증된 C# SDK 서브프로세스**다 (D41 — dll 은 .NET Framework 전용이라 Unity Mono 로 돌린다).
-Python SDK 가 Linux 브리지에서 검증되면 어댑터만 교체한다 — 계약·웹은 모른다.
+`robot_adapter/` 밖에서 FAIRINO SDK를 직접 부르지 않는다. xmlrpc 는 연결 하나뿐이라
+브리지 밖에서 20003 에 병행 접속해서도 안 된다 (D42). `fairino_cs/` 는 폐기된 C# 경로의
+증거 보존본이다 — 어디서도 부르지 않는다.

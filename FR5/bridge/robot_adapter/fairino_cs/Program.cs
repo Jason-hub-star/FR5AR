@@ -214,6 +214,9 @@ static class App
         { "strangePose", new[] { "strangePosFlag", "strange_pos_flag" } },
         { "toolId", new[] { "tool", "toolNum", "tool_id", "toolId" } },
         { "userId", new[] { "user", "userNum", "user_id", "userId" } },
+        { "robotState", new[] { "robot_state" } },       // 1=정지 2=주행 등 — 모션 무시 진단용
+        { "programState", new[] { "program_state" } },
+        { "motionDone", new[] { "motion_done" } },
     };
 
     static Dictionary<string, object> ReadState()

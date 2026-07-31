@@ -90,9 +90,14 @@ try {
   const failed = (await api('/state')).json;
   check('/state → FAIL_CLOSED + failReason', failed.phase === 'FAIL_CLOSED' && !!failed.failReason && failed.connected === false);
 
-  // 8. 실기 프로필 — 이 시험은 FAIRINO_DLL 없이 돈다 → 어댑터가 네트워크 이전에 fail-closed
+  // 8. 실기 프로필 — 로봇이 없으면 fail-closed 사유, 있으면 observe-only 진입 (둘 다 정상)
   const real = await api('/connect', { robotId: 'fr5-lab-a' });
-  check('fairino 프로필 → DLL 미설정 fail-closed', real.json.ok === false && (real.json.reasons || []).join(' ').includes('FAIRINO_DLL'));
+  if (real.json.ok) {
+    check('fairino 프로필 → observe-only 진입 (실기 감지)', real.json.phase === 'OBSERVE_ONLY');
+    await api('/disconnect', {});
+  } else {
+    check('fairino 프로필 → 사유 있는 fail-closed (실기 부재)', (real.json.reasons || []).length > 0);
+  }
 
   // 9. observeOnly:false 승격 시도 → 거부
   const promo = await api('/connect', { robotId: 'fr5-mock-a', observeOnly: false });
