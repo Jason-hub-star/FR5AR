@@ -1,15 +1,22 @@
 ---
-name: project-planning
-description: 새 프로젝트나 큰 기능 착수 전에 파일, 스킬, phase, 검증 계약까지 잠그는 실행 계약형 planning 스킬
+name: 계획
+description: 착수 전 계획을 잠그는 스킬 — 파일·스킬·phase·검증 계약까지. "계획 세워줘" "플랜" "큰 작업 단계화" 에 발동. 규모가 커서 단계화가 필요하면 references 의 큰작업 절차를 같이 쓴다.
 user_invocable: true
 tags: [planning, strategy, startup, roadmap, architecture]
-trigger: "프로젝트를 처음 계획하거나 구현 전에 decision-complete plan이 필요할 때"
+trigger: 새 기능·큰 작업 착수 전 · 파일과 검증 계약을 미리 못 박아야 할 때
 version: 2
 ---
 
 # Project Planning
 
 구현 전에 "무엇을 만들고 어떤 파일과 계약과 스킬을 어떤 순서로 쓸지"를 잠그는 스킬이다.
+
+## 규모가 크면 단계화를 같이 쓴다
+
+`/계획` 이 흡수한 것 — 큰 작업 단계화(`references/큰작업-단계화.md`).
+**한 세션에 안 끝날 규모**면 그 절차로 phase 를 쪼갠 뒤 이 문서의 계약 잠금을 각 phase 에 적용한다.
+
+FR5Web 에서 **수직 기능 1개를 끝까지 완결**하는 것은 `/슬라이스` 다 — 계획이 아니라 실행이다.
 
 ## Use When
 
@@ -52,7 +59,7 @@ version: 2
 - env var 이름
 - 쓰지 않을 애매한 이름
 
-계약명이 흔들리면 구현보다 먼저 `socratic-review` 또는 `api-contract-guard`로 보정한다.
+계약명이 흔들리면 구현보다 먼저 `/감사` 또는 `api-contract-guard`로 보정한다.
 
 ### Step 3: File Map과 Folder Boundary를 적는다
 
@@ -69,13 +76,13 @@ version: 2
 
 적어도 아래 흐름 중 현재 작업에 필요한 스킬을 명시한다.
 
-- `project-planning`
-- `socratic-review`
+- `/계획`
+- `/감사`
 - `project-bootstrap`
-- `big-task`
+- `/계획`
 - `api-contract-guard`
 - `doc-sync`
-- `session-retro`
+- `/회고`
 
 정리 기준은 `references/canonical-skill-routing.md`를 따른다.
 
@@ -123,7 +130,7 @@ version: 2
 - `docs/status/PROJECT-STATUS.md`
 - 필요 시 `docs/status/DECISION-LOG.md`
 
-구현 orchestration은 이후 `big-task`로 넘긴다.
+구현 orchestration은 이후 `/계획`로 넘긴다.
 
 ## Not Done Until
 
@@ -151,5 +158,12 @@ version: 2
 
 - 정보가 부족하면: Discovery phase만 먼저 작성하고 미확정 항목을 `Open Questions`로 보낸다
 - 범위가 너무 크면: MVP와 later backlog를 강제로 분리한다
-- 계약명이 불확실하면: `socratic-review` 후 Naming Contract를 다시 잠근다
+- 계약명이 불확실하면: `/감사` 후 Naming Contract를 다시 잠근다
 - 검증 명령이 아직 없으면: 최소 `bash scripts/check-project.sh`를 먼저 적고 이후 스택별 검증을 추가한다
+
+### 함께 보는 것
+
+- `references/plan-template.md` — 계획 문서 골격
+- `references/planning-examples.md` — 실제 계획 예시
+- `references/phase-review-checkpoints.md` — phase 별 리뷰 체크포인트
+- `references/file-map-naming-rules.md` · `references/canonical-skill-routing.md` · `references/planning-self-review.md`

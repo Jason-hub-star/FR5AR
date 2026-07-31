@@ -22,8 +22,8 @@ for d in .claude/skills/*/; do
   printf '%-16s %s\n' "/$n" "$desc"
 done
 
-# 커맨드
-ls .claude/commands/*.md | xargs -n1 basename
+# 커맨드 폴더는 없다 — 2026-07-30 에 전부 한국어 스킬로 흡수했다 (D19)
+#   슬래시 명령 = .claude/skills/ 의 한글 폴더명 (~/.claude/commands.md)
 
 # 스크립트 (카테고리별)
 find scripts -name '*.sh' | sort

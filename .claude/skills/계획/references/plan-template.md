@@ -67,12 +67,12 @@
 
 ## Skill Routing
 
-- planning kickoff: `project-planning`
-- scope challenge: `socratic-review`
-- implementation orchestration: `big-task`
+- planning kickoff: `/계획`
+- scope challenge: `/감사`
+- implementation orchestration: `/계획`
 - contract safety: `api-contract-guard`
 - document closure: `doc-sync`
-- session close: `session-retro`
+- session close: `/회고`
 
 ## Phase Plan
 
@@ -85,7 +85,7 @@ Files:
 - `docs/ref/PRD.md`
 
 Skills:
-- `project-planning`
+- `/계획`
 
 Verification:
 - `bash scripts/check-project.sh`

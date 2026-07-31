@@ -5,8 +5,8 @@
 ```markdown
 ## Skill Routing
 
-- planning kickoff: `project-planning`
-- implementation orchestration: `big-task`
+- planning kickoff: `/계획`
+- implementation orchestration: `/계획`
 - contract safety: `api-contract-guard`
 - document closure: `doc-sync`
 ```

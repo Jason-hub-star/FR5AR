@@ -1,11 +1,22 @@
 ---
-name: headless-cdp-verify
-description: Use when you must visually/behaviorally verify a running web app but no Playwright/Puppeteer is available — screenshot a protected route, inject a session, drive React inputs, test multi-tab or nested iframes, drive a `window.__probe`, or pixel-diff a render before/after. Ground-truth UI verification without heavy browser-automation deps.
+name: 검증
+description: 실렌더·동작 검증을 한 입구로 모은 스킬. "브라우저로 확인" "실렌더 검증" "QA 돌려줘" "스크린샷으로 판정" 에 발동. 헤드리스 CDP 단건 검증(기본)과 시나리오 병렬 QA(넓을 때) 둘을 담는다.
+user_invocable: true
 ---
 
-# Headless CDP Verify
+# 검증 — 실렌더로 판정한다
 
 Playwright/Puppeteer 없이 로컬 Chrome을 CDP(Chrome DevTools Protocol)로 직접 몰아 실렌더를 검증한다. 검증은 성역 — "확인 대신 추측" 금지. 이 스킬은 그 확인을 무거운 의존성 없이 가능하게 한다.
+
+## 어느 쪽인가
+
+| | 언제 | 절차 |
+|---|---|---|
+| **단건 실렌더** (기본) | 화면 하나가 정말 그렇게 뜨나. 3D·AR 변경 후 | 이 문서 |
+| **시나리오 병렬 QA** | 화면·기능이 많아 넓게 훑어야 할 때 | `references/병렬-QA.md` |
+
+**FR5Web 주의** — AR 화면은 카메라 권한 때문에 자동 검증이 안 넘어간다.
+그 한계와 우회는 `docs/ref/AR-DEBUG.md` §6 이 정본이다. **판정은 폰이다.**
 
 ## Use When
 
@@ -65,3 +76,9 @@ Playwright/Puppeteer 없이 로컬 Chrome을 CDP(Chrome DevTools Protocol)로 �
 - Headless limits noted:
 - Next Action:
 ```
+
+### 함께 보는 것
+
+- `references/병렬-QA.md` — 넓게 훑을 때
+- `references/cdp-harness.mjs` — 헤드리스 하네스
+- `references/README.md` — 하네스 사용법

@@ -1,5 +1,5 @@
 ---
-name: design-to-code
+name: 설계
 description: 화면 설계에서 route/API/구조 문서까지 연결하는 범용 스킬
 user_invocable: true
 tags: [design, ui, route-map, frontend, planning]

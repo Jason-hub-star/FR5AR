@@ -1,5 +1,5 @@
 ---
-name: session-retro
+name: 회고
 description: 세션 종료 시 성공 패턴, 실패 우회, 반복 수작업을 자산화
 user_invocable: true
 tags: [retro, reflection, automation, skill-extraction]

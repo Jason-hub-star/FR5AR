@@ -1,9 +1,9 @@
 ---
 name: 마감
-description: 세션·작업 마무리를 한 명령으로 닫는 캡슐 — 게이트 일괄 → 얇은 문서 갱신 → 핸드오프. evidence 없이는 완료 처리하지 않는다. 커밋은 별도 승인.
+description: 세션·작업을 한 명령으로 닫는 캡슐 — 게이트 일괄 → 얇은 문서 갱신 → 핸드오프. "마감" "끝내자" "문서 업데이트" 에 발동. 상태판을 얇게 유지하는 규칙을 함께 적용한다.
 user_invocable: true
 tags: [meta, close, write]
-trigger: "'마감', '마무리', '오늘 여기까지', 세션 종료."
+trigger: 세션 종료 · 작업 완결 선언 전 · 문서 업데이트 요청
 version: 1
 ---
 
@@ -33,7 +33,7 @@ bash scripts/check/all.sh
 `scripts/README.md`의 기준값 표를 본다. 안 고치면 다음 세션에 게이트가 거짓 실패한다.
 
 ### 5. 완료 판정 (release verdict)
-*(흡수: `evidence-review`)*
+*(흡수: `/마감`)*
 
 셋 중 하나로 정한다. **증거가 없으면 자동으로 `not-ready`다.**
 
@@ -67,3 +67,11 @@ bash scripts/check/all.sh
 - 게이트 레드 상태로 마감
 - 검증 안 한 것을 완료로 적기
 - PROJECT-STATUS를 길게 쓰기 (상세는 evidence)
+
+## 상태판은 얇게 유지한다
+
+`/마감` 이 흡수한 것 — 얇은 상태판 규칙(`references/얇은-상태판.md`) · 핸드오프 캡슐 ·
+완료 선언 전 근거 확인. **문서를 붙이기 전에 먼저 중복·오래된 상태·폐기된 실험을 정리한다.**
+
+문서가 무거워졌는지는 `bash scripts/check/docs-weight.sh --weekend` 가 판정한다 —
+이관 후보를 보고하고, **옮기는 것은 이 명령에서 사람이 확인하고 한다** (D18).
