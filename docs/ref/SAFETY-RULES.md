@@ -3,7 +3,7 @@
 분류: **SSOT**. 로봇에 명령을 보내는 코드를 쓰기 전에 반드시 읽는다.
 출처: v3 `LiveCommandSafetyGate.cs` (깃허브 `Jason-hub-star/robotapp` `codex/robotcontrol-v3-toolkit` `d252eb6`)
 SDK 필드: `FAIR-INNOVATION/fairino-python-sdk` `linux/fairino/Robot.py` 상태 구조체 **필드 150개**
-필드 전수 근거: `docs/evidence/2026-07-30-sdk-state-fields.md`
+필드 전수 근거: `docs/evidence/2026-07-30/sdk-state-fields.md`
 
 ## 제1원칙 — 막는 쪽으로 실패한다 (fail-closed)
 

@@ -43,7 +43,7 @@ FONT_PATH = "/System/Library/Fonts/AppleSDGothicNeo.ttc"
 # 마커 크기를 제한하는 것은 **용지 가로폭**이다 (세로는 남는다).
 #   marker + 2*quiet + 좌우 여백 ≤ 용지 폭
 #
-# quiet zone(흰 여백) 비율은 **실측으로 정했다** (evidence/2026-07-30-marker-detect.md).
+# quiet zone(흰 여백) 비율은 **실측으로 정했다** (evidence/2026-07-30/marker-detect.md).
 # 어두운 배경에 붙인 최악 조건에서 **3%면 검출된다.** 0%(마커가 어두운 면에 바로 닿음)만 실패.
 # 8%는 그 2.7배 여유다 — 처음 쓴 16%는 필요량의 5배였고, 그만큼 마커가 작았다.
 QUIET_RATIO_MIN = 0.06  # 게이트: 실측 최소(3%)의 2배 밑으로는 못 내린다

@@ -4,13 +4,13 @@
 //   설정 파일: 밀리미터 · 도(°)
 //   내부(URDF·three.js): 미터 · 라디안
 //
-// 함정 (docs/evidence/2026-07-29-urdf-web-render.md 실측)
+// 함정 (docs/evidence/2026-07-29/urdf-web-render.md 실측)
 //   ① STL 은 비동기로 늦게 붙는다. load 콜백 시점에 메시가 0개다 → manager.onLoad 를 기다려라.
 //   ② 그리퍼 STL 은 밀리미터, 팔 URDF 는 미터다. meshScale 을 빼면 1000배로 뜬다.
 //
 // (해소됨) three.js 를 손으로 importmap 에 매핑하던 함정 —
 //   r185 가 three.module.js + three.core.js 로 쪼개져 있어 core 를 빼면 에러 없이 화면이 죽었다.
-//   Vite 로 옮기면서 npm 이 해결한다 (docs/evidence/2026-07-30-vite-gate.md).
+//   Vite 로 옮기면서 npm 이 해결한다 (docs/evidence/2026-07-30/vite-gate.md).
 
 import * as THREE from 'three';
 import URDFLoader from 'urdf-loader';

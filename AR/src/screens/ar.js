@@ -4,7 +4,7 @@
 //   · **URL 파라미터를 그대로 옮긴다.** 슬롯형 config 을 여기 섞지 않는다 —
 //     폰에서 실패하면 원인이 두 배가 된다 (D15 의 교훈)
 //   · **window 노출을 빼지 않는다.** 기준값 7개 대조가 거기 걸려 있다
-//     (evidence/2026-07-30-ar-baseline.md)
+//     (evidence/2026-07-30/ar-baseline.md)
 
 import './ar.css';
 import * as THREE from 'three';
@@ -422,7 +422,7 @@ renderer.setAnimationLoop((now) => {
 });
 
 // 헤드리스 검증용 노출.
-// **빼지 않는다** — 기준값 7개 대조가 여기 걸려 있다 (evidence/2026-07-30-ar-baseline.md).
+// **빼지 않는다** — 기준값 7개 대조가 여기 걸려 있다 (evidence/2026-07-30/ar-baseline.md).
 // 빼면 판정이 다시 "폰에서 되는 것 같다" 로 내려앉는다.
 Object.assign(window, {
   THREE, robot, scene, renderer, stage, scaleRoot, tube, zone, player,

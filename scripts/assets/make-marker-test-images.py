@@ -12,7 +12,7 @@
   ④ 음성 대조군 — 마커가 없거나 다른 마커. **이게 없으면 측정이 아니다**
   ⑤ 흰 여백  — 여백만 0~40%로 바꾼다. 인쇄 시트의 여백 폭을 정하는 근거
 
-결과 해석은 `docs/evidence/2026-07-30-marker-detect.md`.
+결과 해석은 `docs/evidence/2026-07-30/marker-detect.md`.
 """
 
 import io

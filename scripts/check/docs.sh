@@ -61,6 +61,27 @@ for f in docs/*; do
 done
 
 echo
+echo "== 증거 날짜 폴더 =="
+# evidence 는 날짜가 폴더다 — 루트에 파일을 두면 다시 평평해진다 (docs/INDEX.md §새 문서 추가 규칙).
+if [ -d docs/evidence ]; then
+  n=0
+  for f in docs/evidence/*; do
+    [ -e "$f" ] || continue
+    b="$(basename "$f")"
+    if [ -d "$f" ]; then
+      printf '%s' "$b" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' \
+        && { note "$b/ ($(find "$f" -type f | wc -l | tr -d ' ')건)"; n=$((n+1)); } \
+        || bad "날짜 폴더가 아님: evidence/$b  → YYYY-MM-DD"
+    else
+      bad "evidence/ 루트에 파일: $b  → evidence/<YYYY-MM-DD>/<주제> 로 (날짜는 파일명에서 뺀다)"
+    fi
+  done
+  [ "$n" -eq 0 ] && note "날짜 폴더 없음"
+else
+  note "docs/evidence 없음"
+fi
+
+echo
 echo "== 보관 문서 이름 규칙 =="
 if [ -d docs/archive ]; then
   for f in docs/archive/*; do

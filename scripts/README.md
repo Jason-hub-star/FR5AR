@@ -121,7 +121,7 @@ bash scripts/check/docs-weight.sh --weekend  # 중복 md5 · 30일 방치 · 빈
 
 - **경고(soft)는 exit 0** — 출력만 하고 통과시킨다. 다음 마감 때 처리하면 된다
 - **초과(hard)는 exit 1** — 게이트가 막는다
-- 무엇이 왜 쌓이는지와 임계값 출처는 `docs/evidence/2026-07-30-doc-weight.md`
+- 무엇이 왜 쌓이는지와 임계값 출처는 `docs/evidence/2026-07-30/doc-weight.md`
 
 **`DECISION-LOG` 만 다르게 잰다.** `docs/INDEX.md` 가 "archive 로 옮기지 않는다" 고
 못 박아서 "절을 잘라 이관하라" 는 처방이 적용되지 않는다. 조치 불가능한 경고는 소음이다.

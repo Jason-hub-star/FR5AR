@@ -5,7 +5,7 @@
 - `#arjs-video` 의 **크기를 CSS 로 건드리지 않는다** — 영상↔투영 대응이 깨져 로봇이 밀린다
 - **`body` 에 배경을 주지 않는다.** 배경은 `html` 에만 — 안 그러면 폰에서 검은 화면 (D13)
 - `window` 노출(`robot`·`points`·`zone`·`mcfg`…)을 **빼지 않는다.**
-  이관 기준값 대조가 거기 걸려 있다 (`docs/evidence/2026-07-30-ar-baseline.md`)
+  이관 기준값 대조가 거기 걸려 있다 (`docs/evidence/2026-07-30/ar-baseline.md`)
 - **판정은 폰이다.** 카메라 권한은 자동화로 못 넘는다 — 빌드 통과로 대체하지 않는다
 - 자산은 `Shared/assets` 가 `publicDir` 이라 **루트에서 서빙**된다 → `/FAIRINO_FR5/…`
 

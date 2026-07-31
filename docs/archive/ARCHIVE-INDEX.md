@@ -28,7 +28,7 @@
 
 | 지운 것 | 왜 보관하지 않았나 | 날짜 |
 |---|---|---|
-| 첫 AR 마커 인쇄 시트 2장 (Hiro 패턴, A4 160mm · A3 200mm) | 캡션이 quiet zone을 침범한 **결함품**이다. 다시 인쇄할 일이 없고, 결함의 내용과 교훈은 `DECISION-LOG` D10과 `evidence/2026-07-30-marker-detect.md`에 **글로 남아 있다** | 2026-07-30 |
+| 첫 AR 마커 인쇄 시트 2장 (Hiro 패턴, A4 160mm · A3 200mm) | 캡션이 quiet zone을 침범한 **결함품**이다. 다시 인쇄할 일이 없고, 결함의 내용과 교훈은 `DECISION-LOG` D10과 `evidence/2026-07-30/marker-detect.md`에 **글로 남아 있다** | 2026-07-30 |
 | `hiro.png` · `patt.hiro` · `pattern-hiro.patt` | 패턴 마커 방식을 D10에서 버렸다. 참조하는 코드가 없다 | 2026-07-30 |
 | 바코드 원본 `0·1·4·6·7.png` | 쓰는 곳이 없다. 필요하면 출처에서 다시 받는다 (`STACK.md` §마커) | 2026-07-30 |
 | `fr5-cases-share-abandoned-2026-07-30.html` (53.9KB) | **`research/fr5-cases.html`과 바이트 단위로 동일했다** (md5 `17a7343f…`). 보관 사유였던 "이미지 인라인"이 실제로 실행되지 않아, 원본을 복사한 상태로 남아 있었다. 보존되는 정보가 0이다. `check/docs-weight.sh --weekend`가 잡았다 | 2026-07-30 |

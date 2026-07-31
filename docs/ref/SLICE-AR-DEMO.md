@@ -60,7 +60,7 @@ V0 화면과 공유하는 모듈**이다.
 
 그리퍼 STL은 **밀리미터**, 팔 URDF는 **미터**다. `scale 0.001`을 빼면 1000배로 뜬다.
 장착값은 `Shared/data/config/gripper-mount.json`에 있고 실측으로 확정했다
-(`evidence/2026-07-30-gripper-mount.md` — 플랜지 간격 0.00mm).
+(`evidence/2026-07-30/gripper-mount.md` — 플랜지 간격 0.00mm).
 
 **좌표계가 세 번 꺾인다.**
 ```
@@ -82,7 +82,7 @@ AR 위에서 맞추면 마커 떨림과 정합 오차가 섞여 원인을 못 �
 **정지된 로봇은 3D 뷰어와 구별이 안 된다.** 움직이는 궤적이 있어야 AR이 된다.
 
 이미 검증된 코드가 있다 — FK 보간으로 점 61개, 경로 길이 0.742m
-(`evidence/2026-07-29-urdf-web-render.md`).
+(`evidence/2026-07-29/urdf-web-render.md`).
 
 ```
 ① 시작·끝 관절값 두 개를 잘게 나눈다
@@ -152,7 +152,7 @@ A트랙 3단계 이후 언제든. **팀원에게 보여줄 것이 아니다.**
 | 1.5 m | | | |
 | 2.0 m | | | |
 
-기록 위치 — `docs/evidence/2026-07-30-ar-marker-accuracy.md`
+기록 위치 — `docs/evidence/2026-07-30/ar-marker-accuracy.md`
 
 **나쁜 결과도 결과다.** 오차가 크면 AR의 용도를 "안전 범위 표시"로 좁히면 된다.
 회의 전에 아는 게 낫다.
@@ -168,7 +168,7 @@ Shared/view3d/robot/robot-view.js           URDF 로드 (3D 슬라이스와 공�
 Shared/view3d/trajectory/trajectory.js           FK 보간 · 궤적 생성 · 애니메이션
 Shared/data/config/marker-offset.json  마커 원점 → 로봇 원점 오프셋
 Shared/assets/marker/             마커 패턴
-docs/evidence/2026-07-30-ar-marker-accuracy.md
+docs/evidence/2026-07-30/ar-marker-accuracy.md
 ```
 
 ## 위험과 대응
@@ -188,7 +188,7 @@ docs/evidence/2026-07-30-ar-marker-accuracy.md
 ## 준비물
 
 - **마커 인쇄** — `Shared/assets/marker/marker-print-A4-170mm-bc5.png` (A4 한 장으로 끝) 또는
-  A3 240mm판. 실측 결과 **A4로도 2m는 된다** (`evidence/2026-07-30-marker-detect.md`).
+  A3 240mm판. 실측 결과 **A4로도 2m는 된다** (`evidence/2026-07-30/marker-detect.md`).
   100% 배율·무광 용지. **딱딱한 판에 평평하게** 붙인다
 - 인쇄 후 **검은 사각형 한 변을 자로 재서** `Shared/data/config/marker-offset.json`의
   `markerSizeMm`에 넣는다 — 틀리면 로봇 크기가 틀리고 오차 측정이 무의미해진다

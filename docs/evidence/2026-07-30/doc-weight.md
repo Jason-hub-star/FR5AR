@@ -103,7 +103,7 @@ docs/archive/fr5-cases-share-abandoned-2026-07-30.html  53,906B   md5 17a7343f�
 | 하네스 | 왜 우리에게 필요한가 | 근거 |
 |---|---|---|
 | **`secret-scan`** | **레포가 2026-07-30 공개됐고 `.env` 가 있다.** git 추적 파일을 8가지 시크릿 패턴으로 스캔한다. 커밋 직전 게이트 | D14 |
-| **`repo-asset-hygiene-gate`** | 고아 자산·죽은 링크 양방향 감사. **`TGALoader.js`(538줄)가 정확히 이 케이스였다** — importmap 에 등록만 되고 아무도 import 하지 않았다. 전수조사로 겨우 찾았는데, 게이트가 있으면 자동으로 잡힌다 | `evidence/2026-07-30-vite-gate.md` §5 |
+| **`repo-asset-hygiene-gate`** | 고아 자산·죽은 링크 양방향 감사. **`TGALoader.js`(538줄)가 정확히 이 케이스였다** — importmap 에 등록만 되고 아무도 import 하지 않았다. 전수조사로 겨우 찾았는데, 게이트가 있으면 자동으로 잡힌다 | `evidence/2026-07-30/vite-gate.md` §5 |
 | `api-contract-guard` | 외부 계약(모델명·필드명)을 코드에 박기 전에 중앙화. **팀원 지표 계약을 곧 다룬다** | `API-CONTRACT.md` §생산성 지표 |
 
 ### 가져오지 않는다 — 이유가 있다

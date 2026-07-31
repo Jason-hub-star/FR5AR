@@ -76,7 +76,7 @@ npm run build:dash               # → 성공
 | ② 방 치수에서 범위 | ≥1 | **2** (`floor.widthMm` · `floor.depthMm`) |
 | ③ `bash scripts/check/all.sh` | 전체 통과 | **전체 통과** |
 | ④ `npm run build:dash` | 성공 | **성공** (259ms) |
-| ⑤ 입력 실렌더 기록 | 있음 | **`evidence/2026-07-31-dashboard-coord-input.md`** (11항목) |
+| ⑤ 입력 실렌더 기록 | 있음 | **`evidence/2026-07-31/dashboard-coord-input.md`** (11항목) |
 
 - **재현됨** — Outcome 1~5 전부. `8`→`80`→`800`→`8000` 이 안 튀는 것, 99999→12000 자르기,
   3333→3300 격자, 45→90 스냅, `⌘Z` 연동을 브라우저에서 측정

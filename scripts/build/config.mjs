@@ -131,7 +131,7 @@ const gripper = {
   _meshScale: '그리퍼 STL은 밀리미터, 팔 URDF는 미터다. 이 값을 빼면 1000배로 뜬다.',
   positionMm: gripPos,
   rotationDeg: gripRot,
-  _유도: '실측으로 확정 — 플랜지 간격 0.00mm. 회전 X는 +90 (−90은 반대 방향). 상세는 docs/evidence/2026-07-30-gripper-mount.md',
+  _유도: '실측으로 확정 — 플랜지 간격 0.00mm. 회전 X는 +90 (−90은 반대 방향). 상세는 docs/evidence/2026-07-30/gripper-mount.md',
   verified: gripVerified,
   meshes: [
     'PGEA-100-40_body.stl',

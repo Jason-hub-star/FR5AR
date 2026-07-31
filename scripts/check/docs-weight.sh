@@ -8,7 +8,7 @@
 # 기준값 출처 — `scripts/README.md` §기준값이 있는 곳
 #   진입 문서 80줄 · 상태판 80~120줄 · 개별 300줄: jason-agent-harness-template
 #     (`.claude/skills/docs-active-archive` · `docs/ops/document-management.md` · `CLAUDE.md`)
-#   나머지: 2026-07-30 FR5Web 실측 (`docs/evidence/2026-07-30-doc-weight.md`)
+#   나머지: 2026-07-30 FR5Web 실측 (`docs/evidence/2026-07-30/doc-weight.md`)
 #
 # 모드
 #   --daily     (기본) 싸다. 줄수·개수·행수만. 게이트가 매번 부른다

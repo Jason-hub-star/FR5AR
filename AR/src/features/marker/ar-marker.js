@@ -12,7 +12,7 @@ import {
   ArToolkitProfile, ArToolkitSource, ArToolkitContext, ArMarkerControls, ArSmoothedControls,
 } from '../../external/ar-threex.mjs';
 // 'threex' 라는 bare 지정자는 importmap 이 만들던 것이다. Vite 에서는 파일 경로로 직접 쓴다 —
-// npm 레지스트리에 이 ESM 빌드가 없어서 vendor 로 남긴다 (evidence/2026-07-30-vite-gate.md).
+// npm 레지스트리에 이 ESM 빌드가 없어서 vendor 로 남긴다 (evidence/2026-07-30/vite-gate.md).
 
 /**
  * 스무딩 세기. 깜빡임(마커를 순간적으로 놓쳐 물체가 사라지는 것)을 줄이는 값들.
@@ -188,7 +188,7 @@ export function initAR({
 
   /** 마커 한 변이 **검출 캔버스에서** 몇 픽셀인가.
    *
-   * "24px 이 한계" 는 합성 이미지로 얻은 값이다 (evidence/2026-07-30-marker-detect.md).
+   * "24px 이 한계" 는 합성 이미지로 얻은 값이다 (evidence/2026-07-30/marker-detect.md).
    * 그동안은 크기와 거리로 **추정**했는데, 이 값은 그 임계를 실기에서 직접 잰다.
    * 인식률이 무너지는 지점의 픽셀 수 — 그게 우리가 진짜 알고 싶은 하나다.
    */

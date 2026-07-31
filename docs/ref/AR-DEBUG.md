@@ -1,7 +1,7 @@
 # AR-DEBUG — 폰에서 AR을 디버깅하는 방법
 
 분류: **SSOT**. AR 화면(`AR/ar.html`)이 안 될 때 여기부터 본다.
-관련: `STACK.md` §마커 · `evidence/2026-07-30-marker-detect.md` · `DECISION-LOG` D10·D13
+관련: `STACK.md` §마커 · `evidence/2026-07-30/marker-detect.md` · `DECISION-LOG` D10·D13
 
 ## 원칙 — **폰에는 콘솔이 없다**
 
@@ -91,7 +91,7 @@ node scripts/build/config.mjs      # Shared/data/config/*.json 생성
 억제(`?sm=강`)는 **증상을 가린다.** 근본은 검출률이다.
 실측에서 검출을 결정하는 것은 크기가 아니라 **흑백 명도차**였다 —
 약 130(0~255) 미만이면 크기와 무관하게 실패한다
-(`evidence/2026-07-30-marker-detect.md`).
+(`evidence/2026-07-30/marker-detect.md`).
 
 효과 순서대로:
 

@@ -58,7 +58,7 @@ iOS 사파리는 `immersive-ar`(WebXR)를 열어주지 않는다. 안드로이�
 ### 실제 검출기로 재봤다 — **결정하는 것은 크기가 아니라 대비다**
 
 2026-07-30, `ArToolkitSource` 의 `sourceImage` 로 합성 이미지 117장을 실제 검출기에 먹였다
-(`docs/evidence/2026-07-30-marker-detect.md`).
+(`docs/evidence/2026-07-30/marker-detect.md`).
 
 | 발견 | 값 |
 |---|---|
@@ -179,7 +179,7 @@ def preview_path(q_from, q_to, steps=100):
 
 브라우저에서도 같은 계산이 가능하다 — urdf-loader가 관절 트리를 그대로 들고 있으므로
 `setJointValue` 후 `getWorldPosition`을 읽으면 된다. **2026-07-29 실렌더로 검증됨**
-(`docs/evidence/2026-07-29-urdf-web-render.md`).
+(`docs/evidence/2026-07-29/urdf-web-render.md`).
 
 이 궤적은 **예상값**이다. 실제 로봇은 가감속과 안전 제한 때문에 다르게 움직인다.
 화면에 "예상 경로"라고 표기하고, 실제 지나간 길은 로봇이 보내는 관절값으로 따로 그린다.
