@@ -14,20 +14,21 @@
 
 ## 폴더 라우터 — 무엇을 건드리는지부터 정한다
 
-**한 레포에 최상위 폴더가 셋이다** — `AR/`(Vite+바닐라) · `Dashboard/`(Vite+React) · `Shared/`.
-어디를 건드리는지 먼저 정하면 읽을 문서가 두 개로 줄어든다.
+**한 레포에 화면·로봇 도메인을 수직으로 둔다** — `AR/` · `Dashboard/` · `FR5/` ·
+`TurtleBot/`, 공용은 `Shared/`다. 어디를 건드리는지 먼저 정하면 읽을 문서가 두 개로 줄어든다.
 경계와 파일 귀속은 `docs/ref/BUILD-VITE.md`가 정본이다.
 
 | 건드리는 것 | 폴더 | 읽을 것 (이 순서로) |
 |---|---|---|
 | 마커·카메라·정합·깜빡임·폰 화면 | **AR/** | `ref/AR-DEBUG.md` → `ref/BUILD-VITE.md` |
-| 배치안 편집 · 생산성 지표 · 조작 UI | **Dashboard/** | `ref/CONSOLE-REACT.md` → `ref/SHARED-CORE.md` |
-| 그리퍼 장착값 · URDF · 관절 | **Shared/view3d/** | `evidence/2026-07-30-gripper-mount.md` → `ref/SHARED-CORE.md` |
-| 마커 검출률 측정 | **AR/test/** | `evidence/2026-07-30-marker-detect.md` |
+| 배치안 편집 · 생산성 지표 · FR5 상태 요약 | **Dashboard/** | `ref/CONSOLE-REACT.md` → `ref/SHARED-CORE.md` |
+| FR5 조작 · 티칭 · 슬롯 · 경로 · 기록 | **FR5/** | `../FR5/AGENTS.md` → `ref/API-CONTRACT.md` |
+| 그리퍼 장착값 · URDF · 관절 | **Shared/view3d/** | `evidence/2026-07-30/gripper-mount.md` → `ref/SHARED-CORE.md` |
+| 마커 검출률 측정 | **AR/test/** | `evidence/2026-07-30/marker-detect.md` |
 | **배치안 모양 · 단위 변환 · 설정** | **Shared/data/** | `ref/SHARED-CORE.md` ← **두 폴더가 같이 깨진다. 여기부터** |
 | 지표 데이터가 어디서 오나 (목업↔실물) | Shared/data/ | `ref/SHARED-CORE.md` §datasource → `ref/API-CONTRACT.md` |
 | 빌드·폴더·엔트리·의존성 | 루트 | `ref/BUILD-VITE.md` |
-| 브리지 서버 (Python) | 서버 | `ref/API-CONTRACT.md` → `ref/ARCHITECTURE.md` |
+| FR5 브리지 (Python) | **FR5/bridge/** | `ref/API-CONTRACT.md` → `ref/ARCHITECTURE.md` |
 
 **갈피가 안 잡히면 `Shared/`로 취급한다.** 공용을 한쪽 전용으로 착각하는 것이 그 반대보다 비싸다.
 
@@ -45,7 +46,7 @@
 | `docs/ref/API-CONTRACT.md` | REST·WebSocket 계약 **(SSOT)** | 서버·프론트 어느 쪽이든 |
 | `docs/status/PROJECT-STATUS.md` | 지금 어디까지 | 세션 시작 시 |
 | `docs/status/DECISION-LOG.md` | 왜 그렇게 정했나 | "이거 왜 이래?" 싶을 때 |
-| `docs/evidence/` | 날짜별 검증 기록 | 주장의 근거가 필요할 때 |
+| `docs/evidence/YYYY-MM-DD/` | 날짜 폴더 안의 검증 기록 | 주장의 근거가 필요할 때 |
 
 전체 목록은 `docs/INDEX.md`.
 

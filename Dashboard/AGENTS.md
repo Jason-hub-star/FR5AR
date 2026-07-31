@@ -1,7 +1,7 @@
 # Dashboard — 관제화면 (Vite + React)
 
-**골격만 있다.** 탭 셋(`features/layout` · `metrics` · `control`)이 자리만 잡고 있고
-본체는 **L1 배치안 편집**이다 (`docs/ref/MILESTONES.md`).
+본체는 **L1 배치안 편집**이다 (`docs/ref/MILESTONES.md`). `control`은 기존 자리 이름만
+유지하며 FR5 상태 요약·별도 앱 연결로 바꾼다. 로봇 명령은 `FR5/` 소유다(D36).
 
 - **R3F 를 쓰지 않는다.** 3D 는 `Shared/view3d/` 의 바닐라 코드를 `ref` + `useEffect` 로 마운트.
   R3F 로 가면 로봇 로딩 경로가 둘이 되고, 그게 배치가 갈라지는 두 번째 경로다
@@ -17,7 +17,7 @@
 | 경로 | 무엇 |
 |---|---|
 | `src/screens/` | 화면 진입점. jsx+css 한 쌍 |
-| `src/features/control/` | 로봇 제어 UI |
+| `src/features/control/` | FR5 상태 요약·별도 앱 연결 자리. 명령 금지 |
 | `src/features/layout/` | 배치안 편집/보기 |
 | `src/features/metrics/` | 지표 비교 |
 | `index.html` | 브라우저 진입점 |

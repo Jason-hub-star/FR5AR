@@ -1,6 +1,9 @@
-/* 디자인 토큰 — AR 과 Dashboard 가 **같이 쓰는 유일한 스타일** (D21).
+/* 디자인 토큰 — AR · Dashboard · FR5 가 **같이 쓰는 유일한 스타일** (D21, D38).
  *
- * 공유한다     : 색 팔레트 · 간격 · 타이포 스케일 · 반경 · **상태 색**
+ * 외부 시각 정본: /Users/family/jason/codegate/src/app/globals.css
+ * 이 파일은 FR5Web 런타임 미러다. codegate를 직접 import하지 않는다.
+ *
+ * 공유한다     : 색 팔레트 · 간격 · 타이포 스케일 · 반경 · 상태/출처 색
  * 공유하지 않는다: 버튼·패널·표 같은 컴포넌트 스타일, 레이아웃
  *
  * AR 은 카메라 영상 위 반투명 오버레이, 대시보드는 밀도 높은 데이터 화면이라
@@ -13,7 +16,9 @@
   /* 바탕 */
   --c-bg:          #14171a;
   --c-sunken:      #101316;
-  --c-panel:       #1c2024ee;   /* 반투명 — AR 에서 영상 위에 얹힌다 */
+  --c-card:        #1c2024;
+  --c-overlay:     #1c2024ee;   /* AR·3D 위 정보판만 반투명 */
+  --c-panel:       var(--c-overlay); /* 기존 소비자 호환 */
   --c-line:        #2e343a;
   --c-line-strong: #37454f;
 
@@ -26,12 +31,30 @@
   --c-btn:       #253039;
   --c-btn-hover: #2e3d48;
   --c-btn-fg:    #cfe0ee;
+  --c-primary:    #e8ecef;
+  --c-primary-fg: #14171a;
+  --c-selected:   var(--c-fg);
+  --c-selected-fg: var(--c-bg);
+  --c-focus:      var(--c-info);
+  --c-input:      var(--c-line-strong);
 
   /* 상태 — **두 화면에서 같아야 한다.** 안전 표시가 화면마다 다르면 오판한다 */
   --c-ok:     #7fd6a2;
   --c-warn:   #f0b862;
   --c-danger: #ef7676;
   --c-info:   #6fb3e0;
+  --c-ok-soft:     #7fd6a222;
+  --c-warn-soft:   #f0b86222;
+  --c-danger-soft: #ef767622;
+  --c-info-soft:   #6fb3e022;
+
+  /* 로봇 운용 의미 — 선택색과 안전색을 섞지 않는다 */
+  --c-armed:      var(--c-warn);
+  --c-recording:  var(--c-danger);
+  --c-source-mock:     var(--c-warn);
+  --c-source-sim:      var(--c-info);
+  --c-source-measured: var(--c-ok);
+  --opacity-disabled: 0.45;
 
   /* 로봇 표시 — 궤적·안전 범위처럼 3D 에서도 쓰는 값 */
   --c-path:   #4dd6a0;
@@ -43,11 +66,18 @@
   --r-sheet: 12px;
 
   /* 간격 */
-  --s-1: 4px;  --s-2: 7px;  --s-3: 12px;  --s-4: 16px;  --s-5: 24px;
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px;  --s-4: 16px;  --s-5: 24px;
 
   /* 타이포 */
-  --f-body: 14px/1.5 -apple-system, "Apple SD Gothic Neo", sans-serif;
-  --f-mono: 11px/1.45 ui-monospace, monospace;
+  --ff-sans: "Geist", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+  --ff-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+  --fs-label: 10px;
+  --fs-meta: 11px;
+  --fs-control: 12px;
+  --fs-body: 14px;
+  --tracking-label: 0.16em;
+  --f-body: var(--fs-body)/1.5 var(--ff-sans);
+  --f-mono: var(--fs-meta)/1.45 var(--ff-mono);
 }
 
 /* ── 밝은 테마 (Dashboard) ────────────────────────────────────────────────
@@ -61,7 +91,9 @@
 :root[data-theme="light"] {
   --c-bg:          #faf9f7;
   --c-sunken:      #f4f3f1;
-  --c-panel:       #ffffffee;
+  --c-card:        #ffffff;
+  --c-overlay:     #ffffffe6;
+  --c-panel:       var(--c-overlay);
   --c-line:        #e4e2df;
   --c-line-strong: #c6c6c6;
 
@@ -72,12 +104,22 @@
   --c-btn:       #efeeec;
   --c-btn-hover: #eae8e5;
   --c-btn-fg:    #1a1c1b;
+  --c-primary:    #000000;
+  --c-primary-fg: #e5e2e1;
+  --c-selected:   #1a1c1b;
+  --c-selected-fg: #faf9f7;
+  --c-focus:      #1a1c1b;
+  --c-input:      #c6c6c6;
 
   /* 상태 — 밝은 바탕에서 읽히는 값이다. 어두운 테마와 **의미가 같고 값만 다르다** */
   --c-ok:     #2f7d32;
   --c-warn:   #b06d00;
   --c-danger: #ba1a1a;
   --c-info:   #1f5f9e;
+  --c-ok-soft:     #2f7d321a;
+  --c-warn-soft:   #b06d001a;
+  --c-danger-soft: #ba1a1a1a;
+  --c-info-soft:   #1f5f9e1a;
 
   --c-path:   #2f7d32;
   --c-zone:   #b06d00;

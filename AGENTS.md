@@ -9,7 +9,7 @@ Codex·OpenCode 등 다른 에이전트의 진입 문서. Claude와 **같은 SSO
 3. 작업 트리를 보존하고, 끝나면 `CLAUDE.md`의 검증 명령을 실행한다.
 
 **폴더에 들어가면 그 폴더의 `AGENTS.md`를 먼저 읽는다** (D25). 8개 있다 —
-`AR` `Dashboard` `Shared` `Backend` `Database` `Vision` `TurtleBot` `scripts`.
+`AR` `Dashboard` `Shared` `FR5` `Database` `Vision` `TurtleBot` `scripts`.
 그 폴더에서만 참인 금지사항과 `## 폴더` 표가 들어 있다. 25줄 상한이라 읽는 비용이 없다.
 
 ## 정찰 위임 규약

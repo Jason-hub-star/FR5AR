@@ -19,9 +19,9 @@
 ## 전체 그림
 
 ```
-[FR5 컨트롤러] ─TCP:8080─ [브리지 서버 :5055] ─REST/WS─┐
-   실물 로봇        공식 파이썬 SDK · FastAPI            │
-                                                        ├─ 관제화면 (PC, React)   ← 우리
+[FR5 컨트롤러] ─TCP:8080─ [FR5/bridge :5055] ─REST/WS─ [FR5 웹 펜던트]  ← 우리
+   실물 로봇        공식 파이썬 SDK · FastAPI                │
+                                                            ├─ 관제화면 (PC, React)   ← 우리
 [팀원의 알고리즘] ─────── 지표 데이터 ──────────────────┤
 [팀원의 AMR]                                            └─ AR 화면 (폰, 바닐라)   ← 우리
 ```
@@ -61,15 +61,13 @@ Shared/data/datasource/    ← 함수 몇 개. 화면은 출처를 모른다
 FR5Web/
 ├── CLAUDE.md · AGENTS.md          진입 문서
 ├── docs/                          SSOT
-├── Backend/                       브리지 서버 (Python, 미착수)
-│   ├── main.py                    FastAPI 앱 · 라우트
-│   ├── robot.py                   Fairino SDK 감싸기 · 상태 폴링
-│   ├── safety.py                  속도 상한 · 명령 검사 · **비전 제안 게이트**
-│   ├── owner.py                   조종권
-│   └── kinematics.py              FK · 예상 경로 계산
+├── FR5/                           FR5 웹 펜던트 + 브리지 수직 배포 단위 (구조만 준비)
+│   ├── src/features/              조작 · 티칭 · 슬롯 · 경로 · 기록
+│   ├── src/data/datasource/       mock ↔ bridge ↔ Database 교체 경계
+│   └── bridge/robot_adapter/      FastAPI 경계 · mock/FAIRINO SDK 교체 경계
 ├── Database/                      스키마·마이그레이션 (미착수)
 ├── Vision/                        비전 인식 (미착수 — 팀원 몫일 수 있다)
-├── TurtleBot/                     자율주행 연계 (미착수 — 팀원 몫)
+├── TurtleBot/                     터틀봇 관제 — 웹앱(:5175) + tb-bridge(:5055) 수직 완결
 ├── AR/                            폰 AR — Vite + 바닐라 (경계: BUILD-VITE.md)
 │   ├── index.html ar.html robot.html test/marker-detect.html
 │   ├── src/screens/  src/features/  src/external/ar-threex.mjs
@@ -79,8 +77,8 @@ FR5Web/
 │   ├── src/screens/  src/features/{layout,metrics,control}/
 │   └── vite.config.js  package.json
 ├── Shared/                        두 쪽이 같이 쓰는 것 — 갈라지면 프로젝트가 갈라진다
-│   ├── model/                     layout(배치안) · units · config · datasource
-│   ├── three/                     robot · trajectory · safety (바닐라. React 금지)
+│   ├── data/                      layout(배치안) · units · config · datasource
+│   ├── view3d/                    robot · trajectory · safety (바닐라. React 금지)
 │   ├── tokens/                    디자인 토큰 — 색·간격·타이포 (아래 §UI 통일)
 │   └── assets/                    URDF · STL · 마커
 └── scripts/                       카테고리 폴더로만 둔다 (규약: scripts/README.md)
@@ -92,7 +90,8 @@ FR5Web/
 
 **규칙** — 새 최상위 폴더를 만들기 전에 이 문단을 먼저 고친다.
 폴더 경계와 파일 귀속은 `docs/ref/BUILD-VITE.md`가 정본이다.
-루트에 `package.json` 하나를 두고 `Shared`·`AR`·`Dashboard`를 **npm workspaces**로 묶는다.
+현재 루트 `package.json`은 `Shared`·`AR`·`Dashboard`·`TurtleBot`을 **npm workspaces**로
+묶는다. `FR5`는 실행 패키지를 만들 때 추가한다. 문서성 골격 때문에 빈 패키지를 만들지 않는다.
 
 ### 이름은 접두사로 무엇인지 알린다
 
@@ -100,34 +99,41 @@ FR5Web/
 |---|---|---|
 | `AR` | 폰 AR | **동작** |
 | `Dashboard` | 관제화면 | 미착수 |
-| `Backend` | 브리지 서버 (Python) | 미착수 |
+| `FR5` | 웹 티칭 펜던트 + 브리지 | 문서성 골격 |
 | `Database` | 스키마·마이그레이션 | 미착수 |
 | `Vision` | 비전 인식 | 미착수 |
-| `TurtleBot` | 자율주행 연계 | 미착수 |
+| `TurtleBot` | 터틀봇 관제 — 웹 + 브리지 (`TB-CONTRACT.md`) | 계약 확정 (D29~D31) |
 | `Shared` | 공용 (소문자 — 화면이 아니다) | 골격 |
 
-**7개 폴더를 전부 만들어 뒀고, 각각 `CLAUDE.md` 한 장이 들어 있다** (2026-07-30).
-빈 폴더가 아니다 — 그 자리에 무엇이 오고 **경계가 무엇인지** 적힌 문서다.
-착수하는 사람이 SSOT 를 뒤지지 않고 바로 시작한다. 상한 15줄, 게이트가 잰다.
+각 최상위 작업 폴더에는 `AGENTS.md`가 있다(D25). `FR5/`는 D36에서 루트 `Backend/`를
+대체했다. 지금은 그 자리에 무엇이 오고 **경계가 무엇인지**만 적은 문서성 골격이다.
 
-## UI 통일 — 디자인 토큰은 `Shared/tokens/` 한 곳
+## UI 통일 — codegate를 시각 정본으로, 토큰은 `Shared/tokens/` 한 곳
 
-`AR` 과 `Dashboard` 가 따로 스타일을 쌓으면 같은 프로젝트로 안 보인다.
-**토큰만 공유하고 컴포넌트는 공유하지 않는다.**
+외부 시각 정본은 `/Users/family/jason/codegate/src/app/globals.css`의
+**KITvibe 에디토리얼 아카데믹**이다. FR5Web은 외부 폴더를 런타임 import하지 않고
+`Shared/tokens/tokens.css`에 값과 의미를 미러링한다. Dashboard와 FR5 웹은
+`data-theme="light"`를 쓰고, AR은 카메라 위 가독성을 위해 같은 의미의 어두운 값만 쓴다.
 
 | 공유한다 | 공유하지 않는다 |
 |---|---|
-| 색 팔레트 · 간격 스케일 · 타이포 스케일 · 반경 · 그림자 | 버튼·패널·표 같은 컴포넌트 스타일 |
-| 상태 색 (정상/경고/위험) — **안전 표시가 두 화면에서 같아야 한다** | 레이아웃 |
+| 색 역할 · 4px 간격 스케일 · 타이포 역할 · 반경 · 상태/출처 색 | 버튼·패널·표 같은 컴포넌트 스타일 |
+| 선택·포커스·disabled 같은 인터랙션 의미 | 레이아웃 · Tailwind · shadcn |
 
-CSS 커스텀 속성 한 파일이다. 두 프로젝트가 각자 import 한다.
+**시각 문법** — 밝은 중립 바탕, 1px 경계, 기본 반경 2px, 넓은 여백, 작은 모노 라벨이다.
+네온·그라디언트·장식적 글래스·게임화는 쓰지 않는다. 3D 위 정보판만
+`--c-overlay` 반투명을 허용하며, 일반 카드에는 `--c-card`를 쓴다.
 
-**왜 컴포넌트는 공유하지 않나** — AR 은 카메라 영상 위의 반투명 오버레이고
-대시보드는 밀도 높은 데이터 화면이다. 요구가 정반대라, 공용 컴포넌트를 만들면
-양쪽 다 어정쩡해진다. 토큰은 그 위험이 없다.
+**상태색은 장식색이 아니다.** 정상=`--c-ok`, 경고/armed=`--c-warn`, 정지/recording=
+`--c-danger`, 시뮬레이션=`--c-info`다. 탭 선택·주요 버튼은 `--c-selected`와
+`--c-primary`의 중립 흑백을 쓴다. 선택을 초록색으로 칠하면 “정상”과 구별할 수 없다.
 
-**토큰 이름은 의미로 짓는다** — `--c-danger` 는 되고 `--c-red` 는 안 된다.
-AR 은 어두운 배경, 대시보드는 밝은 배경이라 같은 빨강이 두 곳에서 다르게 보인다.
+**타이포** — Geist/Geist Mono가 있으면 우선하고 없으면 시스템 폰트로 폴백한다.
+10px 대문자·`0.16em` 자간은 구역 라벨에만, 수치·좌표·시간은 모노+tabular 숫자를 쓴다.
+새 폰트 의존성은 넣지 않았다. 실제 Geist 로딩은 화면 구현 때 별도 판정한다.
+
+**왜 컴포넌트는 공유하지 않나** — AR·배치 편집·티칭 펜던트는 정보 밀도와 입력 방식이
+다르다. 공용 컴포넌트보다 의미 토큰만 공유해야 각 화면이 억지로 닮지 않고도 같은 제품으로 보인다.
 
 ## 비전 → 로봇 움직임 (확장 지점 · 안전이 먼저다)
 
@@ -137,7 +143,7 @@ AR 은 어두운 배경, 대시보드는 밝은 배경이라 같은 빨강이 �
 **그래서 비전은 명령을 만들지 않는다. 제안을 만든다.**
 
 ```
-Vision  ──제안(proposal)──▶  Backend/safety.py  ──검사 통과분만──▶  로봇
+Vision  ──제안(proposal)──▶  FR5/bridge 안전 게이트  ──검사 통과분만──▶  로봇
                                     │
                      ┌──────────────┴──────────────┐
                      │ 속도 상한 · 관절 변화 상한   │
@@ -156,23 +162,31 @@ Vision  ──제안(proposal)──▶  Backend/safety.py  ──검사 통과�
 
 **계약은 `Vision/` 코드가 생길 때 `API-CONTRACT.md` 에 먼저 적는다.** 지금은 이 경계만 못 박는다.
 
-## 자율주행 로봇(TurtleBot) — 열어두는 방식
+## 자율주행 로봇(TurtleBot) — 관제는 우리, 주행 알고리즘은 팀원
 
-**지금 코드를 만들지 않는다.** 대신 확장 지점 둘만 이미 있다.
+**스코프가 개정됐다 (2026-07-31, D31).** 기종이 TurtleBot3 Burger ×2 로 확정되면서
+**관제 인프라**(켜고 끄기 · teleop · 매핑 · 슬롯 교체 · 로그 · 실험 기록)를 우리가 만든다.
+주행 알고리즘은 여전히 팀원 몫 — 팀원 파이썬이 `TurtleBot/bridge/slots/` 에 꽂힌다.
 
-1. **배치안의 `amr` 블록** — 도킹 위치·경로점. 이미 모델에 있다 (`SHARED-CORE.md`)
-2. **`Shared/data/datasource/`** — AMR 실시간 위치가 필요해지면 여기 함수 하나가 늘어난다.
-   화면은 출처를 모르므로 바뀌지 않는다
+```
+로봇 ×2 (bringup만) ─ROS2/WiFi─ 우분투 PC (Nav2·SLAM·슬롯·tb-bridge:5055) ─┐
+                                   브리지가 웹 빌드도 서빙                  ├─ 팀원 브라우저
+계약 · 안전(속도 상한·워치독·estop) · 미래 접점 5 → docs/ref/TB-CONTRACT.md ┘
+```
 
-**AMR 을 우리가 몰지 않는다** (`PRD.md` §범위 밖). 우리는 경로를 그리고 이동거리를 표시한다.
-그 선을 넘으면 안전 책임이 우리에게 온다.
+- **FR5 `bridge/` 와 형제·무의존** — 로봇마다 관문 하나. 서로 호출하지 않는다.
+  협업 시나리오는 슬롯 스크립트가 두 관문의 클라이언트가 된다 (`TB-CONTRACT.md` §미래 접점)
+- 안전 책임을 지는 대신 FR5 와 같은 원칙을 미러한다 — fail-closed · 조종권 · 서버 강제 상한
+- 기존 확장 지점 둘(배치안 `amr` 블록 · `Shared/data/datasource/`)은 그대로 산다 —
+  배치안↔실주행 연결은 맵 메타 `mapToLab` 하나로 잇는다
 
 ## 각 층이 책임지는 것
 
 | 층 | 하는 일 | 하지 않는 일 |
 |---|---|---|
-| 브리지 서버 | 로봇 연결, 상태 폴링·브로드캐스트, 안전 검사, 조종권, 지점 저장, 경로 계산 | 화면 렌더링 |
-| `Dashboard/` | 배치안 편집, 지표 표시·비교, 조작 UI, 3D 표시 | **지표 계산** · 안전 판단 |
+| `FR5/bridge/` | 로봇 연결, 상태 폴링·브로드캐스트, 안전 검사, 조종권, 지점 저장, 경로 계산 | 화면 렌더링 |
+| `FR5/src/` | 조작·티칭·슬롯·경로 검토·실행 기록 | 안전 판단 · SDK 직접 호출 |
+| `Dashboard/` | 배치안 편집, 지표 표시·비교, FR5 상태 요약·연결, 3D 표시 | **로봇 명령** · 지표 계산 · 안전 판단 |
 | `AR/` | 마커 정합, 배치안·경로를 실물 위에 겹치기 | 배치안 편집 · 로봇 명령 |
 | `Shared/data/` | 배치안 모양 · 단위 · 설정 · **데이터 출처를 아는 유일한 곳** | 화면·렌더링·계산 |
 | `Shared/view3d/` | URDF·궤적·안전 범위 렌더링 (바닐라 three) | **React** · 데이터 가져오기 |
@@ -204,5 +218,5 @@ Vision  ──제안(proposal)──▶  Backend/safety.py  ──검사 통과�
 ## 아직 정하지 않은 것
 
 - 기록 저장소 — 파일 / SQLite / Supabase 중 미정. 지난 프로젝트 Supabase 스키마 재사용 가능
-- AMR(TurtleBot) 연계 지점 — 기종 확정 후. 확장 지점은 이미 둘 있다 (위 §TurtleBot)
-- **파이썬 SDK 가 macOS 에서 되는지** — `Backend/` 착수 시 첫 관문
+- ~~AMR 연계 지점~~ — 기종 확정(버거 ×2), 계약은 `TB-CONTRACT.md` 로 확정 (D29~D31)
+- **파이썬 SDK 가 macOS 에서 되는지** — `FR5/bridge/` 착수 시 첫 관문

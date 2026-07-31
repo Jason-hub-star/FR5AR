@@ -44,10 +44,11 @@
 | `/ar.html` | **겹쳐 보기.** 상자 / 로봇 / 궤적 / 안전 범위 · ⚙ 조정판 · 진단 수치 | 동작 |
 | `/robot.html` | 카메라 없이 3D 로봇만. 그리퍼 장착값 맞추는 화면 | 동작 |
 | `/test/marker-detect.html` | 합성 이미지로 실제 검출기를 재는 검증 페이지 | 동작 |
-| `Dashboard/` | **관제화면** — 배치안 편집 · 생산성 지표 비교 (React) | **미착수** |
+| `Dashboard/` | **관제화면** — 배치안 편집 · 생산성 지표 비교 (React) | 동작 |
+| `FR5/` | **웹 티칭 펜던트 + 브리지** — 조작 · 티칭 · 슬롯 · 경로 · 기록 | 문서성 골격 |
 
-**폴더가 둘로 갈려 있다** — `AR/`(Vite+바닐라)과 `Dashboard/`(Vite+React), 공용은 `Shared/`.
-폰이 여는 AR 화면에 React·차트가 실리지 않고, 대시보드 작업이 동작하는 AR 배포를 흔들지 않는다.
+화면·로봇 도메인은 `AR/` · `Dashboard/` · `FR5/` · `TurtleBot/`으로 갈리고 공용은
+`Shared/`다. FR5 조작은 Dashboard 탭이 아니라 `FR5/`가 웹+브리지로 수직 소유한다.
 경계는 `docs/ref/BUILD-VITE.md`.
 
 **안 될 때는 `docs/ref/AR-DEBUG.md`** — 증상별 원인표와 진단 수치 읽는 법이 있다.
@@ -95,19 +96,18 @@ cd AR && vercel --prod --yes --scope kimjuyoung1127s-projects
 
 | 확인됨 | 근거 |
 |---|---|
-| URDF + 그리퍼 웹 렌더 (128,584 삼각형) | `docs/evidence/2026-07-29-urdf-web-render.md` |
-| 그리퍼 장착값 — 플랜지 간격 0.00mm | `docs/evidence/2026-07-30-gripper-mount.md` |
-| 마커 검출 — **크기보다 대비가 결정한다** | `docs/evidence/2026-07-30-marker-detect.md` |
+| URDF + 그리퍼 웹 렌더 (128,584 삼각형) | `docs/evidence/2026-07-29/urdf-web-render.md` |
+| 그리퍼 장착값 — 플랜지 간격 0.00mm | `docs/evidence/2026-07-30/gripper-mount.md` |
+| 마커 검출 — **크기보다 대비가 결정한다** | `docs/evidence/2026-07-30/marker-detect.md` |
 | 폰에서 로봇이 겹쳐 보임 · 깜빡임 억제 '강' 안정 | 2026-07-30 실기 |
-| Vite 이관이 가능하다 — 빌드 통과, JS 전송량 −26% | `docs/evidence/2026-07-30-vite-gate.md` |
+| Vite 이관이 가능하다 — 빌드 통과, JS 전송량 −26% | `docs/evidence/2026-07-30/vite-gate.md` |
 
 | 아직 안 됨 |
 |---|
-| **관제화면 (`console.html`)** — 배치안 편집·지표 비교. 다음 작업 |
 | **배치안을 AR 로 겹쳐 보기** — 지금은 로봇 하나만 겹친다 |
 | 정합 오차 실측 (±5~15mm 는 **문헌값**) |
 | 실물 로봇 옆에 겹쳐 보기 |
-| 브리지 서버 (`server/` 없음) — 로봇 실시간 상태 |
+| FR5 웹·브리지 런타임 (`FR5/`는 문서성 골격만 있음) |
 
 ## 팀원에게 물어야 하는 것 하나
 

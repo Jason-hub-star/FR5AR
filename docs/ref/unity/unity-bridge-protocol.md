@@ -5,7 +5,7 @@
 # unity-bridge-protocol — 유니티가 실기에서 검증한 값
 
 분류: **참고**(위 배너대로 Unity 기준). **우리가 구현할 프로토콜이 아니다.**
-브리지 서버(`server/`)를 짤 때 **숫자와 함정을 가져오는 출처**다.
+FR5 브리지(`FR5/bridge/`)를 짤 때 **숫자와 함정을 가져오는 출처**다.
 조사 2026-07-30 — OpenCode 정찰 후 **`FairinoBridgeClient.cs` 원본을 직접 열어 대조**했다.
 
 ## 이 문서의 위치 — 출처이지 계약이 아니다
@@ -195,8 +195,8 @@ EmitCurrentState()
 정찰 리포트가 **"FAIRINO SDK는 C# 전용(`libfairino.dll`)"** 이라고 결론지었다.
 **유니티 프로젝트 안에서만 사실이다.** 파이썬 SDK 는 실재하고 우리가 이미 받아 뜯었다 —
 `FAIR-INNOVATION/fairino-python-sdk` `Robot.py` 19,365줄, 상태 필드 150개
-(`docs/evidence/2026-07-30-sdk-state-fields.md`). D4(FastAPI + 공식 파이썬 SDK)는 유효하다.
+(`docs/evidence/2026-07-30/sdk-state-fields.md`). D4(FastAPI + 공식 파이썬 SDK)는 유효하다.
 
 **다만 미확인이 남는다** — 유니티에서 실패한 것은 **macOS 의 C# 바인딩**이었다.
 파이썬 SDK 가 macOS 에서 되는지는 **아직 아무도 확인하지 않았다.**
-그게 `server/` 착수 시 첫 관문이다.
+그게 `FR5/bridge/` 착수 시 첫 관문이다.

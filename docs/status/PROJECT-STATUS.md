@@ -15,7 +15,7 @@ AR.js 기본 해상도가 병목이었고, 그것만 풀어 58% → 100%.
 `SESSION-START.md` §폴더 라우터가 입구다. 근거는 `DECISION-LOG` D16·D17.
 
 **Vite 이관 A~D 완료.** 엔트리 4개가 다 빌드되고 **기준값 7개가 이관 전후로 일치했다**
-(`evidence/2026-07-30-ar-baseline.md`). **남은 미확인은 폰의 카메라 하나다.**
+(`evidence/2026-07-30/ar-baseline.md`). **남은 미확인은 폰의 카메라 하나다.**
 남은 단계는 수렴 루프로 정렬했다 (`ref/rnd/MIGRATION-CONVERGE-LOOP-2026-07-30.md`, 0.588→0.858).
 
 **L1 이 섰고 저장까지 됐다** — 3D 로 보고, 끌어 옮기고, 숫자로 정확히 넣고,
@@ -35,17 +35,23 @@ Vercel 배포(D11) · 폰 실기 확인(D15) · 깃허브 공개(D14) · Vite �
 
 - **터틀봇 상판 마커 실기 통과** — **35mm · 1.8m · 인식률 100%.**
   AR.js 가 폰에서 카메라 640×480 · 검출 320×240 으로 두 번 깎고 있었다. 둘 다 올려 58%→100%.
-  합성 이미지가 낸 24px 기준은 **2배 비관적**이었다 (D26·D27 · `evidence/2026-07-31-marker-live-phone.md`)
+  합성 이미지가 낸 24px 기준은 **2배 비관적**이었다 (D26·D27 · `evidence/2026-07-31/marker-live-phone.md`)
 - **L1 배치안 편집기 완결 · 배포됨** — 고르고 · 끌고 · 돌리고 · **숫자로 넣고 · 되돌리고 ·
   저장된다.** 흰색 모형 실험실 12×8m(가구 21개) · 100mm 격자 · 폰 터치.
   공유 주소 **`https://fr5dashboard.vercel.app`**.
   **실렌더가 잡은 버그 12개** (편집기 4 · 문구 2 · 값 표시 3 · 배포본 3) —
-  `evidence/2026-07-31-dashboard-{editor,copy,save-undo,coord-input,deploy}.md`.
+  `evidence/2026-07-31/dashboard-{editor,copy,save-undo,coord-input,deploy}.md`.
   결정은 D33(골 브리프)·D34(저장)·D35(값의 정본·끌기 문턱)
+- **Dashboard·FR5 디자인 규약 확정(D38)** — codegate의 에디토리얼 아카데믹을 외부 시각
+  정본으로 삼고 `Shared/tokens/`에 의미 토큰을 미러링했다. 화면 코드는 아직 바꾸지 않았다.
+- **FR5 실기 observe-only 기준선 통과(D39)** — Mac `192.168.57.10/24`에서
+  `192.168.57.2:8080` 연결, C#SDK-V1.2.4로 컨트롤러/서보/엔드 버전과 6축·TCP를 읽었다.
+  Enable·모드·모션·그리퍼 명령은 보내지 않았다 (`evidence/2026-07-31/fr5-live-readback.md`).
 
 ## 미착수
 
-- `server/` 브리지 서버 코드 없음
+- `FR5/` 웹+브리지 문서성 골격만 생성(D36). 런타임·패키지·배포 설정 없음
+- `FR5/bridge/` 브리지 서버 코드 없음
 - 그리퍼 손가락 개폐 (prismatic 관절) — 데모 범위 밖. 벌어진 채로 고정
 - URDF 확장 (그리퍼를 코드가 아니라 URDF에 넣기) — 장착값은 이미 실측해 뒀다
 - (완료 2026-07-29) URDF+STL과 그리퍼 메시를 `Shared/assets/`로 복사 — 팔 58,482 + 그리퍼 70,102 = 128,584 삼각형
@@ -72,19 +78,30 @@ ROS 2 Jazzy · Nav2). 팀원 전원이 URL 하나로 켜고·몰고·매핑하�
 승인 게이트) → 맥 mock 구현(P1~P3) → 우분투 실기(P4, 날짜 확보 대기)**.
 주행 알고리즘은 팀원 몫 — `bridge/slots/` 슬롯 계약으로 꽂힌다.
 
+여기까지 왔다 — **P0~P3 완료. mock 으로 전 사이클이 완주된다** —
+계약+감사 21건(D32) · 목업 승인 · 웹앱 골격 · tb-bridge(FastAPI: 상태 WS·hello 신원·
+슬롯 프로세스 실행·SIGTERM 정리·조종권 409·1Hz 경로·travelMm·live.png·rosbag 토글).
+실행 `bash scripts/dev/tb-dev.sh` → http://localhost:5175. 실렌더 스크립트 3개
+(`scripts/check/tb-{web,bridge,cycle}-verify.mjs`)가 결함 4개를 잡았다
+(`evidence/2026-07-31/tb-mock-verify.md`).
+
+**남은 것은 P4 하나 — 실기 게이트.** real.py(repo2 원본 대조)·우분투 스크립트.
+**우분투 PC + 실기 날짜가 확보돼야 착수한다** (플랜 Decision Gate). 주인님이 날짜를 주면 간다.
+
 ## 블로커
 
 - **"한 사이클의 정의" 미합의** — 처리량의 분모다. 어긋나면 배치안 비교 자체가 무의미해진다.
   **팀원과 합의해야 하는 유일한 블로커**이고, L3의 판정에 걸린다
 - 실험 시나리오(스테이션 종류·개수)·작업대 높이 미확정 — L1을 부분적으로 막는다
   (AMR 기종은 풀렸다 — TurtleBot3 Burger ×2, D31)
-- Fairino 파이썬 SDK 설치 경로 미확인 (PyPI 없음) — V0를 막는다. L1~L3에는 영향 없다
+- Fairino **Python** SDK 설치 경로·macOS 동작 미확인 (PyPI 없음) — V0 어댑터를 막는다.
+  C# SDK macOS readback은 2026-07-31 통과했지만 Python 성공을 뜻하지 않는다
 
 ## 핸드오프 (2026-07-31 · 편집기 골 사다리 + 배포)
 
 | | |
 |---|---|
-| **시작 지점** | `docs/evidence/2026-07-31-dashboard-deploy.md` §확인하지 않은 범위 |
+| **시작 지점** | `docs/evidence/2026-07-31/dashboard-deploy.md` §확인하지 않은 범위 |
 | **먼저 읽을 것** | 그 evidence → `DECISION-LOG` **D35** → `GAP-MATRIX` 새 OPEN |
 | **첫 명령** | `bash scripts/check/all.sh` |
 | **막힌 것** | 없다. **관제화면은 `ready-to-share`** — 폰 확인까지 끝났다 |
@@ -100,7 +117,7 @@ ROS 2 Jazzy · Nav2). 팀원 전원이 URL 하나로 켜고·몰고·매핑하�
 
 **안전한 다음 행동** — ①이 기본. 맵이 없으므로 ③은 보정 화면까지만 짓고 검출은 안 건드린다.
 
-**측정을 다시 할 때** — `evidence/2026-07-31-marker-live-phone.md` §어떻게 쟀나.
+**측정을 다시 할 때** — `evidence/2026-07-31/marker-live-phone.md` §어떻게 쟀나.
 
 ## 하네스 (2026-07-30 한국어 배선)
 

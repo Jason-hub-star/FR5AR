@@ -1,7 +1,10 @@
 # API-CONTRACT — 브리지 계약
 
-분류: **SSOT**. 서버·웹·AR 세 사람이 동시에 작업하려면 이 파일이 유일한 합의점이다.
+분류: **SSOT**. FR5 브리지·웹·AR가 동시에 작업하려면 이 파일이 유일한 합의점이다.
 **여기를 먼저 고치고 코드를 짠다.** 코드가 앞서면 다른 두 사람이 깨진다.
+
+**구현 소유자는 `FR5/bridge/`다.** 루트 범용 `Backend/`는 두지 않는다. `Dashboard/`는
+이 계약의 읽기 전용 요약 소비자이며 로봇 명령을 보내지 않는다.
 
 ## 왜 이 서버가 필요한가
 
@@ -12,9 +15,9 @@
 ```
 FR5 컨트롤러 :8080
       ↕ 공식 파이썬 SDK
-  브리지 서버 :5055  ← 이 문서가 정의하는 것
+  FR5/bridge :5055  ← 이 문서가 정의하는 것
       ↕ REST + WebSocket
-  브라우저 · 폰(AR) · 유니티 펜던트
+  FR5 웹 · 폰(AR) · Dashboard 요약
 ```
 
 ## 상태값 (서버 → 클라이언트)
@@ -31,6 +34,7 @@ WebSocket `/ws/state`로 브로드캐스트. 접속한 전원이 같은 것을 �
 ```jsonc
 {
   "t": 1785329668.42,            // 서버 시각 (초, 소수)
+  "robotId": "fr5-lab-a",       // IP가 아니라 우리 시스템의 로봇 프로필 ID
   "connected": true,
   "enabled": false,              // 서보 on/off ← 없으면 안전 게이트를 못 만든다
   "mode": 0,                     // 0=auto 1=manual
@@ -58,6 +62,22 @@ WebSocket `/ws/state`로 브로드캐스트. 접속한 전원이 같은 것을 �
 
 **단위 규칙** — 이 계약의 바깥면은 전부 **도(°)와 밀리미터(mm)**다.
 라디안·미터 변환은 서버 안쪽과 3D 화면 안쪽에서만 한다.
+
+## 로봇 프로필과 읽기 전용 사전검증
+
+같은 FR5라도 다른 개체가 배정될 수 있으므로 IP를 로봇 정체성으로 쓰지 않는다.
+
+```text
+GET  /robots              → [{ robotId, name, model, endpoint, lastObserved }]
+POST /connect             { "robotId": "fr5-lab-a", "observeOnly": true }
+GET  /version             → { robotId, controller, servo, end, sdk, web, observedAt }
+POST /disconnect
+```
+
+- `endpoint`는 서버 설정이며 브라우저가 임의 IP를 전달하지 않는다.
+- 기본 연결은 `observeOnly=true`다. 이때 허용되는 SDK 호출은 connect/version/read-state/disconnect뿐이다.
+- 모델·6축 배열·필수 안전 필드·허용 펌웨어가 맞지 않으면 연결은 보여주되 명령 상태로 승격하지 않는다.
+- 프로필에 비밀번호를 저장하지 않는다. 포트 라벨이 아니라 ARP/TCP와 SDK 응답으로 실제 경로를 확인한다.
 
 ## 명령 (클라이언트 → 서버)
 
@@ -192,16 +212,25 @@ Shared/data/datasource/http.js    나중에 이 파일만 바꿔 끼운다
 
 | 항목 | 검증된 값 |
 |---|---|
-| 로봇 주소 | **`192.168.57.2:8080`** (eth1 은 `192.168.58.2`) |
+| 현재 로봇 응답 주소 | **`192.168.57.2:8080`** (`robotId` 프로필로 교체 가능) |
 | 같은 대역 PC | `192.168.57.10/24` |
 | 브리지 포트 | `5055` |
 | 상태 폴링 | **33ms 설정 → 실측 27.37Hz** (100ms→8.93 · 50ms→18.66) |
 | 오류 시 폴백 | 연속 2회 → 50ms · 연속 3회 → 연결 손실 판정 |
 
-**브링업 순서** (연결 뒤 이 순서를 지킨다)
+2026-07-31 현재 실물의 네트워크·펌웨어·관절/TCP 읽기 근거는
+`docs/evidence/2026-07-31/fr5-live-readback.md`다.
+
+**1단계: 읽기 전용 사전검증**
+
+```text
+link/subnet → ARP/ping → TCP :8080 → connect → version → read state → disconnect 또는 관찰 유지
+```
+
+**2단계: 명령 승격** — 조종권·현장 확인·안전조건 19개를 통과한 뒤에만 실행한다.
 
 ```
-connect → 서보 on → SetRealtimeStateSamplePeriod(33) → ExitDragTeach → SetMode(0=auto)
+owner claim → safety gate → 서보 on → SetRealtimeStateSamplePeriod(33) → ExitDragTeach → SetMode(0=auto)
 ```
 
 **서보를 먼저 올린다.** 컨트롤러가 서보 OFF 상태에서는 auto 모드 교정을 거부한다 —
@@ -209,9 +238,13 @@ connect → 서보 on → SetRealtimeStateSamplePeriod(33) → ExitDragTeach →
 
 ### 착수 전 첫 관문 — macOS
 
-유니티에서 **macOS 직접 SDK 연결이 실패**했다. 실패한 것은 **C# 바인딩**이고,
-**파이썬 SDK 가 macOS 에서 되는지는 아무도 확인하지 않았다.**
-`server/` 를 짜기 전에 그것만 먼저 확인한다 — 안 되면 서버를 리눅스 쪽에 둔다.
+2026-07-31 Unity의 기존 C# SDK(`libfairino`, C#SDK-V1.2.4)는 macOS Arm64에서
+`Connect → GetVersion → ReadState → Disconnect`가 성공했다. 과거의 “C# 직접 연결 실패”
+기록은 이 실측으로 대체한다.
+
+그러나 **Python SDK 설치·macOS 동작은 여전히 미확인**이다. `FR5/bridge/` 첫 구현은 어댑터의
+읽기 전용 사전검증부터 하고, 실패하면 브리지만 Linux에서 실행한다. C# 성공을 Python 성공으로
+간주하지 않는다.
 
 ### 유니티 펜던트를 나중에 붙일 수도 있다 (선택)
 

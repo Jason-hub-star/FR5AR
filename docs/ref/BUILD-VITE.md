@@ -3,17 +3,18 @@
 분류: **SSOT**. **무엇을 건드릴 때 어느 폴더인지**가 이 문서로 결정된다.
 세션 시작 시 `docs/SESSION-START.md` §폴더 라우터가 여기로 보낸다.
 
-관련 — 측정 근거 `docs/evidence/2026-07-30-vite-gate.md` · 공용 계약 `SHARED-CORE.md` ·
+관련 — 측정 근거 `docs/evidence/2026-07-30/vite-gate.md` · 공용 계약 `SHARED-CORE.md` ·
 관제화면 `CONSOLE-REACT.md` · AR 디버깅 `AR-DEBUG.md` · 결정 `DECISION-LOG` D17
 
-## 최상위 셋 — `AR` · `Dashboard` · `Shared`
+## 최상위 앱과 공용 경계
 
 ```
 FR5Web/
   AR/                Vite + 바닐라.  폰이 연다. 카메라·마커·wasm 검출기
-  Dashboard/      Vite + React.   PC 가 연다. 배치안 편집·지표 비교
+  Dashboard/         Vite + React.   PC 가 연다. 배치안 편집·지표 비교
+  FR5/               웹 조작 화면 + 브리지. 현재는 문서성 골격
+  TurtleBot/         터틀봇 웹 + 브리지 수직 배포 단위
   Shared/            두 쪽이 같이 쓰는 것. 여기가 갈라지면 프로젝트가 갈라진다
-  server/            브리지 서버 (Python, 미착수)
   scripts/  docs/
 ```
 
@@ -31,12 +32,12 @@ FR5Web/
 
 ```
 Shared/
-  model/          프레임워크 무관. 렌더링 없음. 데이터와 계약
+  data/           프레임워크 무관. 렌더링 없음. 데이터와 계약
     layout/       배치안 모델         ← 두 쪽의 유일한 합의점
     units/        mm·도 ↔ m·라디안   ← 하드 룰 5, 여기 한 곳만
     config/       .env 에서 생성된 설정
     datasource/   지표·배치안을 어디서 가져오나 (mock → http)
-  three/          바닐라 three 공용. React 를 쓰지 않는다
+  view3d/         바닐라 three 공용. React 를 쓰지 않는다
     robot/        URDF 로딩 · 그리퍼 부착 · 관절
     trajectory/   FK 보간 · 궤적 · 재생
     safety/       도달 범위 표시
@@ -67,8 +68,15 @@ Dashboard/
   index.html
   src/
     entries/  main.jsx
-    features/ layout/(배치안 편집) · metrics/(지표 표시·비교) · control/(조작·조종권)
+    features/ layout/(배치안 편집) · metrics/(지표 표시·비교) · control/(FR5 상태·연결 자리)
   vite.config.js  package.json
+
+FR5/
+  src/                  FR5 전용 웹 화면 경계
+    features/           조작 · 티칭 · 슬롯 · 경로 · 기록
+    data/datasource/    mock ↔ bridge ↔ Database 교체
+  bridge/
+    robot_adapter/      mock ↔ FAIRINO SDK 교체
 ```
 
 `robot.html` 과 `test/` 를 `AR/` 에 두는 이유 — 둘 다 **마커 스케일과 그리퍼 장착값을
@@ -78,10 +86,12 @@ Dashboard/
 
 | | 허용 |
 |---|---|
-| `AR/` → `Shared/model` `Shared/three` | ○ |
-| `Dashboard/` → `Shared/model` `Shared/three` | ○ |
+| `AR/` → `Shared/data` `Shared/view3d` | ○ |
+| `Dashboard/` → `Shared/data` `Shared/view3d` | ○ |
+| `FR5/` → `Shared/data` `Shared/view3d` | ○ |
 | `AR/` ↔ `Dashboard/` **직접 import** | **✗ 절대** |
-| `Shared/` → `AR/` 또는 `Dashboard/` | **✗** (거꾸로다) |
+| `Dashboard/` ↔ `FR5/` **직접 import** | **✗** — 계약·datasource로 연결 |
+| `Shared/` → 화면 앱 | **✗** (거꾸로다) |
 | `Shared/view3d/` → React | **✗** |
 
 `AR/` 에서 `Dashboard/` 를 import 하는 순간 폰 번들에 React 가 실린다.
@@ -89,14 +99,14 @@ Dashboard/
 
 ## 두 프로젝트가 `Shared/` 를 어떻게 쓰나
 
-**npm workspaces.** 루트에 `package.json` 하나를 두고 셋을 워크스페이스로 묶는다.
+**npm workspaces.** 현재 루트 `package.json` 하나가 실행 패키지 넷을 묶는다.
 
 ```jsonc
 // FR5Web/package.json
-{ "private": true, "workspaces": ["shared", "AR", "Dashboard"] }
+{ "private": true, "workspaces": ["Shared", "AR", "Dashboard", "TurtleBot"] }
 ```
 
-- 루트에서 `npm install` 한 번. lockfile 하나
+- 루트에서 `npm install` 한 번. lockfile 하나. `FR5`는 실행 패키지가 생길 때만 추가한다
 - 두 프로젝트가 `@fr5/shared` 를 보통 패키지처럼 import 한다
 - 대안은 Vite `resolve.alias` + `server.fs.allow` 지만, dev 서버에서 경로 허용을
   따로 열어줘야 해서 걸림돌이 하나 더 생긴다. **workspaces 를 쓴다**
@@ -189,7 +199,7 @@ URL 파라미터(`?mm=`)와 `⚙` 가 이미 처리한다 (`AR-DEBUG.md` §2).
 ## 이관 순서 (수렴 루프 반영 · 2026-07-30 재정리)
 
 **A·B·C0·C·C2 완료.** 엔트리 4개가 다 빌드되고 **기준값 7개가 이관 전후로 일치**한다
-(`evidence/2026-07-30-ar-baseline.md`). 남은 미확인은 **폰의 카메라 하나**다.
+(`evidence/2026-07-30/ar-baseline.md`). 남은 미확인은 **폰의 카메라 하나**다.
 
 ### 전제가 하나 풀렸다 — 새 주소를 써도 된다
 
@@ -257,29 +267,30 @@ G 에서 그 둘을 같이 닫는다 — 폰 확인이 통과한 뒤에.
 - **빌드 통과를 이관 완료로 판정하기** — wasm 초기화와 카메라 정합은 브라우저에서만 확인된다
 - **`ar-threex.mjs` 를 npm 패키지로 바꾸려 시도** — 레지스트리에 ESM 빌드가 없다. 확인했다
 
-## 폴더마다 `CLAUDE.md` 를 둔다 — 이득이 있다
+## 폴더마다 `AGENTS.md` 를 둔다 — 이득이 있다
 
-**판정: 7개 폴더 전부 둔다** — `AR` `Dashboard` `Shared` `Backend` `Database` `Vision` `TurtleBot`.
+**현재 판정(D36)** — `AR` `Dashboard` `Shared` `FR5` `Database` `Vision` `TurtleBot`에
+도메인 경계를 둔다. `FR5/`가 웹+브리지를 함께 소유하므로 루트 범용 `Backend/`는 두지 않는다.
 
-처음엔 "넷만 두고 나머지는 코드가 생길 때"로 판단했는데, **주인님이 "백엔드와 데이터베이스를
-폴더상 준비하라"고 명시**했다(2026-07-30). 지시가 판단보다 앞선다.
+2026-07-30에는 범용 백엔드 자리를 준비했지만, 2026-07-31 전수 확인에서 실행 파일·빌드·
+배포 의존이 0개임을 확인했다. 로봇마다 관문 하나라는 이미 확정된 경계에 맞춰 FR5 안으로 옮겼다.
 
-그리고 **`CLAUDE.md` 가 들어간 폴더는 빈 폴더가 아니다** — 그 자리에 무엇이 오고
+그리고 **`AGENTS.md` 가 들어간 폴더는 빈 폴더가 아니다** — 그 자리에 무엇이 오고
 경계가 무엇인지 적힌 문서다. 착수하는 사람이 SSOT 를 뒤지지 않고 바로 시작한다.
 그래서 "쓰지 않을 기계장치를 미리 만든다"는 적재 우려에도 걸리지 않는다.
 
-**이득** — Claude Code 는 작업 중인 디렉터리의 `CLAUDE.md` 를 함께 읽는다.
+**이득** — Claude Code·Codex·OpenCode가 같은 `AGENTS.md`를 읽는다.
 `AR/` 을 고치는 세션이 `BUILD-VITE.md` + `SHARED-CORE.md` + `AR-DEBUG.md` 를 다 열지 않고
 **그 폴더에서만 참인 규칙 3~5개**만 받는다. 매 세션 진입 비용이 준다.
 
 **대가** — 드리프트할 곳이 4개 늘어난다. 그래서 규칙을 좁게 둔다.
 
-| 폴더 `CLAUDE.md` 에 적는다 | 적지 않는다 |
+| 폴더 `AGENTS.md` 에 적는다 | 적지 않는다 |
 |---|---|
 | 그 폴더 **안에서만** 참인 것 | 프로젝트 전역 규칙 — 루트 `CLAUDE.md` 하나 |
 | 여기서 실제로 밟은 함정 | 배경·이유 — SSOT 로 **링크만** |
 | 어느 SSOT 를 읽어야 하는지 (2~3개) | 문서 내용 복사 |
 
-**15줄을 넘기지 않는다.** 넘으면 SSOT 로 옮긴다.
+**25줄을 넘기지 않는다.** 넘으면 SSOT 로 옮긴다.
 중복 서술이 시작되면 이득이 사라지고 드리프트만 남는다.
-**`scripts/check/docs-weight.sh` 가 이 상한을 잰다** (경고 15 · 초과 30).
+**`scripts/check/docs-weight.sh` 가 이 상한을 잰다.**
