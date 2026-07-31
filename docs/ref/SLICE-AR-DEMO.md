@@ -51,7 +51,7 @@ AR.js 최소 예제. 로봇 없이 `BoxGeometry` 하나만.
 판정 — 마커를 비추면 상자가 뜨고, 마커를 가리면 사라진다.
 
 ### 3단계 — 상자를 FR5로 교체 ✅ 2026-07-30 완료
-`urdf-loader`로 우리 URDF를 마커 좌표계에 붙인다. `web/js/robot-view.js` — **AR 전용이 아니라
+`urdf-loader`로 우리 URDF를 마커 좌표계에 붙인다. `Shared/view3d/robot/robot-view.js` — **AR 전용이 아니라
 V0 화면과 공유하는 모듈**이다.
 
 **그리퍼도 함께 붙인다.** URDF에는 팔 링크 7개뿐이라 코드로 `wrist3_link`에 매단다.
@@ -59,7 +59,7 @@ V0 화면과 공유하는 모듈**이다.
 용량(3.4MB)보다 일관성이 비싸다.
 
 그리퍼 STL은 **밀리미터**, 팔 URDF는 **미터**다. `scale 0.001`을 빼면 1000배로 뜬다.
-장착값은 `web/config/gripper-mount.json`에 있고 실측으로 확정했다
+장착값은 `Shared/data/config/gripper-mount.json`에 있고 실측으로 확정했다
 (`evidence/2026-07-30-gripper-mount.md` — 플랜지 간격 0.00mm).
 
 **좌표계가 세 번 꺾인다.**
@@ -74,7 +74,7 @@ three.js → 마커 좌표계        : markerRoot.add(robot)
 - 그리퍼가 손목 플랜지에 접한다 (1000배로 날아가지도, 파묻히지도 않았다)
 - 마커 옆에 실물 크기로 선다. 팔 길이가 922mm로 보인다
 
-**그리퍼 정합은 AR 없이 3D 뷰(`web/robot.html`)에서 먼저 끝냈다** —
+**그리퍼 정합은 AR 없이 3D 뷰(`AR/robot.html`)에서 먼저 끝냈다** —
 AR 위에서 맞추면 마커 떨림과 정합 오차가 섞여 원인을 못 가른다.
 
 ### 4단계 — 궤적 애니메이션 ★ 설득력의 핵심
@@ -125,7 +125,7 @@ AR 위에서 맞추면 마커 떨림과 정합 오차가 섞여 원인을 못 �
 토글을 **우상단**에 둔 이유 — 하단에 두면 좁은 화면에서 버튼바가 2줄로 접힐 때 겹친다.
 "버튼바 높이 + 여유"를 상수로 박는 방식은 줄 수가 바뀌면 깨진다.
 
-`web/robot.html`도 같은 이유로 패널을 접을 수 있다 — 폰에서 320px 패널이 화면을 거의 덮는다.
+`AR/robot.html`도 같은 이유로 패널을 접을 수 있다 — 폰에서 320px 패널이 화면을 거의 덮는다.
 좁은 화면에서는 오른쪽 사이드바가 아니라 **아래에서 올라오는 시트**로 바뀐다.
 
 ### 7단계 — 폰 2대 동시 ★ 주제와 직결
@@ -162,12 +162,12 @@ A트랙 3단계 이후 언제든. **팀원에게 보여줄 것이 아니다.**
 ## 파일
 
 ```
-web/ar.html                    AR 화면
-web/js/ar-marker.js            마커 정합 · 스무딩
-web/js/robot-view.js           URDF 로드 (3D 슬라이스와 공유)
-web/js/trajectory.js           FK 보간 · 궤적 생성 · 애니메이션
-web/config/marker-offset.json  마커 원점 → 로봇 원점 오프셋
-web/assets/marker/             마커 패턴
+AR/ar.html                    AR 화면
+AR/src/features/marker/ar-marker.js            마커 정합 · 스무딩
+Shared/view3d/robot/robot-view.js           URDF 로드 (3D 슬라이스와 공유)
+Shared/view3d/trajectory/trajectory.js           FK 보간 · 궤적 생성 · 애니메이션
+Shared/data/config/marker-offset.json  마커 원점 → 로봇 원점 오프셋
+Shared/assets/marker/             마커 패턴
 docs/evidence/2026-07-30-ar-marker-accuracy.md
 ```
 
@@ -187,10 +187,10 @@ docs/evidence/2026-07-30-ar-marker-accuracy.md
 
 ## 준비물
 
-- **마커 인쇄** — `web/assets/marker/marker-print-A4-170mm-bc5.png` (A4 한 장으로 끝) 또는
+- **마커 인쇄** — `Shared/assets/marker/marker-print-A4-170mm-bc5.png` (A4 한 장으로 끝) 또는
   A3 240mm판. 실측 결과 **A4로도 2m는 된다** (`evidence/2026-07-30-marker-detect.md`).
   100% 배율·무광 용지. **딱딱한 판에 평평하게** 붙인다
-- 인쇄 후 **검은 사각형 한 변을 자로 재서** `web/config/marker-offset.json`의
+- 인쇄 후 **검은 사각형 한 변을 자로 재서** `Shared/data/config/marker-offset.json`의
   `markerSizeMm`에 넣는다 — 틀리면 로봇 크기가 틀리고 오차 측정이 무의미해진다
 - 자 또는 줄자
 - 팀원 폰 **2대 이상** (아이폰 1대 포함)

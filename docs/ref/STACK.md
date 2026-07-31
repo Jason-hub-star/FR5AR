@@ -51,7 +51,7 @@ iOS 사파리는 `immersive-ar`(WebXR)를 열어주지 않는다. 안드로이�
 | #1 · #4 | 16px | 예 | 고립 칸 있음 |
 | #0 · #3 | 12px | 예 (거리 **2**) | 고립 칸 있음 |
 
-원본 8개는 `web/assets/marker/barcode/` (출처 `nicolocarpignoli/artoolkit-barcode-markers-collection`).
+원본 8개는 `Shared/assets/marker/barcode/` (출처 `nicolocarpignoli/artoolkit-barcode-markers-collection`).
 인쇄 시트는 `scripts/assets/make-marker-sheet.py`가 만든다 — **손으로 다시 만들지 않는다.**
 첫 시도가 캡션을 quiet zone 안에 넣어 검출을 방해했고, 그 실수를 스크립트가 픽셀로 막는다.
 
@@ -117,7 +117,7 @@ loader.load('/assets/FAIRINO_FR5/fairino5_v6.urdf', robot => {
 ## 그리퍼 — URDF에 없다. 확장해야 한다
 
 원본: `FR5UNITY/robotapp/Assets/Runtime/EndEffectors/PGEA_100_40/Source/`
-사본: `web/assets/PGEA_100_40/` (2026-07-29 복사 완료)
+사본: `Shared/assets/PGEA_100_40/` (2026-07-29 복사 완료)
 
 **`fairino5_v6.urdf`에는 팔 링크 7개만 있고 그리퍼가 없다.** 웹에서 그리퍼를 보이려면
 링크 3개(`gripper_body`, `finger_left`, `finger_right`)와 **prismatic 관절 2개**를 URDF에 덧붙여야 한다.
@@ -162,7 +162,7 @@ loader.load('/assets/FAIRINO_FR5/fairino5_v6.urdf', robot => {
 | `wrist3_link` → 그리퍼 원점 | `wrist3_link` 메시가 자기 원점에서 Z **53.2~99.0mm**에 있다. 플랜지 면이 어느 쪽인지 URDF만으로는 못 정한다 | 같음 |
 
 **URDF를 읽어 삼각함수로 유도하지 않는다** — 틀린 값을 확신하게 된다.
-확정값은 `web/config/gripper-mount.json`에 `verified` 플래그와 함께 둔다.
+확정값은 `Shared/data/config/gripper-mount.json`에 `verified` 플래그와 함께 둔다.
 유니티 프리팹에 값이 있으면 그것으로 검증한다.
 
 ## 궤적 — 역기구학(IK) 없이 된다
@@ -203,3 +203,20 @@ def preview_path(q_from, q_to, steps=100):
 | `jjh1214/fairino_sim` | 우리와 같은 ROS 2 Jazzy 조합, 코드가 작아 읽기 쉬움 |
 | `123CHENJINHUA/rebar-tying` | 카메라·로봇 위치 맞추기 구현이 통째로 있음 |
 | `gkjohnson/urdf-loaders` | 우리가 쓰는 로더의 본체와 예제 |
+
+## 관제화면 (Dashboard) — 2026-07-30 등재
+
+`/스택가드` 규약대로 **코드에 박기 전에 여기 등재**한다. 아래는 실제 설치본이다.
+
+| 패키지 | 버전 | 왜 |
+|---|---|---|
+| `react` · `react-dom` | **19.2.8** | 배치안 편집 + 지표 비교는 화면이 복잡해지는 시점이다 (D17) |
+| `@vitejs/plugin-react` | **5.2.0** | Vite React 플러그인 |
+| `vite` | 8.1.5 | AR 과 같은 버전. workspaces 로 묶여 있다 |
+| `three` | 0.185.1 | 배치안 3D. **R3F 는 쓰지 않는다** — `Shared/view3d/` 를 ref 로 마운트 (D17) |
+
+**안 넣은 것** — 상태관리 · 라우터 · 차트 · UI 프레임워크.
+필요해진 뒤에 넣는다. 미리 넣은 의존성은 나중에 빼기 어렵다 (`CONSOLE-REACT.md` §의존성).
+
+**실측 (2026-07-30 골격)** — 빌드 통과. JS **60KB gzip** · CSS 1.9KB.
+`ar-threex`(1.6MB)가 **번들에 안 실린다**는 것을 확인했다 — 폴더 분리가 실제로 작동한다.

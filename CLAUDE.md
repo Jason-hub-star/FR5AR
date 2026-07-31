@@ -34,7 +34,9 @@ FAIRINO FR5 협동로봇을 **브라우저에서 팀 전체가 함께 다루는*
 
 ```bash
 bash scripts/check/all.sh              # 게이트 전부 (하나라도 실패하면 exit 1)
-bash scripts/dev/serve.sh              # web/ 로컬 확인
+bash scripts/dev/serve.sh              # AR 로컬 확인 (Vite dev)
+npm install                            # 처음 한 번 (workspaces)
+node scripts/build/config.mjs          # .env → Shared/data/config/*.json
 ```
 
 ## 슬래시 명령

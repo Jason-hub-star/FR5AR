@@ -1,7 +1,20 @@
-# FR5AR — 폰으로 로봇을 실물 위에 겹쳐 보기
+# FR5AR — 배치를 바꾸면 생산성이 얼마나 달라질까
 
-FAIRINO FR5 협동로봇을 **브라우저에서 팀 전체가 함께 다루는** 웹 작업대.
-앱 설치 없이 폰 카메라로 실물 위에 예정 경로와 안전 범위를 겹쳐 본다.
+**과학실험실에서 로봇팔과 자율주행로봇(AMR)의 배치에 따라 생산성이 얼마나 달라지는지** 재는
+웹 작업대. 배치안을 화면에서 바꿔 지표를 비교하고, **앱 설치 없이 폰 카메라로 그 배치안을
+실제 실험실 바닥에 겹쳐** 통로·작업대와 충돌하는지 확인한다.
+
+## 이 저장소가 맡는 것
+
+| | 누가 | 무엇 |
+|---|---|---|
+| **이 저장소** | 우리 | **시각화** — 배치안 편집 · 지표 비교 · 실물 위 겹쳐 보기 |
+| 다른 코드 | 팀원 | 생산성 수치를 내는 알고리즘 |
+| 다른 코드 | 팀원 | AMR 자율주행 |
+
+**우리는 수치를 만들지 않는다. 받아서 보여준다.** 그래서 두 가지를 지킨다 —
+받는 모양을 우리가 먼저 제시하고(`docs/ref/API-CONTRACT.md`), 나중에 백엔드·데이터베이스로
+바꿔 끼울 수 있게 한 곳으로 격리한다(`Shared/data/datasource/`).
 
 ## 지금 바로 보기
 
@@ -13,7 +26,7 @@ FAIRINO FR5 협동로봇을 **브라우저에서 팀 전체가 함께 다루는*
 
 ### 마커 인쇄
 
-`web/assets/marker/marker-print-A4-170mm-bc2.png` — **A4에 100% 배율**로 뽑는다.
+`Shared/assets/marker/marker-print-A4-170mm-bc2.png` — **A4에 100% 배율**로 뽑는다.
 
 | 지켜야 할 것 | 왜 |
 |---|---|
@@ -24,13 +37,18 @@ FAIRINO FR5 협동로봇을 **브라우저에서 팀 전체가 함께 다루는*
 
 잰 값은 화면 **⚙** 또는 `.env` 의 `FR5_MARKER_MM` 에 넣는다.
 
-## 화면 3개
+## 화면
 
-| 주소 | 하는 일 |
-|---|---|
-| `/ar.html` | **겹쳐 보기.** 상자 / 로봇 / 궤적 / 안전 범위 · ⚙ 조정판 · 진단 수치 |
-| `/robot.html` | 카메라 없이 3D 로봇만. 그리퍼 장착값 맞추는 화면 |
-| `/test/marker-detect.html` | 합성 이미지로 실제 검출기를 재는 검증 페이지 |
+| 주소 | 하는 일 | 상태 |
+|---|---|---|
+| `/ar.html` | **겹쳐 보기.** 상자 / 로봇 / 궤적 / 안전 범위 · ⚙ 조정판 · 진단 수치 | 동작 |
+| `/robot.html` | 카메라 없이 3D 로봇만. 그리퍼 장착값 맞추는 화면 | 동작 |
+| `/test/marker-detect.html` | 합성 이미지로 실제 검출기를 재는 검증 페이지 | 동작 |
+| `Dashboard/` | **관제화면** — 배치안 편집 · 생산성 지표 비교 (React) | **미착수** |
+
+**폴더가 둘로 갈려 있다** — `AR/`(Vite+바닐라)과 `Dashboard/`(Vite+React), 공용은 `Shared/`.
+폰이 여는 AR 화면에 React·차트가 실리지 않고, 대시보드 작업이 동작하는 AR 배포를 흔들지 않는다.
+경계는 `docs/ref/BUILD-VITE.md`.
 
 **안 될 때는 `docs/ref/AR-DEBUG.md`** — 증상별 원인표와 진단 수치 읽는 법이 있다.
 
@@ -38,11 +56,13 @@ FAIRINO FR5 협동로봇을 **브라우저에서 팀 전체가 함께 다루는*
 
 ```bash
 cp .env.example .env               # 설정. .env 는 커밋하지 않는다
-node scripts/build/config.mjs      # .env → web/config/*.json 생성 (필수)
-bash scripts/dev/serve.sh 8123     # http://localhost:8123
+npm install                        # workspaces (shared · AR) — 처음 한 번
+node scripts/build/config.mjs      # .env → Shared/data/config/*.json 생성 (필수)
+bash scripts/dev/serve.sh          # Vite dev 서버
 ```
 
-> **`web/config/*.json` 은 생성물이다.** 직접 고치지 말고 `.env` 를 고친 뒤 다시 생성한다.
+> **`Shared/data/config/*.json` 은 생성물이다.** 직접 고치지 말고 `.env` 를 고친 뒤 다시 생성한다.
+> Vite 는 이 JSON 을 **빌드 시 import 한다** — 없거나 깨지면 런타임이 아니라 **빌드가 실패한다**.
 > 카메라는 HTTPS 에서만 열리므로 **폰 테스트는 배포본으로** 한다 (로컬 IP 로는 안 된다).
 
 검증 페이지용 합성 이미지가 필요하면:
@@ -62,11 +82,14 @@ bash scripts/check/all.sh          # 게이트 전부. 하나라도 실패하면
 ## 배포
 
 ```bash
-cd web && vercel --prod --yes --scope kimjuyoung1127s-projects
+cd AR && vercel --prod --yes --scope kimjuyoung1127s-projects
 ```
 
-공유 주소는 위의 **공개 별칭**을 쓴다. `vercel` 이 찍어주는
-`web-<해시>-...` 주소는 팀 계정 로그인을 요구해 팀원이 못 연다.
+- **공유 주소는 공개 별칭을 쓴다.** `vercel` 이 찍어주는 `<해시>-...` 주소는
+  팀 계정 로그인을 요구해 팀원이 못 연다
+- 첫 배포는 프로젝트를 만들어야 한다. **폴더가 `AR` 이라 이름이 대문자가 되어 거부되므로**
+  이름을 소문자로 명시한다 — `vercel link --project fr5ar --yes`
+- `AR/vercel.json` 의 `Permissions-Policy: camera=(self)` 를 지우지 않는다. 없으면 카메라가 안 열린다
 
 ## 무엇이 확인됐고 무엇이 안 됐나
 
@@ -76,22 +99,36 @@ cd web && vercel --prod --yes --scope kimjuyoung1127s-projects
 | 그리퍼 장착값 — 플랜지 간격 0.00mm | `docs/evidence/2026-07-30-gripper-mount.md` |
 | 마커 검출 — **크기보다 대비가 결정한다** | `docs/evidence/2026-07-30-marker-detect.md` |
 | 폰에서 로봇이 겹쳐 보임 · 깜빡임 억제 '강' 안정 | 2026-07-30 실기 |
+| Vite 이관이 가능하다 — 빌드 통과, JS 전송량 −26% | `docs/evidence/2026-07-30-vite-gate.md` |
 
 | 아직 안 됨 |
 |---|
+| **관제화면 (`console.html`)** — 배치안 편집·지표 비교. 다음 작업 |
+| **배치안을 AR 로 겹쳐 보기** — 지금은 로봇 하나만 겹친다 |
 | 정합 오차 실측 (±5~15mm 는 **문헌값**) |
 | 실물 로봇 옆에 겹쳐 보기 |
 | 브리지 서버 (`server/` 없음) — 로봇 실시간 상태 |
-| 터틀봇 연계 — 요구정의서에 아직 없다 |
+
+## 팀원에게 물어야 하는 것 하나
+
+**"한 사이클이 무엇인가"** — 무엇을 하면 1개 처리로 세는가.
+이게 처리량의 분모라서, 어긋나면 **배치안 A와 B의 비교 자체가 무의미해진다.**
+나머지(전달 방법·지표 필드 목록)는 목업으로 넘어간다 —
+필수 필드는 `throughputPerHour`와 `cycleTimeSec.mean` 둘뿐이다
+(`docs/ref/API-CONTRACT.md` §생산성 지표).
 
 ## 문서
 
 `docs/INDEX.md` 가 지도다. 처음이면 이 순서로 본다.
 
-1. `docs/SESSION-START.md` — 세션 캡슐
-2. `docs/status/PROJECT-STATUS.md` — 지금 어디까지
-3. `docs/status/DECISION-LOG.md` — 왜 그렇게 정했나 (D1~D13)
-4. `docs/ref/AR-DEBUG.md` — AR 이 안 될 때
+1. `docs/SESSION-START.md` — **폴더 라우터.** 무엇을 건드리는지 정하면 읽을 문서가 둘로 줄어든다
+2. `docs/ref/PRD.md` — 목표와 성공 판정
+3. `docs/status/PROJECT-STATUS.md` — 지금 어디까지
+4. `docs/status/DECISION-LOG.md` — 왜 그렇게 정했나 (D1~D17)
+5. `docs/ref/AR-DEBUG.md` — AR 이 안 될 때
+
+코드를 짜기 전에 보는 것 — `docs/ref/SHARED-CORE.md`(배치안 모델·단위) ·
+`docs/ref/BUILD-VITE.md`(폴더 경계) · `docs/ref/CONSOLE-REACT.md`(관제화면)
 
 ## 기술
 

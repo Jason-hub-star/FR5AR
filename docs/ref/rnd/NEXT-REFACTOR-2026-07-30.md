@@ -1,7 +1,18 @@
 # 다음 세션 — 구조 개편 선택지
 
-분류: **조사**. 착수 전 판단 기록이고 SSOT가 아니다. 정해지면 `DECISION-LOG`로 올린다.
+분류: **조사**. 착수 전 판단 기록이고 SSOT가 아니다.
 작성 2026-07-30 (AR 슬라이스가 폰에서 동작하는 것을 확인한 직후)
+
+> **결론이 났다 (2026-07-30 같은 날 오후).** 선택지 **B(Vite + 바닐라)** 로 정하고
+> `DECISION-LOG` **D17** 에 올렸다. Vite 관문도 실제로 재서 통과했다
+> (`docs/evidence/2026-07-30-vite-gate.md`).
+>
+> **이 문서를 근거로 코드를 짜지 마라.** 확정본은 아래로 갔다 —
+> 번들 경계·폴더·게이트 경로·이관 순서는 **`docs/ref/BUILD-VITE.md`**,
+> 관제화면은 **`docs/ref/CONSOLE-REACT.md`**, 공용 모델은 **`docs/ref/SHARED-CORE.md`**.
+>
+> 이 문서는 **왜 그렇게 정했는지의 판단 과정**으로만 남긴다. 그 뒤 목표가 확정되면서
+> (D16) `features/` 가 4개 → 6개로 늘고 마일스톤 순서가 뒤집힌 것은 여기 반영돼 있지 않다.
 
 ## 무엇을 정해야 하나
 
@@ -62,7 +73,7 @@ src/
     robot/       URDF 로딩 · 그리퍼 부착 · 관절
     trajectory/  FK 보간 · 궤적 · 재생
     safety/      안전 범위 표시
-  shared/
+  Shared/
     config/      .env 에서 생성된 설정 읽기
     units/       mm·도 ↔ m·라디안 변환 (하드 룰 5 — 한 곳만)
   vendor/        three.js · ar.js · urdf-loader
@@ -70,7 +81,7 @@ web/
   assets/        URDF · 메시 · 마커
 ```
 
-**`shared/units/` 를 반드시 만든다.** 지금 변환이 `robot-view.js` 안에 흩어져 있고,
+**`Shared/units/` 를 반드시 만든다.** 지금 변환이 `robot-view.js` 안에 흩어져 있고,
 하드 룰 5가 "변환은 한 곳에서만"인데 그 한 곳이 명시적 모듈이 아니다.
 
 ---
@@ -130,7 +141,7 @@ FR5_MARKER_LABEL=예비            # 화면·시트에 표시. 교체할 때 헷
 
 1. **`ar-threex.mjs` 가 Vite 에서 import 되는지만 먼저 확인** — 안 되면 A로 되돌린다
 2. Vite 도입. **화면 하나(`robot.html`)만 먼저 옮겨 본다.** 되면 나머지
-3. 기능별 폴더로 이동 + `shared/units/` 신설
+3. 기능별 폴더로 이동 + `Shared/units/` 신설
 4. 변수명 일괄 정리 (좌표계 이름 규칙 적용)
 5. 마커 파일명 · `FR5_MARKER_LABEL` 추가
 6. Vercel 빌드 설정 변경 → **배포는 주인님 지시를 받고** 한다

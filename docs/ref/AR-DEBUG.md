@@ -1,6 +1,6 @@
 # AR-DEBUG — 폰에서 AR을 디버깅하는 방법
 
-분류: **SSOT**. AR 화면(`web/ar.html`)이 안 될 때 여기부터 본다.
+분류: **SSOT**. AR 화면(`AR/ar.html`)이 안 될 때 여기부터 본다.
 관련: `STACK.md` §마커 · `evidence/2026-07-30-marker-detect.md` · `DECISION-LOG` D10·D13
 
 ## 원칙 — **폰에는 콘솔이 없다**
@@ -45,6 +45,11 @@ fps 28   인식률 74%   놓침 12회 / 430프레임
 ?sm=off     깜빡임 억제. off·low·mid·high (한글 없음·약·중·강 도 됨)
             **폰에서 URL 에 한글 타이핑은 고통이므로 영문을 쓴다**
 ?diag=1     진단 수치 켜고 시작
+?cv=640     **검출 캔버스 폭**(240~1280). 없으면 AR.js 자동 — 폰에서 320 을 고른다.
+            검출 한계가 "마커가 검출 캔버스에서 24px" 이라 **이 값이 곧 검출 거리**다.
+            올리면 픽셀이 4배라 fps 를 먹는다. 진단판의 `검출캔버스` 와 `fps` 를 같이 본다.
+?log=1      진단 수치를 dev 서버로 보내 `.diag/<날짜>.jsonl` 에 쌓는다 (**dev 전용**).
+?tag=80mm-1m  그 로그에 붙일 구간 이름. 마커·거리를 바꿀 때 같이 바꾼다
 ```
 
 예) `https://<주소>/ar.html?mm=143&bc=2&sm=high&diag=1`
@@ -58,10 +63,10 @@ URL·`⚙` 는 **그 폰에서만** 바뀌는 임시값이다. 모두에게 적�
 
 ```bash
 vi .env                            # FR5_MARKER_MM · FR5_MARKER_BARCODE 등
-node scripts/build/config.mjs      # web/config/*.json 생성
+node scripts/build/config.mjs      # Shared/data/config/*.json 생성
 ```
 
-`web/config/*.json` 은 **산출물이다 — 직접 고치지 않는다.** 고치면 게이트가 잡는다.
+`Shared/data/config/*.json` 은 **산출물이다 — 직접 고치지 않는다.** 고치면 게이트가 잡는다.
 값이 범위를 벗어나거나 바코드 원본이 없으면 **생성 자체가 멈춘다** —
 번호가 틀리면 화면에 아무것도 안 뜨는데 콘솔 에러도 없어서, 미리 막는 편이 싸다.
 
