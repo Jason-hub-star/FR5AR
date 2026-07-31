@@ -15,6 +15,7 @@
 | `docs/ref/ARCHITECTURE.md` | **역할 분담(우리=시각화)** · 확장성 경계 · 폴더 구조 · 좌표계 | SSOT | 구조나 폴더를 바꿀 때 |
 | `docs/ref/STACK.md` | 확정 기술과 버전, AR 마커 방식 근거, 그리퍼, 함정 | SSOT | 라이브러리를 고를 때 |
 | `docs/ref/API-CONTRACT.md` | REST/WS 계약. 상태·명령·조종권·이동지점·**배치안·지표 요구 모양** | SSOT | 서버·프론트·AR가 맞출 때 |
+| `docs/ref/TB-CONTRACT.md` | **터틀봇 관제 계약** — 상태·teleop·슬롯·맵·기록·미래 접점 5 | SSOT | 터틀봇 브리지·웹을 짤 때 |
 | `docs/ref/CODING-CONVENTIONS.md` | 단위·좌표계·안전·네이밍 규칙 | SSOT | 코드를 쓰기 전에 |
 | `docs/ref/SAFETY-RULES.md` | 안전 판정 조건 19개와 SDK 필드 매핑, fail-closed 원칙 | SSOT | **로봇에 명령 보내는 코드 쓰기 전** |
 | `docs/ref/MILESTONES.md` | **L1~L3(배치 실험)** + V0~V4(플랫폼) 단계와 완료 조건 | SSOT | 다음에 뭘 할지 정할 때 |
@@ -32,6 +33,12 @@
 | `docs/evidence/2026-07-30-marker-detect.md` | 마커 검출 **합성 이미지** 실측 — 크기보다 대비, 워밍업 수십 프레임 | 증거 | 마커·인쇄를 다룰 때 (임계값은 아래 실기판이 정본) |
 | `docs/evidence/2026-07-31-marker-live-phone.md` | 마커 검출 **폰 실기** — 24px 기준이 2배 비관적 · AR.js 기본 해상도가 병목 · 35mm 1.8m 100% | 증거 | **AR 인식률·마커 크기를 정할 때 제일 먼저** |
 | `docs/evidence/2026-07-30-vite-gate.md` | Vite 관문 — 빌드 통과, JS gzip −26%, 죽은 파일 1개 | 증거 | 번들러·의존성을 바꾸기 전에 |
+| `docs/evidence/2026-07-31-dashboard-copy.md` | 메인뷰 문구 교체 실렌더 — **코드 게이트가 통과시킨 결함 2개를 실렌더가 잡았다** | 증거 | 화면 문구·레이아웃을 바꿀 때 |
+| `docs/evidence/2026-07-31-dashboard-save-undo.md` | 편집 저장·되돌리기 왕복 실렌더 9항목 — 저장 갭을 닫은 근거 | 증거 | 편집 저장·되돌리기를 건드릴 때 |
+| `docs/evidence/2026-07-31-dashboard-coord-input.md` | 좌표 직접 입력 실렌더 11항목 — **"보여줄 값의 정본이 어디인가"가 낳은 결함 3개** | 증거 | 화면에 값을 표시·편집하게 만들 때 |
+| `docs/evidence/2026-07-31-dashboard-deploy.md` | 관제화면 배포 — **배포본을 실제로 클릭해서야 나온 결함 3개** (조사·클릭 스냅·미리보기 잔류) | 증거 | 배포하기 전 · 입력 상호작용을 건드릴 때 |
+| `docs/evidence/2026-07-31-tb-계약감사.md` | TB-CONTRACT 착수 전 감사 — 렌즈 5개 · 발견 21건 전건 반영 | 증거 | 터틀봇 계약의 근거가 필요할 때 |
+| `docs/evidence/2026-07-31-tb-ui-reference.md` | TB 관제 UI 레퍼런스 목업 3장 — P1 의 시각 기준 | 증거 | 터틀봇 화면을 짤 때 |
 | `docs/evidence/2026-07-30-doc-weight.md` | 문서 적재 실태·임계값 출처·하네스 이식 판정 | 증거 | 문서가 무거워졌을 때 · 하네스를 더 가져올 때 |
 | `docs/ref/unity/unity-bridge-protocol.md` | **유니티가 실기에서 검증한 값** — IP·포트·타임아웃·브링업 순서·함정 8개 | 참고 | **브리지 서버를 짤 때** |
 | `docs/evidence/2026-07-30-ar-baseline.md` | **AR 이관 기준값 7개** — 뜯기 전 배포본에서 뽑았다 | 증거 | **이관 후 대조할 때** |
@@ -42,6 +49,9 @@
 | `docs/ref/rnd/AMR-TWIN-DIRECTION-2026-07-30.md` | **AMR 2대·트윈·ROI 방향 판단** — 실기↔AR 방향 · 마커 재고 · 에셋 · 관제 통합 | 조사 | **새 방향 착수 전** |
 | `README.md` | 깃허브 첫 화면. 팀원용 진입 문서 | SSOT | 저장소를 처음 볼 때 |
 | `docs/research/README.md` | 조사 산출물 3건과 승격된 곳 | 조사 | 조사 원본을 볼 때 |
+| `docs/goals/GOAL-editor-copy.md` | 사다리 1/3 — 메인뷰 문구를 사실로·해요체로 | 계약 | **메인뷰 문구를 고칠 때** |
+| `docs/goals/GOAL-editor-undo-save.md` | 사다리 2/3 — 되돌리기 한 단계 + 로컬 저장 | 계약 | 편집이 사라지는 갭을 닫을 때 |
+| `docs/goals/GOAL-editor-coord-input.md` | 사다리 3/3 — 좌표 숫자 직접 입력 | 계약 | 격자 사이 값이 필요할 때 |
 | `docs/archive/ARCHIVE-INDEX.md` | 보관 문서 목록·이름 규칙 | 완료보존 | 옛 결정을 되짚을 때 |
 | `docs/INDEX.md` | 문서 지도 | SSOT | 문서를 찾을 때 |
 
@@ -51,6 +61,7 @@
 - **상태**: 현재 진행 상황과 막힌 지점을 기록한다.
 - **증거**: 실렌더·검증 결과를 날짜별로 남긴다.
 - **조사**: 사전 탐색 산출물. SSOT가 아니다. `docs/research/`
+- **계약**: 골 브리프. **완료 판정 기준이 여기 있다.** 어느 에이전트가 실행해도 같은 증거로 판정한다. `docs/goals/`
 - **완료보존**: 대체·폐기된 문서. 근거로 쓰지 않는다. `docs/archive/`
 
 ## 폴더 규약
@@ -64,6 +75,7 @@
 | `ref/rnd/` | 수렴 루프 같은 착수 전 판단 기록 | 조사 |
 | `status/` | 현재 상태·결정·갭 | 상태 |
 | `evidence/` | 날짜별 검증 기록 | 증거 |
+| `goals/` | 골 브리프 — 완료 판정 기준 (`GOAL-<slug>.md`) | 계약 |
 | `research/` | 사전 조사 산출물 (팀 공유 HTML 등) | 조사 |
 | `archive/` | 대체·폐기된 문서 | 완료보존 |
 
@@ -99,6 +111,6 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 
 ## 자가검증
 
-- INDEX.md에 등재된 문서 행 개수 = 38/38
+- INDEX.md에 등재된 문서 행 개수 = 48/48
 - PROJECT-STATUS.md의 "다음 한 걸음" 항목 개수 = 5/5
 - PROJECT-STATUS.md의 "블로커" 항목 개수 = 3/3

@@ -17,7 +17,17 @@
 | v3 기능이 실제 동작하는지 미검증 — 이름만 확인. V3 씬은 빌드에 없음 | F1·F3 | OPEN | 옮길 기능마다 원본 C# 직접 읽기. 안전 로직 우선 (`docs/evidence/2026-07-29-v3-feature-survey-limits.md`) |
 | SDK 상태 패킷이 안전조건을 주는지 | V0 전체 | **CLOSED (2026-07-29)** | 킬-실험 통과 — 4개 값 전부 확인. `docs/ref/SAFETY-RULES.md` |
 | 비상정지 신호의 SDK 필드명 | 안전 전체 | **CLOSED (2026-07-30)** | `EmergencyStop` 외 9개 확인. `docs/evidence/2026-07-30-sdk-state-fields.md` |
-| **편집한 배치안이 저장되지 않는다** — 새로고침하면 사라진다 | L1 · L3 비교 | OPEN | `Shared/data/config/` 슬롯으로 내린다 (이관 H 단계와 같은 일) |
+| **편집한 배치안이 저장되지 않는다** — 새로고침하면 사라진다 | L1 · L3 비교 | **CLOSED (2026-07-31)** | `localStorage` 저장 + 되돌리기 한 단계. 실렌더 9항목 확인 (`evidence/2026-07-31-dashboard-save-undo.md`). **천장 — 브라우저 한 대 안에서만 산다.** 팀 공유는 아래 항목 |
+| 저장이 **브라우저 한 대 안에만** 있다 — 팀·기기 간 공유 불가 | L3 비교 · 팀 검토 | OPEN | `Shared/data/config/` 슬롯으로 올린다 (이관 H 단계) |
+| `pointerup` 이 유실되면 편집기가 멈춘다 (`pointercancel` 미청취) | L1 사용성 | OPEN | **합성 이벤트에서만 재현됐다.** 실제 입력은 `setPointerCapture` 가 막는다 — 실사용에서 나오면 그때 고친다 |
+| 격자 사이 좌표를 못 넣는다 (끌기가 100mm 에 붙는다) | L1 · 실측 치수 반영 | **CLOSED (2026-07-31)** | x·y·회전 숫자 입력. 실렌더 11항목 (`evidence/2026-07-31-dashboard-coord-input.md`) |
+| `userData.item` 이 `{kind,id,type}` 만 담아 **회전을 안 실어 나른다** | 3D 노드에서 값을 읽는 모든 화면 | OPEN | 지금은 **배치안에서 직접 읽어** 우회했다. `Shared/view3d/props/index.js:162` 를 고치면 근본이 닫힌다 |
+| **편집기를 폰에서 안 봤다** — 패널 접힘 · `SLOP_PX=4` 가 손가락에 맞나 | L1 폰 사용성 | **CLOSED (2026-07-31)** | 주인님이 폰에서 확인 — "잘됨". 자동화로는 세 번 다 막혔던 항목이다. **기종·수치는 안 남겼다** — 문턱을 다시 건드리면 그때 재확인한다 |
+| 문서 무게 경고 4건 — PROJECT-STATUS 130줄(120) · DECISION-LOG 708줄(600) · INDEX 48행(45) · evidence 19개(15) | 진입 비용 | OPEN | 전부 soft 경고(게이트는 통과). **옮기는 것은 사람이 확인하고 한다**(D18). `bash scripts/check/docs-weight.sh --weekend` 로 이관 후보를 본다 |
+| **고르기만 해도 편집이 생긴다** — 클릭 중 손이 1px 만 움직여도 격자로 스냅해 커밋 (`runN1` y 7620→7600) | L1 · 배치안 신뢰 | **CLOSED (2026-07-31)** | 끌기 문턱 `SLOP_PX = 4` 를 뒀다. 넘기 전에는 **메시도 데이터도 안 건드린다** (`interaction.js`). 배포본에서 확인 — 클릭 시 편집 0건, 끌기는 그대로 |
+| 끌기가 끝나도 **미리보기 모드(`live`)가 안 꺼져** 패널이 놓은 자리에 얼어붙었다 | L1 · 배치안 신뢰 | **CLOSED (2026-07-31)** | 되돌리기를 해도 옛 좌표를 보여줬다. 커밋할 때 `live` 를 끈다 (`LayoutView.jsx`). 배포본에서 `6300,8000` → ⌘Z → `2600,7500` 확인 |
+| 메인뷰가 **되는 기능을 "다음 단계"라고 적어 뒀다** | L1 사용성 | **CLOSED (2026-07-31)** | 문구 전면 교체 + 실렌더 확인 (`evidence/2026-07-31-dashboard-copy.md`). 판정 `ready-for-review` — 실제 폰은 아직 |
+| 벽·문·창을 클릭해도 안 골라지는데 **화면이 이유를 안 알려준다** | L1 사용성 | OPEN | 의도된 제한이다(`userData.item` 없는 노드). 지금은 고치지 않고 기록만 — 실사용에서 오해가 나오면 그때 만든다 |
 | Vercel 이 모노레포 workspaces 를 못 빌드한다 (하위 폴더 `npm install` 이 `@fr5/shared` 를 못 푼다) | 배포 자동화 | OPEN | 지금은 로컬 빌드 산출물 업로드 (D24). 루트 기준 설정은 AR 과 충돌하므로 보류 |
 | `Dashboard/dist` 7.2MB 중 6.6MB 가 **아직 안 쓰는** URDF·그리퍼 STL | 배포 속도 | OPEN | `publicDir` 이 `Shared/assets` 전부를 복사한다. L2 에서 팔을 세우면 쓰인다 — 그때까지 방치 |
 | 터틀봇 상판 마커 크기가 검출 한계인가 | AMR 위 가상 팔 | **CLOSED (2026-07-31)** | 35mm·1.8m·100% 확인. 단 `src=1280&cv=960` 필수 (`evidence/2026-07-31-marker-live-phone.md`) |
