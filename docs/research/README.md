@@ -8,6 +8,7 @@
 | `ideas.html` | 아이디어 10개 + 무대 후보 5개 + 사례 링크 | `ref/PRD.md` `ref/USER-REQUIREMENTS.md` |
 | `fr5-cases.html` | FR5 저장소 80여 개 중 58개 검증 · 9개 분류 | `ref/STACK.md` `ref/SAFETY-RULES.md` |
 | `ar-stack.html` | AR 기술 스택 · 함정 5개 · 버전 실측 | `ref/STACK.md` `ref/SLICE-AR-DEMO.md` |
+| `ar-global-camera.md` | 글로벌 카메라로 실제 맵에 배치안 겹치기 — 수직 사다리 G0~G5 · 맵/카메라 치수 · 마커 판정 | (미승격 — 2026-08-02) |
 
-**팀 공유용이다.** 브라우저로 열어 보거나 링크로 전달한다.
+**HTML 3건은 팀 공유용이다.** 브라우저로 열어 보거나 링크로 전달한다.
 내용이 `ref/`와 어긋나면 **`ref/`가 이긴다.**

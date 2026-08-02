@@ -14,7 +14,7 @@ class MapStore:
     def list(self):
         maps = []
         for f in sorted(MAPS_DIR.glob("*.meta.json")):
-            maps.append(json.loads(f.read_text()))
+            maps.append(json.loads(f.read_text(encoding="utf-8")))
         return maps
 
     def exists(self, name):
@@ -29,8 +29,8 @@ class MapStore:
                 "savedAt": time.time()}
         with self._lock:
             # 실기(P4)에선 map_saver_cli 가 yaml+pgm 을 만든다. mock 은 자리만 만든다.
-            (MAPS_DIR / f"{name}.yaml").write_text(f"# mock map — {name}\n")
-            (MAPS_DIR / f"{name}.meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
+            (MAPS_DIR / f"{name}.yaml").write_text(f"# mock map — {name}\n", encoding="utf-8")
+            (MAPS_DIR / f"{name}.meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
         return meta
 
     def patch(self, name, map_to_lab):
@@ -38,7 +38,7 @@ class MapStore:
             f = MAPS_DIR / f"{name}.meta.json"
             if not f.exists():
                 return None
-            meta = json.loads(f.read_text())
+            meta = json.loads(f.read_text(encoding="utf-8"))
             meta["mapToLab"] = {**meta.get("mapToLab", {}), **map_to_lab}
-            f.write_text(json.dumps(meta, ensure_ascii=False, indent=1))
+            f.write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
             return meta

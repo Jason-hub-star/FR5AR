@@ -19,10 +19,16 @@ scripts/
 │   └── config.mjs                .env → Shared/data/config/*.json (검증 포함)
 ├── dev/                        개발 중 사람이 손으로 부른다
 │   └── serve.sh                  Vite dev 서버 (ar | dash)
-└── assets/                     자산 복사·변환
-    ├── sync-from-unity.sh        유니티에서 URDF·메시 가져오기
-    ├── make-marker-sheet.py      AR 마커 인쇄 시트 생성 (자가검사 포함)
-    └── make-marker-test-images.py  마커 검출 실측용 합성 이미지 117장
+├── assets/                     자산 복사·변환
+│   ├── sync-from-unity.sh        유니티에서 URDF·메시 가져오기
+│   ├── make-marker-sheet.py      AR 마커 인쇄 시트 생성 (자가검사 포함)
+│   └── make-marker-test-images.py  마커 검출 실측용 합성 이미지 117장
+└── map/                        실제 맵 + 글로벌 카메라 (한 워크플로 = 한 폴더)
+    ├── make-tags.py              AprilTag 36h11 + ChArUco 인쇄 시트 · tags.json (제원 SSOT)
+    ├── capture.py                웹캠 촬영 (오토포커스·해상도 잠금)
+    ├── intrinsics.py             ChArUco 사진 → 카메라 화각·왜곡
+    ├── extrinsics.py             태그 사진 + 실측 좌표 → labToCam
+    └── check-calib.sh            게이트 — all.sh 가 자동으로 집어 간다
 ```
 
 ## 카테고리
@@ -34,7 +40,28 @@ scripts/
 | `assets/` | 자산 복사·변환 | 동사 | 사용 중 |
 | `build/` | 설정·산출물 생성. **입력이 틀리면 쓰지 않고 멈춘다** | 산출물 이름 | 사용 중 |
 | `robot/` | 로봇 연결·모의·브링업 | 동사 또는 대상 | 아직 없음 — 첫 파일 생길 때 만든다 |
+| `map/` | 실제 맵·글로벌 카메라 캘리브레이션 | 파이프라인 단계 이름 | 사용 중 |
 | `deploy/` | 배포·터널 | 동사 | 아직 없음 |
+
+## 글로벌 카메라 캘리브레이션 — 세 스크립트가 한 줄로 이어진다
+
+```
+map/make-tags.py                                 →  인쇄물 (1회)
+map/capture.py charuco  →  map/intrinsics.py     →  렌즈  (카메라당 1회)
+map/capture.py tags     →  map/extrinsics.py     →  위치  (카메라를 건드릴 때마다)
+                           map/check-calib.sh    →  게이트
+```
+
+**순서를 바꿀 수 없다.** 내부 파라미터가 나쁘면 외부가 조용히 틀어진다 — 합성 검증에서
+내부 fy 를 1.3% 틀리게 넣었더니 카메라 높이가 2.4m → 4.4m 로 나왔다. 그래서 두 build
+스크립트 모두 재투영 오차 상한을 넘으면 **쓰지 않고 멈춘다.** 값이 없는 편이 낫다.
+
+인쇄물은 `Shared/assets/tag/`, 보드 제원은 같은 폴더의 `tags.json` 이 단일 출처다.
+사진과 실측 서식은 `calib-shots/` (gitignore) — 결론만 `Shared/data/config/global-cam.json` 으로 간다.
+
+**카테고리 폴더는 `check-*.sh` 로 자기 게이트를 내놓는다.** `check/all.sh` 가
+`scripts/*/check-*.sh` 도 같이 돌린다 — 도메인 게이트를 `check/` 로 떼어 놓으면
+워크플로가 두 폴더로 갈라지고, 손으로 불러야 하는 게이트는 결국 안 돈다.
 
 **폴더는 첫 파일이 생길 때 만든다.** 빈 폴더를 미리 파두지 않는다.
 어디에도 안 맞으면 카테고리를 새로 만들고 이 표에 한 줄 추가한다 — 루트에 두지 않는다.
@@ -82,10 +109,11 @@ node scripts/build/config.mjs --check  # 쓰지 않고 대조만 (게이트가 �
 | `check/assets.sh` | `WANT_ARM_TRIS` `WANT_GRIP_TRIS` | 58482 / 70102 | 유니티 원본 모델이 바뀔 때 |
 | `check/docs.sh` | `REQUIRED` 배열 | 15개 | SSOT 문서를 추가·삭제할 때 |
 | `assets/make-marker-sheet.py` | `SHEETS` · `QUIET_RATIO_MIN` | A4 170/14mm · A3 240/20mm · 하한 6% | 마커 크기·용지를 바꿀 때 |
+| `map/make-tags.py` | `SHEETS` · `QUIET_RATIO` | A4 150mm · A3 220mm · 1/8 | 태그 크기·용지를 바꿀 때 |
 | `build/config.mjs` | `AVAILABLE_BARCODES` | 2 · 3 · 5 | 바코드 원본을 더 받거나 지울 때 |
 | `check/docs-weight.sh` | `CAP_ENTRY_*` `CAP_STATUS_*` | 80/110 · 120/160 | 진입 문서 상한을 바꿀 때 |
 | `check/docs-weight.sh` | `CAP_DOC_*` `CAP_INDEX_*` | 300/450 · 45/60 | 개별 문서·INDEX 행 상한 |
-| `check/docs-weight.sh` | `CAP_EVID_*` `CAP_RND_*` `CAP_TOTAL_*` | 15/25 · 5/8 · 9000/13000 | 폴더 개수·총량 상한 |
+| `check/docs-weight.sh` | `CAP_EVID_*` `CAP_RND_*` `CAP_TOTAL_*` | **8/14** · 5/8 · 9000/13000 | 폴더 개수·총량 상한 |
 | `check/docs-weight.sh` | `STALE_DAYS` | 30 | 방치 판정. 템플릿은 7일이나 세션 간격이 길어 늘렸다 |
 | `check/docs-weight.sh` | `CAP_DECLOG_*` | 600/900 | **DECISION-LOG 전용.** 자르지 않는 문서라 일반 상한을 안 쓴다 |
 | `check/docs-weight.sh` | `CAP_FOLDER_MD` | 15 | 폴더별 `CLAUDE.md` 상한. 넘으면 SSOT 로 옮긴다 |

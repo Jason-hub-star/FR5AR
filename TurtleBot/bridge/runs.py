@@ -25,13 +25,13 @@ class RunStore:
         for f in RUNS_DIR.glob("*.json"):
             if f.name.endswith(".path.json"):
                 continue
-            run = json.loads(f.read_text())
+            run = json.loads(f.read_text(encoding="utf-8"))
             if run.get("endedAt") is None:
                 run["endedAt"] = time.time()
                 run["result"] = "error"
                 run.setdefault("note", "")
                 run["note"] = (run["note"] + " [bridge-restart 로 회수됨]").strip()
-                f.write_text(json.dumps(run, ensure_ascii=False, indent=1))
+                f.write_text(json.dumps(run, ensure_ascii=False, indent=1), encoding="utf-8")
 
     def _file(self, run_id):
         return RUNS_DIR / f"{run_id}.json"
@@ -44,7 +44,7 @@ class RunStore:
             "result": None, "note": "", "metrics": {}, "bagPath": None,
         }
         with self._lock:
-            self._file(run_id).write_text(json.dumps(run, ensure_ascii=False, indent=1))
+            self._file(run_id).write_text(json.dumps(run, ensure_ascii=False, indent=1), encoding="utf-8")
             self._paths[run_id] = []
         return run
 
@@ -60,7 +60,7 @@ class RunStore:
             f = self._file(run_id)
             if not f.exists():
                 return
-            run = json.loads(f.read_text())
+            run = json.loads(f.read_text(encoding="utf-8"))
             samples = self._paths.pop(run_id, [])
             travel = sum(
                 math.hypot(b["xMm"] - a["xMm"], b["yMm"] - a["yMm"])
@@ -69,24 +69,24 @@ class RunStore:
             run["endedAt"] = time.time()
             run["result"] = result
             run["metrics"] = {**run.get("metrics", {}), "travelMm": round(travel), "source": "mock"}
-            f.write_text(json.dumps(run, ensure_ascii=False, indent=1))
-            (RUNS_DIR / f"{run_id}.path.json").write_text(json.dumps(samples))
+            f.write_text(json.dumps(run, ensure_ascii=False, indent=1), encoding="utf-8")
+            (RUNS_DIR / f"{run_id}.path.json").write_text(json.dumps(samples), encoding="utf-8")
         self._on_log(run["robot"], "bridge", "info", f"run {result} — {run_id} · travelMm={round(travel)}")
 
     def set_bag(self, run_id, bag_path):
         with self._lock:
             f = self._file(run_id)
             if f.exists():
-                run = json.loads(f.read_text())
+                run = json.loads(f.read_text(encoding="utf-8"))
                 run["bagPath"] = bag_path
-                f.write_text(json.dumps(run, ensure_ascii=False, indent=1))
+                f.write_text(json.dumps(run, ensure_ascii=False, indent=1), encoding="utf-8")
 
     def list(self, robot=None, slot=None, limit=100):
         runs = []
         for f in RUNS_DIR.glob("*.json"):
             if f.name.endswith(".path.json"):
                 continue
-            run = json.loads(f.read_text())
+            run = json.loads(f.read_text(encoding="utf-8"))
             if robot and run["robot"] != robot:
                 continue
             if slot and run["scriptSlot"] != slot:
@@ -97,14 +97,14 @@ class RunStore:
 
     def get(self, run_id):
         f = self._file(run_id)
-        return json.loads(f.read_text()) if f.exists() else None
+        return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
 
     def get_path(self, run_id):
         with self._lock:
             if run_id in self._paths:                      # 진행 중이면 메모리
                 return list(self._paths[run_id])
         f = RUNS_DIR / f"{run_id}.path.json"
-        return json.loads(f.read_text()) if f.exists() else []
+        return json.loads(f.read_text(encoding="utf-8")) if f.exists() else []
 
     def patch(self, run_id, body):
         if len(json.dumps(body)) > PATCH_BODY_MAX:
@@ -113,10 +113,10 @@ class RunStore:
             f = self._file(run_id)
             if not f.exists():
                 return None, "없는 run"
-            run = json.loads(f.read_text())
+            run = json.loads(f.read_text(encoding="utf-8"))
             if isinstance(body.get("note"), str):
                 run["note"] = body["note"]
             if isinstance(body.get("metrics"), dict):
                 run["metrics"] = {**run.get("metrics", {}), **body["metrics"]}   # 얕은 병합 (계약)
-            f.write_text(json.dumps(run, ensure_ascii=False, indent=1))
+            f.write_text(json.dumps(run, ensure_ascii=False, indent=1), encoding="utf-8")
             return run, None

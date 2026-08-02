@@ -1,0 +1,35 @@
+{
+ "_생성됨": "python3 scripts/map/make-tags.py — 직접 고치지 마라",
+ "_단위": "밀리미터",
+ "family": "DICT_APRILTAG_36H11",
+ "cellsPerSide": 8,
+ "quietRatio": 0.125,
+ "sheets": [
+  {
+   "paper": "A4",
+   "tagSizeMm": 150,
+   "ids": [
+    0,
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "paper": "A3",
+   "tagSizeMm": 220,
+   "ids": [
+    0,
+    1,
+    2,
+    3
+   ]
+  }
+ ],
+ "charuco": {
+  "cols": 6,
+  "rows": 8,
+  "squareMm": 28,
+  "markerMm": 21
+ }
+}

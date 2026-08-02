@@ -12,6 +12,15 @@ import { makeReachZone } from '../safety/reach-zone.js';
 import { assembleProps } from '../props/index.js';
 
 // 토큰과 같은 의미의 색. 상태 색은 두 화면에서 같아야 한다 (D21).
+// 평면도 Y(미터) → 씬 Z. **부호가 뒤집힌다.**
+//
+// 축을 그냥 맞바꾸면(planY → +sceneZ) 행렬식이 −1 인 거울 사상이라 씬이 실제의
+// 좌우 반전이 된다. 배치안만 볼 때는 아무도 눈치채지 못하지만 글로벌 카메라 영상에
+// 겹치는 순간 드러나고, 카메라로는 흡수할 수 없다 (D43).
+// **이 파일에서 평면도 Y 를 씬에 넣는 곳은 전부 이 함수를 지난다** (하드 룰 5).
+// 회전도 같이 뒤집힌다 — 평면도 yaw θ 는 씬에서 rotation.y = +θ 다.
+const Z = (planYMeters) => -planYMeters;
+
 const C = { ok: 0x2f7d32, warn: 0xb06d00, danger: 0xba1a1a, path: 0x2f7d32, virtual: 0x4a90d9 };
 
 const mat = {
@@ -58,7 +67,8 @@ export function createLayoutView(layout, { mountArm } = {}) {
   const T = 0.12;                       // 벽 두께 120mm
   const SLAB = 0.16;                    // 바닥 슬래브 160mm
   const slab = new THREE.Mesh(track(new THREE.BoxGeometry(W + T * 2, SLAB, D + T * 2)), mat.floor);
-  slab.position.set(W / 2, -SLAB / 2, D / 2);
+  slab.position.set(W / 2, -SLAB / 2, Z(D / 2));
+  slab.name = 'slab';        // AR 오버레이는 바닥을 숨긴다 — 실제 바닥이 뒤에 있다
   slab.receiveShadow = true;
   root.add(slab);
 
@@ -74,7 +84,7 @@ export function createLayoutView(layout, { mountArm } = {}) {
   ];
 
   const wallMeshes = [];
-  const center = new THREE.Vector3(W / 2, 0, D / 2);
+  const center = new THREE.Vector3(W / 2, 0, Z(D / 2));
 
   /** 한 벽을 개구부를 피해 조각으로 만든다. 개구부 위는 인방(lintel)으로 덮는다. */
   function buildWall(side) {
@@ -106,8 +116,8 @@ export function createLayoutView(layout, { mountArm } = {}) {
       const mid = pc.from + span / 2;
       const dims = side.axis === 'x' ? [span, pc.h, T] : [T, pc.h, span];
       const m = new THREE.Mesh(track(new THREE.BoxGeometry(...dims)), mat.wall);
-      if (side.axis === 'x') m.position.set(mid, pc.y, side.fixed);
-      else m.position.set(side.fixed, pc.y, mid);
+      if (side.axis === 'x') m.position.set(mid, pc.y, Z(side.fixed));
+      else m.position.set(side.fixed, pc.y, Z(mid));
       m.castShadow = true; m.receiveShadow = true;
       // 컷어웨이 판정용 — 벽 중심에서 방 중심으로 가는 방향(=안쪽)
       m.userData.inward = center.clone().sub(m.position).setY(0).normalize();
@@ -126,8 +136,8 @@ export function createLayoutView(layout, { mountArm } = {}) {
     for (const s of [-1, 1]) {
       const dims = side.axis === 'x' ? [jamb, h, T * 1.3] : [T * 1.3, h, jamb];
       const m = new THREE.Mesh(track(new THREE.BoxGeometry(...dims)), mat.frame);
-      if (side.axis === 'x') m.position.set(at + s * (w / 2), h / 2, side.fixed);
-      else m.position.set(side.fixed, h / 2, at + s * (w / 2));
+      if (side.axis === 'x') m.position.set(at + s * (w / 2), h / 2, Z(side.fixed));
+      else m.position.set(side.fixed, h / 2, Z(at + s * (w / 2)));
       m.castShadow = true;
       root.add(m);
     }
@@ -138,14 +148,14 @@ export function createLayoutView(layout, { mountArm } = {}) {
       const dims = side.axis === 'x' ? [leafW, h - 0.06, 0.05] : [0.05, h - 0.06, leafW];
       const leaf = new THREE.Mesh(track(new THREE.BoxGeometry(...dims)), matGlassDoor);
       const off = s2 * (w / 4);
-      if (side.axis === 'x') leaf.position.set(at + off, h / 2, side.fixed);
-      else leaf.position.set(side.fixed, h / 2, at + off);
+      if (side.axis === 'x') leaf.position.set(at + off, h / 2, Z(side.fixed));
+      else leaf.position.set(side.fixed, h / 2, Z(at + off));
       root.add(leaf);
       // 손잡이 — 세로 막대 하나가 "문" 신호를 완성한다
       const hd = new THREE.Mesh(track(new THREE.CylinderGeometry(0.016, 0.016, 0.55, 8)), mat.frame);
       const hoff = s2 * (w / 4 - leafW / 2 + 0.09);
-      if (side.axis === 'x') hd.position.set(at + hoff, h * 0.45, side.fixed + 0.05);
-      else hd.position.set(side.fixed + 0.05, h * 0.45, at + hoff);
+      if (side.axis === 'x') hd.position.set(at + hoff, h * 0.45, Z(side.fixed + 0.05));
+      else hd.position.set(side.fixed + 0.05, h * 0.45, Z(at + hoff));
       root.add(hd);
     }
 
@@ -154,8 +164,8 @@ export function createLayoutView(layout, { mountArm } = {}) {
       track(new THREE.BoxGeometry(...(side.axis === 'x' ? [w, 0.012, T * 1.6] : [T * 1.6, 0.012, w]))),
       mat.frame,
     );
-    if (side.axis === 'x') sill.position.set(at, 0.006, side.fixed);
-    else sill.position.set(side.fixed, 0.006, at);
+    if (side.axis === 'x') sill.position.set(at, 0.006, Z(side.fixed));
+    else sill.position.set(side.fixed, 0.006, Z(at));
     root.add(sill);
   }
 
@@ -224,14 +234,15 @@ export function createLayoutView(layout, { mountArm } = {}) {
       }),
     );
     ring.rotation.x = -Math.PI / 2;
-    ring.position.set(px, 0.005, pz);
+    ring.position.set(px, 0.005, Z(pz));
     contents.add(ring);
   }
 
   // ── 팔 자리 + 도달 범위. 링이 이 화면의 주인공이다.
   const armSlot = new THREE.Group();
-  armSlot.position.set(mm(layout.arm.basePosMm[0]), mm(layout.arm.basePosMm[2]), mm(layout.arm.basePosMm[1]));
-  armSlot.rotation.y = -(layout.arm.baseYawDeg ?? 0) * Math.PI / 180;
+  armSlot.position.set(mm(layout.arm.basePosMm[0]), mm(layout.arm.basePosMm[2]),
+                       Z(mm(layout.arm.basePosMm[1])));
+  armSlot.rotation.y = (layout.arm.baseYawDeg ?? 0) * Math.PI / 180;   // Z 부호와 함께 뒤집힌다
   contents.add(armSlot);
 
   const zone = makeReachZone({ radius: mm(layout.arm.reachMm), height: 0.9 });
@@ -245,7 +256,7 @@ export function createLayoutView(layout, { mountArm } = {}) {
   for (const a of layout.amrs ?? []) {
     const body = new THREE.Mesh(track(new THREE.BoxGeometry(0.28, 0.19, 0.3)), mat.amr);
     const start = a.waypointsMm?.[0] ?? a.dockPosMm;
-    body.position.set(mm(start[0]), 0.095, mm(start[1]));
+    body.position.set(mm(start[0]), 0.095, Z(mm(start[1])));
     body.castShadow = true;
     contents.add(body);
 
@@ -256,7 +267,7 @@ export function createLayoutView(layout, { mountArm } = {}) {
       contents.add(r);
     }
 
-    const pts = (a.waypointsMm ?? []).map(([x, y]) => new THREE.Vector3(mm(x), 0.02, mm(y)));
+    const pts = (a.waypointsMm ?? []).map(([x, y]) => new THREE.Vector3(mm(x), 0.02, Z(mm(y))));
     if (pts.length > 1) {
       const line = new THREE.Line(
         track(new THREE.BufferGeometry().setFromPoints(pts)),
@@ -272,7 +283,7 @@ export function createLayoutView(layout, { mountArm } = {}) {
       track(new THREE.SphereGeometry(0.07, 16, 12)),
       new THREE.MeshBasicMaterial({ color: C.warn, transparent: true, opacity: 0.85 }),
     );
-    m.position.set(mm(x.atMm[0]), 0.07, mm(x.atMm[1]));
+    m.position.set(mm(x.atMm[0]), 0.07, Z(mm(x.atMm[1])));
     contents.add(m);
   }
 

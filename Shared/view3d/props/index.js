@@ -154,9 +154,10 @@ export function assembleProps(props = []) {
     const make = PROPS[p.type];
     if (!make) { console.warn(`모르는 부품: ${p.type}`); continue; }
     const node = make(p.opts ?? {});
-    // 배치안은 Z-up(x,y 바닥) · three 는 Y-up → y 와 z 를 바꾼다
-    node.position.set(mm(p.posMm[0]), mm(p.posMm[2] ?? 0), mm(p.posMm[1]));
-    node.rotation.y = -((p.rotDeg ?? 0) * Math.PI) / 180;
+    // 배치안은 Z-up(x,y 바닥) · three 는 Y-up → y 와 z 를 바꾸고 **평면도 Y 는 부호를 뒤집는다**.
+    // 그냥 맞바꾸면 거울 사상이 된다 (D43 · `layout-view.js` 의 Z 와 같은 규약).
+    node.position.set(mm(p.posMm[0]), mm(p.posMm[2] ?? 0), -mm(p.posMm[1]));
+    node.rotation.y = ((p.rotDeg ?? 0) * Math.PI) / 180;
     node.name = p.id ?? p.type;
     // **편집 단위 표식.** 인터랙션이 맞은 메시에서 위로 올라가며 이걸 찾는다.
     node.userData.item = { kind: 'prop', id: p.id ?? p.type, type: p.type };

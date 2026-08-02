@@ -7,13 +7,25 @@
 | 갭 | 영향받는 기능 | 상태 | 다음 행동 |
 |---|---|---|---|
 | 무대(배경) 미확정 | 시연 시나리오 작성 | **CLOSED (2026-07-30)** | 과학실험실 · 팔+AMR 배치별 생산성으로 확정 |
-| `FR5/bridge/` 코드 없음 | F1~F6 전부 | OPEN | V0 브리지 뼈대부터 시작 |
+| `FR5/bridge/` 코드 없음 | F1~F6 전부 | **CLOSED (2026-07-31)** | P0~P2 완성 + 실기 첫 조그 (`evidence/2026-07-31/fr5-first-motion.md`) |
 | `web/` 코드 없음 | F1~F4 | **CLOSED (2026-07-30)** | `AR/` · `Dashboard/` 로 갈라 Vite 이관 완료 |
 | URDF·STL 복사 | F2 | CLOSED (2026-07-29) | `scripts/assets/sync-from-unity.sh`로 자동화됨 |
 | 그리퍼(PGEA-100-40)가 URDF에 없음 | F2 부분 | OPEN | URDF에 그리퍼 링크 추가. 통합형/분리형 STL 중 선택 |
-| Fairino 파이썬 SDK가 PyPI에 없어 설치 경로 미확인 | V0 | BLOCKED | 공식 저장소에서 설치법 확인. 최신 파이썬에서 막히면 pip 패치본 조사 |
+| Fairino 파이썬 SDK가 PyPI에 없어 설치 경로 미확인 | V0 | **CLOSED (2026-07-31)** | 순수 표준 라이브러리 확인 → `fairino_sdk/` 벤더링 (D42) |
 | macOS에서 FAIRINO C# SDK 직접 연결 가능 여부 | H0·V0 | **CLOSED (2026-07-31)** | 실물에서 version·6축·TCP readback 성공. Python SDK는 별도 갭 (`evidence/2026-07-31/fr5-live-readback.md`) |
-| 같은 FR5라도 다른 개체 배정 시 IP·펌웨어를 고정값으로 오인 | V0~V7 | OPEN | robot profile + observe-only preflight로 모델·버전·6축·안전 필드 재검증 |
+| 같은 FR5라도 다른 개체 배정 시 IP·펌웨어를 고정값으로 오인 | V0~V7 | **CLOSED (2026-07-31)** | profile+preflight 구현, 실측 모델 `FR5-V1-002(V6.0)` 등재 |
+| 어댑터 xmlrpc 호출 무타임아웃 — stop/disarm 행이면 잠금 보유 채 브리지 전체가 굳는다 | V0~V2 | OPEN | `fairino.py` xmlrpc 호출에 타임아웃(소켓/스레드) 씌우고 행 시 fail-closed |
+| `/state` 간헐 JSON 깨짐 (char 521 부근, 전이 순간) | V0·V1 | OPEN | 불량 표본 원문 포집 → 직렬화 지점 특정. WS 는 프레임 1개 유실로 끝나 치명적이진 않다 |
+| 실기 P2 잔여 게이트 — 2클라이언트 409·10분 폴링 | V2 | OPEN | 다음 현장 세션에서 각 5분 |
+| `fairino_cs/`(폐기된 C# 경로) 보존 여부 | — | OPEN | 증거 보존 중 — 다음 정리 때 archive 이관 판단 |
+| 씬 축 매핑이 거울이었다 (`planToScene` det −1) | 3D 전체·AR 오버레이 | **CLOSED (2026-08-02)** | D43 · 17곳 수정 + `check/scene-axes.sh` 게이트 (`evidence/2026-08-02/cam-overlay.md`) |
+| 글로벌 카메라 캘리브레이션 도구 없음 | AR 오버레이 | **CLOSED (2026-08-02)** | `scripts/map/` 5개 + 게이트 3개. 합성 검증 0.83px |
+| 카메라 스트림을 어느 브리지가 소유하나 | G4 라이브 영상 | OPEN | 하드 룰 1 — `API-CONTRACT.md` 에 `/api/camera/*` 를 먼저 쓴다 |
+| 렌즈 왜곡 언디스토트 경로 없음 | AR 오버레이 정합 | OPEN | three.js 는 핀홀만 그린다. k1 −0.1 이면 모서리 97px. 실측 k1 을 재고 영상 언디스토트를 넣는다 |
+| 높이 정합이 사진으로 검증 안 됨 | AR 오버레이 | OPEN | 합성 사진에 높이 있는 실물이 없다. 실제 맵에서 벽을 세우면 닫힌다 |
+| 컷어웨이가 벽만 숨기고 문짝·문틀은 남긴다 | 배치안 3D 보기 | OPEN | 숨긴 벽의 문 유리가 허공에 뜬다. `updateCutaway` 가 문 부품도 같이 토글해야 한다 |
+| `mapToLab` 측정 절차 미정 | AMR↔FR5↔AR 연결 전부 | OPEN | TB-CONTRACT §미래접점③ 이 "P4 에서 정한다"로만 남아 있다. **이번 트랙 최대 관문** |
+| `docs/evidence/2026-07-31/` 15건 > 상한 14 | 게이트 레드 | OPEN | 미커밋 터틀봇 P4 세션 산물. 같은 주제 두 파일을 합칠지는 그 세션 주인이 정한다 |
 | 실물 그리퍼·tool/user·페이로드·충돌 형상 미보정 | V3·V5·V6 | BLOCKED | 현장 값 확정 전 시뮬레이션 후보를 “최적” 또는 실기 승인으로 승격하지 않는다 |
 | 폰 HTTPS 접속 방식 미결정 (mkcert vs 터널) | V3 | BLOCKED | 개발 환경과 시연 환경에서 접속 방법 확정 |
 | 기록 저장소 미정 (파일/SQLite/Supabase) | F6, V4 | BLOCKED | 저장 방식과 보존 기간 팀 회의에서 확정 |

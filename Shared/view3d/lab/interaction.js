@@ -116,8 +116,8 @@ export function createInteraction({
       toLocal(dragging, hit);
       // **그리드 스냅.** 손으로 놓아도 줄이 맞는다 (ArduinoDT 의 2.54mm 스냅과 같은 발상)
       const xMm = snap(toMm(hit.x - grab.x));
-      const zMm = snap(toMm(hit.z - grab.z));
-      dragging.position.set(mm(xMm), dragging.position.y, mm(zMm));
+      const zMm = snap(-toMm(hit.z - grab.z));    // 씬 Z → 평면도 Y (부호 반전 · D43)
+      dragging.position.set(mm(xMm), dragging.position.y, -mm(zMm));   // 평면도 Y → 씬 Z
       ringTo(selectRing, dragging);
       // 끄는 중에도 판정을 갱신한다 — "여기 놓으면 닿나" 를 손이 움직일 때 알려준다
       onPick?.({ ...dragging.userData.item, posMm: [xMm, zMm], live: true });
@@ -161,7 +161,7 @@ export function createInteraction({
     ev.stopPropagation();
     // 합성 이벤트(헤드리스 검증)에서는 pointerType 이 없어 던진다 — 검증을 막지 않는다
     try { ev.target.setPointerCapture?.(ev.pointerId); } catch { /* 합성 이벤트 */ }
-    onPick?.({ ...it.userData.item, posMm: [toMm(it.position.x), toMm(it.position.z)] });
+    onPick?.({ ...it.userData.item, posMm: [toMm(it.position.x), -toMm(it.position.z)] });
   }
 
   function onUp(ev) {
@@ -175,7 +175,7 @@ export function createInteraction({
     // 안 그러면 클릭 한 번에 저장 배지가 뜨고 되돌리기 기록이 쌓인다
     if (!moved) return;
     // **여기서 데이터에 커밋한다.** 끄는 동안은 메시만 움직였다.
-    onCommit?.({ ...it.userData.item, posMm: [toMm(it.position.x), toMm(it.position.z)] });
+    onCommit?.({ ...it.userData.item, posMm: [toMm(it.position.x), -toMm(it.position.z)] });
   }
 
   /** 90° 씩 돌린다. 벽에 붙이는 가구라 자유 각도는 쓸 일이 없다.

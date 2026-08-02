@@ -9,14 +9,26 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { buildLabSky, ENV_INTENSITY } from './sky.js';
+import { applyCalibToCamera } from '../camera/global-cam.js';
 
 /**
  * 무대를 만든다. 반환값의 `dispose()` 를 **반드시** 부른다 —
  * 탭을 왕복하면 WebGL 컨텍스트가 쌓여 브라우저가 막는다 (CONSOLE-REACT.md).
  */
 // 배경은 UI 배경(#faf9f7)보다 **어둡게** 둔다. 흰 방을 흰 배경에 놓으면 경계가 사라진다.
-export function createStage(host, { background = 0xd7dade } = {}) {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+/**
+ * 무대를 만든다.
+ *
+ * 글로벌 카메라 화면은 배치안 뷰와 **셋이 반대**라 옵션으로 연다 (새 stage 를 만들면
+ * 조명·톤매핑이 갈라져 두 화면 색이 달라진다):
+ *   · `alpha`    배경 투명 — 뒤에 카메라 영상이 비쳐야 한다
+ *   · `calib`    카메라를 캘리브레이션 값으로 **고정** — 화각·주점·포즈를 밖에서 주입
+ *   · `controls` 궤도 조작 끄기 — 천장에 박힌 실카메라는 돌아가지 않는다
+ */
+export function createStage(host, {
+  background = 0xd7dade, alpha = false, controls: useControls = true, calib = null,
+} = {}) {
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha });
   // 폰은 dpr 3 이 흔하다. 2 로만 잘라도 픽셀이 4배라 그림자 갱신이 눈에 띄게 느려진다.
 // 좁은 화면에서는 1.5 로 더 자른다 — 흰색 모형이라 계단이 잘 안 보인다 (질감이 없다).
 const _narrow = matchMedia?.('(max-width: 820px)').matches;
@@ -29,7 +41,10 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, _narrow ? 1.5 : 2));
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(background);
+  // 투명 배경은 `background = null` **과** clearAlpha 0 을 둘 다 해야 한다.
+  // 하나만 하면 검은 화면이 깔려 영상이 안 보인다.
+  if (alpha) renderer.setClearAlpha(0);
+  else scene.background = new THREE.Color(background);
 
   // 환경광 — 반사·거칠기가 여기서 나온다. 조명 몇 개로는 이 느낌이 안 난다.
   // **파일을 받지 않는다.** 64×32 절차적 하늘을 코드로 만든다 (sky.js).
@@ -39,11 +54,14 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, _narrow ? 1.5 : 2));
   scene.environmentIntensity = ENV_INTENSITY;
 
   const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 200);
+  if (calib) applyCalibToCamera(camera, calib);
 
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;       // 손맛. 이거 하나로 "잘 만든 것" 처럼 보인다
-  controls.dampingFactor = 0.08;
-  controls.maxPolarAngle = Math.PI * 0.49;  // 바닥 아래로 못 내려가게
+  const controls = useControls ? new OrbitControls(camera, renderer.domElement) : null;
+  if (controls) {
+    controls.enableDamping = true;     // 손맛. 이거 하나로 "잘 만든 것" 처럼 보인다
+    controls.dampingFactor = 0.08;
+    controls.maxPolarAngle = Math.PI * 0.49;  // 바닥 아래로 못 내려가게
+  }
 
   // 주광 — 그림자를 만드는 유일한 빛. 환경광이 나머지를 채운다.
   // 주광 — 그림자를 만드는 유일한 빛. 환경광이 나머지를 채운다.
@@ -71,8 +89,12 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, _narrow ? 1.5 : 2));
   function resize() {
     const w = host.clientWidth || 1;
     const h = host.clientHeight || 1;
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+    // **캘리브레이션 카메라는 화면 크기에 반응하지 않는다.** 투영 행렬이 실측 화각·주점이라
+    // 여기서 aspect 로 덮어쓰면 애써 잰 값이 날아간다. 화면 비율은 CSS 로 맞춘다.
+    if (!calib) {
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
     // **updateStyle 을 끄지 않는다.** 끄면 캔버스 CSS 크기가 버퍼 크기(=픽셀비 배)로 남아
     // 컨테이너의 몇 배가 되고 왼쪽 위 일부만 보인다. 실제로 밟았다.
     renderer.setSize(w, h);
@@ -83,7 +105,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, _narrow ? 1.5 : 2));
 
   const ticks = [];
   renderer.setAnimationLoop(() => {
-    controls.update();
+    controls?.update();
     for (const f of ticks) f();
     renderer.render(scene, camera);
   });
@@ -94,21 +116,22 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, _narrow ? 1.5 : 2));
     onTick: (f) => ticks.push(f),
     /** 대상 전체가 화면에 담기게 시점을 잡는다 */
     frame(object3d, { pitch = 0.42, pad = 1.35 } = {}) {
+      if (calib) return;               // 실카메라 시점은 옮기는 게 아니다
       const box = new THREE.Box3().setFromObject(object3d);
       if (box.isEmpty()) return;
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
       const r = Math.max(size.x, size.z) * 0.5 * pad;
       const dist = r / Math.tan((camera.fov * Math.PI) / 360);
-      controls.target.copy(center);
+      controls?.target.copy(center);
       camera.position.set(center.x + dist * 0.75, center.y + dist * pitch, center.z + dist * 0.75);
       camera.updateProjectionMatrix();
-      controls.update();
+      controls?.update();
     },
     dispose() {
       renderer.setAnimationLoop(null);
       ro.disconnect();
-      controls.dispose();
+      controls?.dispose();
       sky.dispose();
       renderer.dispose();
       host.removeChild(renderer.domElement);

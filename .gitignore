@@ -27,3 +27,13 @@ node_modules/
 */dist/
 AR/dist/
 Fr5Dashboard/dist/
+
+# 캘리브레이션 원본 사진·실측 서식 (scripts/dev/capture-cam.py)
+# 측정 원본이지 SSOT 가 아니다 — 결론은 Shared/data/config/global-cam.json 으로 간다
+calib-shots/
+
+# OpenCode 정찰 스크래치 — SSOT 가 아니다
+scratchpad/
+
+# 합성 고정물 — python3 scripts/map/make-fixture.py 로 다시 만든다
+AR/test/cam-fixture/

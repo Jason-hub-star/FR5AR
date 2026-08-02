@@ -57,6 +57,7 @@ export default defineConfig({
         index: resolve(here, 'index.html'),
         ar: resolve(here, 'ar.html'),
         robot: resolve(here, 'robot.html'),
+        cam: resolve(here, 'cam.html'),
         markertest: resolve(here, 'test/marker-detect.html'),
       },
     },

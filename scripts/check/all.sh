@@ -6,9 +6,12 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 FAIL=0
-for s in "$HERE"/*.sh; do
+# check/ 의 게이트 + 카테고리 폴더가 스스로 내놓은 게이트(`scripts/*/check-*.sh`).
+# 후자가 없으면 도메인 게이트를 사람이 손으로 불러야 해서 결국 안 돈다.
+for s in "$HERE"/*.sh "$HERE"/../*/check-*.sh; do
+  [ -f "$s" ] || continue
   [ "$(basename "$s")" = "all.sh" ] && continue
-  echo "───────── $(basename "$s") ─────────"
+  echo "───────── $(basename "$(dirname "$s")")/$(basename "$s") ─────────"
   bash "$s" || FAIL=1
   echo
 done

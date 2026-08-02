@@ -1,0 +1,22 @@
+// 수동 검증용 — 우분투 real 브리지(192.168.11.2:5055)가 떠 있을 때. WiFi 교체 시 IP 갱신.
+import { openPage } from '/Users/family/jason/FR5Web/.claude/skills/검증/references/cdp-harness.mjs';
+const URL = 'http://192.168.11.2:5055/';
+const OUT = '/private/tmp/claude-501/-Users-family-jason-FR5Web/481290f3-2055-4026-8046-4063d229057d/scratchpad/tb-mockup';
+const R=[]; const ck=(n,ok,d='')=>R.push([ok?'PASS':'FAIL',n,d]);
+const p = await openPage(URL, { port: 9350, windowSize: '1280,900' });
+try {
+  await p.waitFor(`window.TB_TABS?.length === 3`, { timeoutMs: 15000 });
+  ck('우분투 브리지가 웹앱 서빙 (탭 3)', (await p.eval(`window.TB_TABS?.join(',')`)) === 'drive,mapping,runs');
+  const badge = await p.waitFor(`document.querySelector('.source')?.textContent`, { timeoutMs: 8000 });
+  ck('adapter 배지 = real (실기 어댑터 물림)', badge === 'adapter:real', `배지=${badge}`);
+  const cards = await p.eval(`document.querySelectorAll('.robot-card').length`);
+  ck('로봇 카드 2대 (config: tb3_1·tb3_2)', cards === 2, `${cards}대`);
+  // 로봇 bringup 없음 → fail-safe: connected=false
+  const conn = await p.eval(`[...document.querySelectorAll('.robot-card')].map(c=>c.textContent).join(' | ')`);
+  ck('로봇 fail-safe 표시 (bringup 전 → disconnected)', /disconnected/.test(conn), conn.slice(0,120));
+  ck('슬롯 목록 로드', await p.eval(`fetch('/api/slots').then(r=>r.json()).then(s=>s.length>0)`));
+  ck('콘솔 에러 0', p.consoleErrors.length === 0, JSON.stringify(p.consoleErrors.slice(0,3)));
+  await p.screenshot(`${OUT}/p4-real.png`);
+} finally { p.close(); }
+let f=0; for(const[v,n,d]of R){if(v==='FAIL')f++;console.log(`${v}  ${n}${d?'  — '+d:''}`);}
+console.log(f===0?'\n전체 PASS':`\nFAIL ${f}건`); process.exit(f?1:0);

@@ -30,8 +30,16 @@ export const mmVec = (v) => v.map(mm);
  * **배치안은 Z-up 이다** — 바닥 평면이 x·y 이고 z 가 위다 (SR_23).
  * three.js 는 Y-up 이라 축을 바꿔야 한다. 부모 그룹을 돌리는 방법도 있지만,
  * 평면도 좌표를 화면 좌표로 **직접** 바꿔야 할 때가 있어 여기 함수로 둔다.
+ *
+ * **Y 부호를 뒤집는다.** 축을 그냥 맞바꾸면(`[x, z, y]`) 행렬식이 −1 인 **거울 사상**이라
+ * 씬이 실제의 좌우 반전이 된다. 배치안만 볼 때는 아무도 눈치채지 못하지만, 글로벌 카메라
+ * 영상 위에 겹치는 순간 첫 프레임에 드러나고 **카메라로는 흡수할 수 없다** —
+ * 뷰 행렬 행렬식이 −1 이 되어 회전으로 표현이 안 된다
+ * (`Shared/view3d/camera/global-cam.js`, 게이트 `scripts/map/check-camera.sh`).
+ *
+ * 실험실 좌표계는 **오른손**이다 — ROS 맵(`mapToLab`)도 OpenCV `solvePnP` 도 오른손을 전제한다.
  */
-export const planToScene = ([x, y, z]) => [mm(x), mm(z), mm(y)];
+export const planToScene = ([x, y, z]) => [mm(x), mm(z), -mm(y)];
 
 /** 두 평면도 좌표 사이 거리 (mm). 경로 길이·도달 판정에 쓴다. */
 export function distMm(a, b) {
