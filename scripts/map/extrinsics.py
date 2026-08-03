@@ -37,6 +37,10 @@ def template(tag_mm):
     return {
         "_단위": "밀리미터 · 도. 원점은 실험실 바닥의 그 점이다 (SR_23)",
         "_방법": "태그 네 장을 같은 방향으로(인쇄면 위쪽 = 실험실 +Y) 놓고 중심을 자로 잰다",
+        # **파일 선언값이 아니라 인쇄물 실측값이다.** 프린터가 배율을 줄이면 여기만 틀리고
+        # 나머지는 다 맞아 보이는데, 그 오차는 카메라 거리에 그대로 비례해 들어간다
+        # (10% 작으면 높이 2.40m 가 2.65m 로 나온다). 2026-08-03 실측 인쇄본은 145mm 였다.
+        "_크기": "↓ tagSizeMm 은 인쇄물의 **검은 사각형**을 자로 재서 고쳐라. 아래 값은 파일 기준일 뿐이다",
         "tagSizeMm": tag_mm,
         "defaultYawDeg": 0,
         "tags": {str(i): {"xMm": 0, "yMm": 0, "zMm": 0} for i in range(4)},
@@ -87,8 +91,10 @@ def main():
         print("좌표가 전부 0 이다 — 서식에 자로 잰 값을 적어야 한다", file=sys.stderr)
         return 1
 
-    shot = Path(a.shot) if a.shot else max(
-        (ROOT / "calib-shots/tags").glob("*.png"), key=lambda p: p.stat().st_mtime, default=None)
+    # png 만 보면 폰으로 찍은 사진(jpg)을 폴더에 넣어도 "없다"고 한다 — intrinsics 와 맞춘다
+    shots = list((ROOT / "calib-shots/tags").glob("*.png")) + \
+        list((ROOT / "calib-shots/tags").glob("*.jpg"))
+    shot = Path(a.shot) if a.shot else max(shots, key=lambda p: p.stat().st_mtime, default=None)
     if shot is None or not Path(shot).exists():
         print("태그 사진이 없다 — scripts/map/capture.py tags --shots 1", file=sys.stderr)
         return 1

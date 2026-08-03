@@ -30,16 +30,11 @@ Vite 관문 · 주제 확정(D16·D17) · 문서 무게 게이트(D18).
 **2026-07-31** — `web/` 정리 · 관제화면 별도 배포(D24) · 폰 측정 도구(`[측정 30초]`).
 **근거는 전부 `docs/evidence/` 에 날짜별로 있다** — 여기 다시 쓰지 않는다.
 
-- **터틀봇 상판 마커 실기 통과** — 35mm · 1.8m · 100%. AR.js 가 카메라·검출 해상도를 두 번
-  깎고 있었다(58%→100%). 합성 기준 24px 은 2배 비관적 (D26·D27 · `evidence/2026-07-31/marker-live-phone.md`)
-- **L1 배치안 편집기 완결 · 배포됨** — 고르고·끌고·돌리고·숫자로 넣고·되돌리고·저장된다.
-  실험실 12×8m · 100mm 격자 · 폰 터치. `https://fr5dashboard.vercel.app`.
-  **실렌더가 잡은 버그 12개** — `evidence/2026-07-31/dashboard-l1-editor.md` (D33~D35)
-- **Dashboard·FR5 디자인 규약 확정(D38)** — `Shared/tokens/` 의미 토큰 미러링 (화면 코드는 미적용)
-- **AR 화면 녹화 + 새 배포(D42)** — 카메라+3D 합성 mp4, 마커 `#5`·45mm·`src=1280&cv=960`.
-  배포 `https://fr5ar.vercel.app` (`evidence/2026-07-31/ar-record.md`)
-- **증거는 날짜가 폴더다(D37)** · **FR5 observe-only 기준선(D39)** —
-  `evidence/2026-07-31/fr5-live-readback.md`
+- **터틀봇 상판 마커 실기 통과** (35mm·1.8m·100%, D26·D27) · **L1 배치안 편집기 완결·배포**
+  (`fr5dashboard.vercel.app`, 실렌더가 버그 12개, D33~D35) · **AR 녹화+배포**
+  (`fr5ar.vercel.app`, D42) · 디자인 규약(D38) · 증거 폴더 규약(D37) · observe-only 기준선(D39)
+- 상세는 `evidence/2026-07-31/` 의 `marker-live-phone` · `dashboard-l1-editor` · `ar-record` ·
+  `fr5-live-readback` 에 있다
 
 ## FR5 트랙 (2026-07-31 P0~P2 완료)
 
@@ -87,17 +82,14 @@ Vite 관문 · 주제 확정(D16·D17) · 문서 무게 게이트(D18).
 `BUILD-VITE.md` §이관 순서가 정본이다. **A~D·G 완료.** 관제화면은 배포까지 갔다(D24).
 
 1. **저장을 팀 공유로** — 이관 H. `Shared/data/config/` 슬롯 (지금은 브라우저 한 대뿐, D34)
-2. ~~E — 새 Vercel 프로젝트 `fr5ar` 로 `AR/` 배포~~ **완료 2026-07-31** —
-   `https://fr5ar.vercel.app` · 기존 `web` 은 안 건드렸다. **폰 확인이 남았다** (D42)
-3. ~~고정 카메라 1단계~~ **완료 2026-08-02** — 캘리브레이션 도구·카메라 변환·실렌더까지
-   (`evidence/2026-08-02/cam-overlay.md`). **남은 것은 하드웨어와 `mapToLab` 이다**
-4. L2 AR 검증 → L3 비교 (목업)
+2. ~~E — `fr5ar` 배포~~(07-31·D42, 폰 확인 잔여) · ~~고정 카메라 1단계~~(08-02) **완료**
+3. L2 AR 검증 → L3 비교 (목업)
 
 ## 터틀봇 관제 트랙 (2026-07-31 개설 · D29~D31)
 
 **AMR 기종 확정 — TurtleBot3 Burger ×2** (eduwing-robotics/ros2-ai-amr-repo2 ·
 ROS 2 Jazzy · Nav2). 팀원 전원이 URL 하나로 켜고·몰고·매핑하고·기록 보는
-관제 대시보드를 `TurtleBot/`(웹 + tb-bridge)에 세운다. 계약 `docs/ref/TB-CONTRACT.md` 완료.
+관제 대시보드를 `TurtleBot/`(웹 + tb-bridge)에 세운다. 계약 `docs/ref/contract/TB-CONTRACT.md` 완료.
 
 진행 순서(플랜 승인 2026-07-31): **계약 → `/감사` 실사용 워크스루 → Codex UI 목업(주인님
 승인 게이트) → 맥 mock 구현(P1~P3) → 우분투 실기(P4, 날짜 확보 대기)**.
@@ -126,7 +118,7 @@ fail-safe(disconnected) 실렌더 확인. **로봇 실주행만 남았다** — 
 
 | | |
 |---|---|
-| **시작 지점** | `docs/ref/FR5-BRINGUP.md` — 로봇 붙이는 5분 순서 |
+| **시작 지점** | `docs/ref/runbook/FR5-BRINGUP.md` — 로봇 붙이는 5분 순서 |
 | **먼저 읽을 것** | `DECISION-LOG-CURRENT.md` **D45~D49** → `docs/goals/GOAL-live-gripper.md` |
 | **첫 명령** | `bash scripts/check/all.sh` → 브링업 문서의 ①~④ |
 | **막힌 것** | 없음. 하드웨어(게임패드·손목 카메라·GPU) 확보만 팀 결정 대기 |
@@ -141,14 +133,21 @@ fail-safe(disconnected) 실렌더 확인. **로봇 실주행만 남았다** — 
 
 **로봇 상태** — OBSERVE_ONLY · 조종권 없음 · 서보 OFF (안전 상태로 두고 닫았다).
 
-## AR 트랙 — 다음 행동 (2026-08-02 세션 결론)
+## AR 트랙 — 내일 현장 (2026-08-03 갱신)
 
-소프트웨어는 사진 한 장이면 끝까지 돈다 (실렌더 정합 0.83px). 남은 것은 셋 —
-①카메라를 고르고 2.2~2.6m 에 고정 ②`mapToLab` 측정 절차(**최대 관문**) ③렌즈 왜곡 보정.
-**카메라를 먼저 정해야** 태그를 A4 로 뽑을지 A3 로 뽑을지가 정해진다. 폰도 되지만
-**초점을 잠가야** 한다 — 초점이 변하면 화각이 같이 변해 캘리브레이션이 조용히 무효가 된다.
-다음: 인쇄 → `map/capture.py` → `intrinsics.py` → `extrinsics.py` (책상 60×40cm 로 리허설 가능).
-근거·교훈은 `evidence/2026-08-02/cam-overlay.md` 와 D43.
+소프트웨어는 사진 한 장이면 끝까지 돈다 (실렌더 정합 0.83px · 전체 사슬 1.27px).
+인쇄물도 준비됐다 — A4 6장(`Shared/assets/tag/`), 실측 검은 사각형 **145mm**.
+
+**막힌 것은 하드웨어 하나** — 있는 USB 웹캠이 **640×480 고정**이라 실제 맵에서 1.9 px/칸이다
+(안전선 5.0). 1080p 이상이 필요하고 **갤럭시로 임시 대체된다**(초점·HEIF·VDIS 잠금 조건).
+
+**현장 순서·명령·폰 설정은 `research/ar-global-camera.md` §B 가 정본이다.** 첫 걸음은
+바닥 원점 테이프, 카메라 자리는 `scripts/map/aim.py` 가 초록을 띄우는 지점.
+⚠ `tagSizeMm` 은 파일값이 아니라 **인쇄물 실측값**을 쓴다 (틀리면 높이가 10% 밀린다).
+
+남은 관문 둘 — `mapToLab` 측정 절차(**최대**) · 렌즈 왜곡 보정. 고정 글로벌 카메라의
+스트림 주인은 아직 미정이다(손목 카메라는 D48 로 파이 확정).
+근거는 `evidence/2026-08-03/global-cam-aim.md` · `evidence/2026-08-02/cam-overlay.md` · D43.
 
 ## 하네스 (2026-07-30 한국어 배선 · D19)
 

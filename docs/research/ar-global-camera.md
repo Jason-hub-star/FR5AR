@@ -89,13 +89,32 @@ FR5 관절값 --FK--> arm.basePosMm ┤→  실험실 바닥 원점 (mm · Z-up)
 |---|---|---|
 | B0 | **라이다 스캔 평면 높이 실측** → 벽 높이 확정 | 자로 잰 mm 값이 문서에 박힌다 |
 | B1 | 맵 제작 — **16:9 비율**, 벽 세우기, 바닥 원점·X축을 테이프로 표시 | 원점이 물리적으로 존재한다 |
-| B2 | 카메라 설치 — **긴 변 중앙 위** 2.2~2.6m, 하향 50~60° | 맵 네 모서리가 전부 화면 안 (여백 10%) |
+| B2 | 카메라 설치 — **긴 변 중앙 위** 2.2~2.6m. 하향각은 각도기 없이: **카메라 바로 아래 → 영역 중심 = 높이 × 0.7** (=55°). 자리는 `python3 scripts/map/aim.py` 로 정한다 | 화면이 **초록(≥5 px/칸)** · 태그 4/4 |
 | B3 | AprilTag 4장을 맵 모서리에 고정하고 **바닥 원점 기준 좌표를 자로 재서 기록** | 4점 좌표가 mm 로 적혀 있다 |
 | B4 | A2·A3 재실행 (실제 카메라 위치에서) → `bash scripts/map/check-calib.sh` | 게이트 통과 · 높이·하향각이 실측과 일치 |
+| B4′ | **id4 를 테이블 위(z≈900mm)에 올려 높이 정합 확인** — 바닥 태그로 푼 카메라는 바닥에서만 검증됐다 | 격자가 테이블 면에서도 붙는다 |
 | B5 | SLAM 매핑 → 맵 저장 → **`mapToLab` 측정·PATCH** (TB-CONTRACT §미래접점③ 의 미정 절차) | 맵 좌표의 한 점이 바닥 원점과 일치 |
 | B6 | **G5** — AMR 실주행 중 가상 터틀봇이 실물 위에 붙는지 | 실물과 가상이 같이 움직인다 |
 | B7 | **영상 지연 실측** — 손뼉 순간과 영상 프레임 차이 | 지연 ms 값이 설정에 들어간다 |
 | B8 | FR5 옆 폰 AR 6단계(실물 겹치기) — 기존 슬라이스 잔여 | 실물 팔과 가상 팔 윤곽이 겹친다 |
+
+**현장 명령 순서 (B2~B4)** — ②에서 카메라를 고정한 뒤로는 절대 안 움직인다. ③과 ⑤ 사이에 움직이면 ⑤를 다시 한다.
+
+```bash
+python3 scripts/map/aim.py --width 1920 --height 1080     # ① 자리 잡기 (초록 뜰 때까지)
+                                                          # ② 카메라 고정
+python3 scripts/map/capture.py charuco                    # ③ 차루코는 손에 들고 각도·거리 바꿔 15~20장
+python3 scripts/map/intrinsics.py
+python3 scripts/map/extrinsics.py --init                  # ④ 서식에 실측 좌표 기입
+                                                          #    ⚠ tagSizeMm 을 인쇄물 실측값으로! (2026-08-03 실측 145)
+python3 scripts/map/capture.py tags --shots 1             # ⑤
+python3 scripts/map/extrinsics.py
+bash scripts/map/check-calib.sh
+```
+
+**폰을 카메라로 쓸 때 잠글 것 넷** — HEIF 저장 끄기(cv2 가 못 읽는다) · 초광각 금지(메인 1x만) ·
+초점 수동 고정 · 손떨림 보정(VDIS) 끄기. 사진만 필요하면 앱 없이 `calib-shots/charuco|tags/` 에
+넣어도 된다 (두 스크립트 모두 jpg 를 읽는다).
 
 **B5 가 이 프로젝트의 진짜 관문이다.** `mapToLab` 측정 절차가 아직 계약에 "P4 에서 정한다"로만 남아 있다 — AMR·FR5·AR 이 하나로 붙는지는 전적으로 여기서 갈린다.
 
@@ -201,7 +220,7 @@ FR5 관절값 --FK--> arm.basePosMm ┤→  실험실 바닥 원점 (mm · Z-up)
 
 ## 계약에 먼저 들어가야 할 것 (하드 룰 1)
 
-코드보다 `docs/ref/API-CONTRACT.md` 가 먼저다.
+코드보다 `docs/ref/contract/API-CONTRACT.md` 가 먼저다.
 
 ```
 GET   /api/camera/stream            MJPEG 실시간 영상 (글로벌 카메라)
