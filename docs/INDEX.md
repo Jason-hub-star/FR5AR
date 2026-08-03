@@ -20,6 +20,7 @@
 | `docs/ref/SAFETY-RULES.md` | 안전 판정 조건 19개와 SDK 필드 매핑, fail-closed 원칙 | SSOT | **로봇에 명령 보내는 코드 쓰기 전** |
 | `docs/ref/MILESTONES.md` | **L1~L3(배치 실험)** + H0~V7(FR5 플랫폼) 단계와 완료 조건 | SSOT | 다음에 뭘 할지 정할 때 |
 | `docs/ref/FR5-IMPLEMENTATION-PLAN.md` | **FR5 상세 계획** — 5패널·실기 게이트·슬롯·기록·수천 회 시뮬레이션 | SSOT | FR5 구현·범위·순서를 정할 때 |
+| `docs/ref/FR5-BRINGUP.md` | **FR5 브링업 절차** — 우분투 호스트에서 로봇 붙이는 5분 순서·증상별 조치 | SSOT | **로봇을 켜고 붙일 때 제일 먼저** |
 | `docs/ref/AR-DEBUG.md` | AR 디버깅 — 화면 진단판 읽는 법 · 증상별 원인 · 자동화 한계 | SSOT | **AR이 안 될 때 제일 먼저** |
 | `docs/ref/BUILD-VITE.md` | 앱(`AR`/`Dashboard`/`FR5`/`TurtleBot`)·`Shared` 경계 · 파일 귀속 · 게이트 경로 | SSOT | **폴더·빌드·의존성을 건드릴 때** |
 | `docs/ref/SHARED-CORE.md` | 배치안 모델 · 단위 · 설정 · datasource — **두 폴더의 합의점** | SSOT | **데이터 모양을 건드릴 때 제일 먼저** |
@@ -120,6 +121,6 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 
 ## 자가검증
 
-- INDEX.md에 등재된 문서 행 개수 = 56/56
+- INDEX.md에 등재된 문서 행 개수 = 57/57
 - PROJECT-STATUS.md의 "다음 한 걸음" 항목 개수 = 5/5
 - PROJECT-STATUS.md의 "블로커" 항목 개수 = 3/3
