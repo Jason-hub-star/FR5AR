@@ -25,6 +25,7 @@ scripts/
 │   └── make-marker-test-images.py  마커 검출 실측용 합성 이미지 117장
 └── map/                        실제 맵 + 글로벌 카메라 (한 워크플로 = 한 폴더)
     ├── make-tags.py              AprilTag 36h11 + ChArUco 인쇄 시트 · tags.json (제원 SSOT)
+    ├── aim.py                    카메라 위치 잡기 — 실시간 px/칸 판정 (찍기 전에 쓴다)
     ├── capture.py                웹캠 촬영 (오토포커스·해상도 잠금)
     ├── intrinsics.py             ChArUco 사진 → 카메라 화각·왜곡
     ├── extrinsics.py             태그 사진 + 실측 좌표 → labToCam
@@ -47,6 +48,7 @@ scripts/
 
 ```
 map/make-tags.py                                 →  인쇄물 (1회)
+map/aim.py                                       →  카메라 자리 (찍기 전 · 화면 보고)
 map/capture.py charuco  →  map/intrinsics.py     →  렌즈  (카메라당 1회)
 map/capture.py tags     →  map/extrinsics.py     →  위치  (카메라를 건드릴 때마다)
                            map/check-calib.sh    →  게이트
@@ -105,11 +107,12 @@ node scripts/build/config.mjs --check  # 쓰지 않고 대조만 (게이트가 �
 
 | 스크립트 | 상수 | 현재값 | 언제 바꾸나 |
 |---|---|---|---|
-| `check/harness.sh` | `WANT_COMMANDS` `WANT_SKILLS` | 0 / 14 | 스킬을 더 만들거나 합칠 때 |
+| `check/harness.sh` | `WANT_COMMANDS` `WANT_SKILLS` | 0 / 15 | 스킬을 더 만들거나 합칠 때 |
 | `check/assets.sh` | `WANT_ARM_TRIS` `WANT_GRIP_TRIS` | 58482 / 70102 | 유니티 원본 모델이 바뀔 때 |
 | `check/docs.sh` | `REQUIRED` 배열 | 15개 | SSOT 문서를 추가·삭제할 때 |
 | `assets/make-marker-sheet.py` | `SHEETS` · `QUIET_RATIO_MIN` | A4 170/14mm · A3 240/20mm · 하한 6% | 마커 크기·용지를 바꿀 때 |
-| `map/make-tags.py` | `SHEETS` · `QUIET_RATIO` | A4 150mm · A3 220mm · 1/8 | 태그 크기·용지를 바꿀 때 |
+| `map/make-tags.py` | `SHEETS` · `QUIET_RATIO` · `TAG_IDS` | A4 160mm · 1/8 · id 0~4 | 태그 크기·용지를 바꿀 때 |
+| `map/aim.py` | `SAFE` · `RISKY` | 5.0 · 3.0 px/칸 | 검출 한계 실측이 갱신될 때 |
 | `build/config.mjs` | `AVAILABLE_BARCODES` | 2 · 3 · 5 | 바코드 원본을 더 받거나 지울 때 |
 | `check/docs-weight.sh` | `CAP_ENTRY_*` `CAP_STATUS_*` | 80/110 · 120/160 | 진입 문서 상한을 바꿀 때 |
 | `check/docs-weight.sh` | `CAP_DOC_*` `CAP_INDEX_*` | 300/450 · 45/60 | 개별 문서·INDEX 행 상한 |
