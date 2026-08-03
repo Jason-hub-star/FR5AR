@@ -488,7 +488,7 @@
 Vercel 빌드로 하려면 하위 폴더에서 `npm install` 이 돌아야 하는데
 npm workspaces 는 그렇게 안 풀린다 (`@fr5/shared` 가 형제 폴더다).
 루트 기준 설정으로 옮기는 건 AR 과 충돌하므로 **지금은 안 한다.**
-로컬 빌드는 실렌더로 검증한 뒤 올린다 — `docs/evidence/2026-07-31/dashboard-editor.md`.
+로컬 빌드는 실렌더로 검증한 뒤 올린다 — `docs/evidence/2026-07-31/dashboard-l1-editor.md`.
 
 **CLI 주의** — 비대화형에서는 `--scope kimjuyoung1127s-projects` 를 **명시해야 한다.**
 없으면 `missing_scope` 로 멈춘다.

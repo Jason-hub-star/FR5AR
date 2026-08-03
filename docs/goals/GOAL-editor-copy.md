@@ -37,7 +37,7 @@ bash scripts/check/all.sh        # → 전체 통과
 npm run build:dash               # → 성공
 ```
 
-아티팩트 — `docs/evidence/2026-07-31/dashboard-copy.md`
+아티팩트 — `docs/evidence/2026-07-31/dashboard-l1-editor.md`
 (실렌더 판정. **골 경계의 사람 승인 게이트**다. 코드 게이트만으로 완료 선언하지 않는다)
 
 ## 3. Constraints (후퇴 금지)
@@ -73,7 +73,7 @@ npm run build:dash               # → 성공
 | ③ `.seg` 규칙 | 1 | **1** |
 | ④ `bash scripts/check/all.sh` | 전체 통과 | **전체 통과** |
 | ⑤ `npm run build:dash` | 성공 | **성공** (144ms) |
-| ⑥ 실렌더 evidence | 있음 | **`evidence/2026-07-31/dashboard-copy.md`** |
+| ⑥ 실렌더 evidence | 있음 | **`evidence/2026-07-31/dashboard-l1-editor.md`** |
 
 - **재현됨** — Outcome 1~5 전부. 세그먼트 좌표(1246→1246) · 안내 플래그(`"1"`) ·
   폰에서 편집 전후 캔버스 415→415px 를 브라우저에서 측정

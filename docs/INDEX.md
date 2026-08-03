@@ -35,10 +35,7 @@
 | `docs/evidence/2026-07-30/marker-detect.md` | 마커 검출 **합성 이미지** 실측 — 크기보다 대비, 워밍업 수십 프레임 | 증거 | 마커·인쇄를 다룰 때 (임계값은 아래 실기판이 정본) |
 | `docs/evidence/2026-07-31/marker-live-phone.md` | 마커 검출 **폰 실기** — 24px 기준이 2배 비관적 · AR.js 기본 해상도가 병목 · 35mm 1.8m 100% | 증거 | **AR 인식률·마커 크기를 정할 때 제일 먼저** |
 | `docs/evidence/2026-07-30/vite-gate.md` | Vite 관문 — 빌드 통과, JS gzip −26%, 죽은 파일 1개 | 증거 | 번들러·의존성을 바꾸기 전에 |
-| `docs/evidence/2026-07-31/dashboard-copy.md` | 메인뷰 문구 교체 실렌더 — **코드 게이트가 통과시킨 결함 2개를 실렌더가 잡았다** | 증거 | 화면 문구·레이아웃을 바꿀 때 |
-| `docs/evidence/2026-07-31/dashboard-save-undo.md` | 편집 저장·되돌리기 왕복 실렌더 9항목 — 저장 갭을 닫은 근거 | 증거 | 편집 저장·되돌리기를 건드릴 때 |
-| `docs/evidence/2026-07-31/dashboard-coord-input.md` | 좌표 직접 입력 실렌더 11항목 — **"보여줄 값의 정본이 어디인가"가 낳은 결함 3개** | 증거 | 화면에 값을 표시·편집하게 만들 때 |
-| `docs/evidence/2026-07-31/dashboard-deploy.md` | 관제화면 배포 — **배포본을 실제로 클릭해서야 나온 결함 3개** (조사·클릭 스냅·미리보기 잔류) | 증거 | 배포하기 전 · 입력 상호작용을 건드릴 때 |
+| `docs/evidence/2026-07-31/dashboard-l1-editor.md` | **L1 편집기 실렌더 5판 통합** — 문구·저장·되돌리기·좌표입력·배포본. 실렌더가 잡은 결함 12개 | 증거 | 화면 값 표시·편집·배포를 건드릴 때 |
 | `docs/evidence/2026-07-31/tb-계약감사.md` | TB-CONTRACT 착수 전 감사 — 렌즈 5개 · 발견 21건 전건 반영 | 증거 | 터틀봇 계약의 근거가 필요할 때 |
 | `docs/evidence/2026-07-31/tb-ui-reference.md` | TB 관제 UI 레퍼런스 목업 3장 — P1 의 시각 기준 | 증거 | 터틀봇 화면을 짤 때 |
 | `docs/evidence/2026-07-31/tb-mock-verify.md` | TB 검증 4판(웹·브리지·사이클 mock + 우분투 실기) 61항목 — 결함 6·실주행 보류 | 증거 | 터틀봇 웹·브리지·실기를 고칠 때 |
@@ -121,6 +118,6 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 
 ## 자가검증
 
-- INDEX.md에 등재된 문서 행 개수 = 57/57
+- INDEX.md에 등재된 문서 행 개수 = 54/54
 - PROJECT-STATUS.md의 "다음 한 걸음" 항목 개수 = 5/5
 - PROJECT-STATUS.md의 "블로커" 항목 개수 = 3/3

@@ -12,8 +12,9 @@ FAIRINO FR5의 유일한 명령 관문이다. 계약은 `docs/ref/API-CONTRACT.m
 - `robot_adapter/` — mock 과 **fairino(공식 Python SDK 순수 표준 라이브러리 벤더링, D42)**.
   실기 첫 조그 통과 (`docs/evidence/2026-07-31/fr5-first-motion.md`)
 - 빌드된 웹(`FR5/dist`)을 같은 주소에서 LAN 서빙 — 주소를 여는 누구나 조작 후보 (팀 신뢰)
-- 실행 `bash scripts/dev/fr5-dev.sh` (실기: `FAIRINO_DLL=<libfairino.dll 경로>` 필요) ·
-  검증 `node scripts/check/fr5-{bridge,web}-verify.mjs`
+- 실행 `bash scripts/dev/fr5-dev.sh` (준비물 없음 — 순수 파이썬 SDK, D42) ·
+  검증 `node scripts/check/fr5-{bridge,web}-verify.mjs` ·
+  실기 배포 `bash scripts/deploy/fr5-ubuntu.sh` (우분투 호스트 · `http://192.168.10.49:5055`)
 
 예정 책임:
 

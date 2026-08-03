@@ -39,7 +39,7 @@ Vercel 배포(D11) · 폰 실기 확인(D15) · 깃허브 공개(D14) · Vite �
   저장된다.** 흰색 모형 실험실 12×8m(가구 21개) · 100mm 격자 · 폰 터치.
   공유 주소 **`https://fr5dashboard.vercel.app`**.
   **실렌더가 잡은 버그 12개** (편집기 4 · 문구 2 · 값 표시 3 · 배포본 3) —
-  `evidence/2026-07-31/dashboard-{editor,copy,save-undo,coord-input,deploy}.md`.
+  `evidence/2026-07-31/dashboard-l1-editor.md`.
   결정은 D33(골 브리프)·D34(저장)·D35(값의 정본·끌기 문턱)
 - **Dashboard·FR5 디자인 규약 확정(D38)** — `Shared/tokens/` 의미 토큰 미러링 (화면 코드는 미적용)
 - **AR 화면 녹화 + 새 배포(D42)** — 카메라+3D 합성 mp4, 마커 `#5`·45mm·`src=1280&cv=960`.

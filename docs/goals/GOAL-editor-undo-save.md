@@ -77,7 +77,7 @@ npm run build:dash               # → 성공
 | ② 헤드리스 노출 | 1건 | **`window.__fr5edit`** |
 | ③ `bash scripts/check/all.sh` | 전체 통과 | **전체 통과** |
 | ④ `npm run build:dash` | 성공 | **성공** (136ms) |
-| ⑤ 왕복 실렌더 기록 | 있음 | **`evidence/2026-07-31/dashboard-save-undo.md`** (9항목) |
+| ⑤ 왕복 실렌더 기록 | 있음 | **`evidence/2026-07-31/dashboard-l1-editor.md`** (9항목) |
 
 - **재현됨** — Outcome 1~5 전부. 특히 `⌘Z` 가 편집 직전 스냅샷과 **문자열까지 일치**하게
   복원하는 것과, A↔B 를 오가도 A 편집이 그대로인 것을 브라우저에서 측정
