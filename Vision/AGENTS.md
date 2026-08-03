@@ -12,4 +12,13 @@
 
 아직 비어 있다. 착수하면 여기에 구조를 적는다.
 
-읽을 것 — `docs/ref/ARCHITECTURE.md` §비전 · `docs/ref/SAFETY-RULES.md`
+**이 폴더를 구체화할 때 `docs/research/vision-imitation.md` 를 먼저 읽는다** (2026-08-03) —
+모방학습(그리퍼 뎁스카메라로 사람 시연을 관찰해 재현) 요구의 접근법·스택·사다리·함정이
+거기 있다. 조사 문서라 SSOT 가 아니다: **값을 박기 전에 `docs/ref/` 로 승격**한다.
+
+착수 전 이미 정해진 것 둘 — ①범위는 **시연 1건 → 궤적 1건 재생, 일반화 없음** (D45)
+②학습 루프도 **브리지를 통해서만** 로봇과 말한다. xmlrpc(20003)는 연결이 하나뿐이라
+밖에서 병행 접속하면 컨트롤러가 넘어간다 (실측).
+
+읽을 것 — `docs/ref/ARCHITECTURE.md` §비전 · `docs/ref/SAFETY-RULES.md` ·
+`docs/research/vision-imitation.md`
