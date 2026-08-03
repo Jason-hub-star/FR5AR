@@ -7,22 +7,13 @@
  "sheets": [
   {
    "paper": "A4",
-   "tagSizeMm": 150,
+   "tagSizeMm": 160,
    "ids": [
     0,
     1,
     2,
-    3
-   ]
-  },
-  {
-   "paper": "A3",
-   "tagSizeMm": 220,
-   "ids": [
-    0,
-    1,
-    2,
-    3
+    3,
+    4
    ]
   }
  ],
