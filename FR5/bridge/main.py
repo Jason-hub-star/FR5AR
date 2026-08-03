@@ -207,7 +207,12 @@ async def version():
 
 
 @app.post("/disconnect")
-async def disconnect():
+async def disconnect(body: dict | None = None):
+    # 주인이 있을 때는 주인만 끊는다 — 남의 실행을 아무나 중단시키면 그것도 사고다.
+    # 주인이 없으면 누구나 끊을 수 있다 (observe-only 정리는 막을 이유가 없다).
+    holder = owner.get()
+    if holder and not owner.is_owner((body or {}).get("who")):
+        return refuse([f"조종권이 {holder} 에게 있다 — 먼저 STOP 하거나 주인이 끊는다"], 403)
     if session["adapter"]:
         if session["armed"]:
             await asyncio.to_thread(_disarm_hw, "disconnect")
@@ -275,6 +280,11 @@ async def arm(body: dict):
         return refuse([f"arm 시퀀스 실패 — {e}"])
     if reasons:
         return refuse(reasons)
+    # arm 시퀀스가 도는 동안(수 초) 조종권이 넘어갔을 수 있다 — 그 사이 자동 해제가 돌면
+    # armed 가 아직 False 라 _owner_lost 가 아무것도 안 하고, 여기서 주인 없는 ARMED 가 남는다
+    if not owner.is_owner(who):
+        await asyncio.to_thread(_disarm_hw, "arm 중 조종권 소실")
+        return refuse(["arm 중 조종권을 잃었다 — 다시 잡고 ARM"], 403)
     session["armed"] = True
     log("ARMED", f"who={who}")
     return {"ok": True, "phase": "ARMED", "reasons": []}

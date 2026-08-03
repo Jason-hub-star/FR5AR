@@ -14,8 +14,16 @@
 | Fairino 파이썬 SDK가 PyPI에 없어 설치 경로 미확인 | V0 | **CLOSED (2026-07-31)** | 순수 표준 라이브러리 확인 → `fairino_sdk/` 벤더링 (D42) |
 | macOS에서 FAIRINO C# SDK 직접 연결 가능 여부 | H0·V0 | **CLOSED (2026-07-31)** | 실물에서 version·6축·TCP readback 성공. Python SDK는 별도 갭 (`evidence/2026-07-31/fr5-live-readback.md`) |
 | 같은 FR5라도 다른 개체 배정 시 IP·펌웨어를 고정값으로 오인 | V0~V7 | **CLOSED (2026-07-31)** | profile+preflight 구현, 실측 모델 `FR5-V1-002(V6.0)` 등재 |
-| 어댑터 xmlrpc 호출 무타임아웃 — stop/disarm 행이면 잠금 보유 채 브리지 전체가 굳는다 | V0~V2 | OPEN | `fairino.py` xmlrpc 호출에 타임아웃(소켓/스레드) 씌우고 행 시 fail-closed |
-| `/state` 간헐 JSON 깨짐 (char 521 부근, 전이 순간) | V0·V1 | OPEN | 불량 표본 원문 포집 → 직렬화 지점 특정. WS 는 프레임 1개 유실로 끝나 치명적이진 않다 |
+| 어댑터 xmlrpc 호출 무타임아웃 — stop/disarm 행이면 잠금 보유 채 브리지 전체가 굳는다 | V0~V2 | **CLOSED (2026-08-03)** | `_guard()` 스레드 상한 3초 + **stop 은 잠금 0.2초만 기다리고 무락 발사** (SAFETY-RULES 제3원칙) · disconnect 도 잠금 안으로. D45 |
+| 실기 게이트 — 2클라이언트 409 · 10분 폴링 · 재부팅 자동기동 | V0~V2 | **CLOSED (2026-08-03)** | 셋 다 통과 (`evidence/2026-08-03/fr5-field-gates.md`). 단 프레임 공백 5.4초 1회 관측 |
+| 그리퍼 SDK 시그니처·실물 정체 미확인 | P3 | **CLOSED (2026-08-03)** | 실물 PGE A-100-40 · `SetGripperConfig(4,0)` · 개폐 2회 실기 확인 (`STACK.md` §그리퍼) |
+| 조종권이 이름 문자열만으로 통과한다 (hello 위장) | V2~ · P3 그리퍼 | OPEN | claim 시 세션 토큰 발급 → hello 가 토큰을 싣게. 로그인 없이 닫힌다 (D45 · 감사 P0) |
+| 그리퍼 지령 pct ↔ 읽기 pct 방향 반대 · `GetGripperMotionDone` 필드 순서 의심 | P3 | OPEN | 사다리 1 착수 때 3점 이상 대응표 실측 → 브리지 한 곳에서 변환 (하드 룰 5) |
+| 부팅 후 로봇 자동 재연결 없음 + 그 사실을 팀이 알 방법 없음 | 운영 | OPEN | 서비스 기동 후 지연 `/connect` 1회 자동 시도(실패해도 무해) 또는 화면에 상시 표시 |
+| 브리지 비정상 종료 시 컨트롤러 세션 점유 — 복구 힌트 없음 | V0 | OPEN | `/connect` 실패 사유에 "컨트롤러 세션 점유 의심 — 재부팅" 힌트 추가 |
+| 브리지 로그가 `journalctl`(ssh 보유자)에게만 보인다 | 운영 | OPEN | 최근 N줄 링버퍼 + `/debug/log` 읽기 전용 (LAN 팀신뢰 전제) |
+| 모방학습 — 뎁스카메라 스트림의 소유 브리지·화면 미정 | 신규 요구 | OPEN | 하드 룰 1 — `API-CONTRACT.md` 에 `/api/camera/*` 를 먼저 쓴다 |
+| `/state` 간헐 JSON 깨짐 (char 521 부근, 전이 순간) | V0·V1 | **CLOSED (2026-08-03)** | 브리지 무죄 — 개발 맥의 rtk 훅이 파이프 출력 510B에서 잘라 `[full output: …]` 꼬리를 붙인 것. 파일 저장·`rtk proxy curl` 은 100% 정상 (95회 실측) |
 | 실기 P2 잔여 게이트 — 2클라이언트 409·10분 폴링 | V2 | OPEN | 다음 현장 세션에서 각 5분 |
 | `fairino_cs/`(폐기된 C# 경로) 보존 여부 | — | OPEN | 증거 보존 중 — 다음 정리 때 archive 이관 판단 |
 | 씬 축 매핑이 거울이었다 (`planToScene` det −1) | 3D 전체·AR 오버레이 | **CLOSED (2026-08-02)** | D43 · 17곳 수정 + `check/scene-axes.sh` 게이트 (`evidence/2026-08-02/cam-overlay.md`) |
@@ -25,7 +33,9 @@
 | 높이 정합이 사진으로 검증 안 됨 | AR 오버레이 | OPEN | 합성 사진에 높이 있는 실물이 없다. 실제 맵에서 벽을 세우면 닫힌다 |
 | 컷어웨이가 벽만 숨기고 문짝·문틀은 남긴다 | 배치안 3D 보기 | OPEN | 숨긴 벽의 문 유리가 허공에 뜬다. `updateCutaway` 가 문 부품도 같이 토글해야 한다 |
 | `mapToLab` 측정 절차 미정 | AMR↔FR5↔AR 연결 전부 | OPEN | TB-CONTRACT §미래접점③ 이 "P4 에서 정한다"로만 남아 있다. **이번 트랙 최대 관문** |
-| `docs/evidence/2026-07-31/` 15건 > 상한 14 | 게이트 레드 | OPEN | 미커밋 터틀봇 P4 세션 산물. 같은 주제 두 파일을 합칠지는 그 세션 주인이 정한다 |
+| `docs/evidence/2026-07-31/` 15건 > 상한 14 | 게이트 레드 | **CLOSED (2026-08-03)** | tb 검증 mock+실기 두 파일을 `tb-mock-verify.md` 한 건으로 합쳐 14 로 |
+| tb-bridge 실기 배포 (우분투 real 어댑터) | 터틀봇 실기 관제 | **CLOSED (2026-08-03)** | `ej@192.168.11.2` 기동·실렌더 6/6 (`evidence/2026-07-31/tb-mock-verify.md` §P4) |
+| 로봇 실주행 (bringup·teleop·SLAM) | 터틀봇 실주행 전부 | **BLOCKED** | WiFi 교체 예정 → 교체 후 로봇 bringup(도메인 0) 켜고 재개. `config.yaml`만 갱신 |
 | 실물 그리퍼·tool/user·페이로드·충돌 형상 미보정 | V3·V5·V6 | BLOCKED | 현장 값 확정 전 시뮬레이션 후보를 “최적” 또는 실기 승인으로 승격하지 않는다 |
 | 폰 HTTPS 접속 방식 미결정 (mkcert vs 터널) | V3 | BLOCKED | 개발 환경과 시연 환경에서 접속 방법 확정 |
 | 기록 저장소 미정 (파일/SQLite/Supabase) | F6, V4 | BLOCKED | 저장 방식과 보존 기간 팀 회의에서 확정 |

@@ -272,4 +272,26 @@ Unity `LiveFairinoClient.cs` 원본 대조**다 (evidence/2026-07-31/fr5-live-re
 `-3 = xmlrpc 통신 실패` · `-2 = 컨트롤러 통신 이상` · `-1 = 기타`.
 Unity `FairinoErrorTranslator` 의 `-4="비상정지"` 매핑은 **공식과 다르다** — 공식이 이긴다.
 
-**미확인 (쓰기 전 재검증)** — `ActGripper`/`MoveGripper` 시그니처 (P3 그리퍼 전).
+**그리퍼 시그니처 (2026-08-03 벤더링 SDK `Robot.py` 소스로 확정 — 실기 스모크 전까지 미검증)**
+
+실물 펜던트 설정(주인님 실측): **제조업체 DAHUAN(대환) · 유형 PGI-140 · D1.0 · 말단 1번 포트**.
+펜던트 4필드는 `SetGripperConfig` 인자와 1:1 이다.
+
+| 호출 | 시그니처·값 |
+|---|---|
+| `SetGripperConfig(company, device, softversion=0, bus=0)` | **company 4=대환 · device 0=PGI-140** (대환의 유일한 선택지). softversion·bus 미사용 |
+| `GetGripperConfig()` | → `(err, [number, company, device, softversion])` — **company·device 에 +1 보정돼 돌아온다** (SDK 소스) |
+| `ActGripper(index, action)` | action 0=리셋 · 1=활성화 |
+| `MoveGripper(index, pos, vel, force, maxtime, block, type, rotNum, rotVel, rotTorque)` | pos/vel/force 0~100% · maxtime 0~30000ms · block 0=블로킹 1=논블로킹 · type 0=평행(PGI-140) 1=회전 · rot* 는 회전형 전용(평행형은 0). 내부에서 `GetSafetyCode()` 선검사 |
+| `GetGripperMotionDone()` | → `(err, [fault, status])` — status 1=완료 |
+| `GetGripperCurPosition()` / `GetGripperActivateStatus()` | 20004 캐시(`gripper_position`·`gripper_fault`·`gripper_active`) 읽기 — xmlrpc 왕복 없음 |
+
+**정체 확정 (2026-08-03 실물 라벨 육안 확인)** — 실물은 **PGE A-100-40** 이다. 메시·장착값은
+실물과 일치. 펜던트의 "PGI-140"은 SDK 대환 선택지가 그것 하나뿐이라 **빌려 쓰는 것** — 같은
+Modbus 프로토콜로 동작한다 (스모크로 실증).
+
+**스모크 실측 (2026-08-03 · 개폐 2회 육안 확인)** — 위 시그니처 전부 실기 통과. 단 주의 둘:
+- **지령 pos% 와 읽기 pos% 의 방향이 반대다** — 지령 30 → 읽기 76, 지령 80 → 읽기 53(이동 중).
+  구현 전에 방향·스케일 캘리브레이션 실측이 필요하다
+- `GetGripperMotionDone` 이 이동 직후 `[1, 0]` 을 돌려준다 — 문서상 [fault, status] 인데
+  fault=1 로 읽힌다. 필드 순서 오류 또는 실제 순서가 [status, fault]일 가능성 — 구현 때 재실측

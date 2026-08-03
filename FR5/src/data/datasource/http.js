@@ -68,7 +68,7 @@ export const datasource = {
   getRobots: () => api('GET', '/robots'),
   getVersion: () => api('GET', '/version'),
   connect: (robotId) => api('POST', '/connect', { robotId, observeOnly: true }),
-  disconnect: () => api('POST', '/disconnect', {}),
+  disconnect: (w) => api('POST', '/disconnect', { who: w }),   // 주인이 있으면 주인만 끊는다
 
   claimOwner: (w) => api('POST', '/owner/claim', { who: w }),
   releaseOwner: (w) => api('POST', '/owner/release', { who: w }),

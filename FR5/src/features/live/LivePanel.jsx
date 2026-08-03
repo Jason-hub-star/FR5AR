@@ -54,7 +54,7 @@ export function LivePanel({ state, who }) {
             </select>
           </label>
           {state.connected
-            ? <button type="button" onClick={() => run(datasource.disconnect)} disabled={busy}>연결 해제</button>
+            ? <button type="button" onClick={() => run(() => datasource.disconnect(who))} disabled={busy}>연결 해제</button>
             : <button type="button" className="primary" onClick={() => run(() => datasource.connect(picked))}
                 disabled={busy || !picked}>
                 observe-only 연결

@@ -57,6 +57,10 @@
 | `docs/goals/GOAL-editor-copy.md` | 사다리 1/3 — 메인뷰 문구를 사실로·해요체로 | 계약 | **메인뷰 문구를 고칠 때** |
 | `docs/goals/GOAL-editor-undo-save.md` | 사다리 2/3 — 되돌리기 한 단계 + 로컬 저장 | 계약 | 편집이 사라지는 갭을 닫을 때 |
 | `docs/goals/GOAL-editor-coord-input.md` | 사다리 3/3 — 좌표 숫자 직접 입력 | 계약 | 격자 사이 값이 필요할 때 |
+| `docs/goals/GOAL-live-gripper.md` | FR5 사다리 1/4 — 화면에서 그리퍼 개폐 | 계약 | **P3 착수 첫 칸** |
+| `docs/goals/GOAL-teach-points.md` | FR5 사다리 2/4 — 자세를 지점으로 캡처·재로드 | 계약 | Teach 패널을 만들 때 |
+| `docs/goals/GOAL-program-slots.md` | FR5 사다리 3/4 — 슬롯 승인·실행·복귀 | 계약 | Program 패널을 만들 때 |
+| `docs/goals/GOAL-optimize-history.md` | FR5 사다리 4/4 — 비교·기록 (경계만 확정) | 계약 | P5·P6 착수 전 확장 |
 | `docs/archive/ARCHIVE-INDEX.md` | 보관 문서 목록·이름 규칙 | 완료보존 | 옛 결정을 되짚을 때 |
 | `docs/INDEX.md` | 문서 지도 | SSOT | 문서를 찾을 때 |
 
@@ -117,6 +121,6 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 
 ## 자가검증
 
-- INDEX.md에 등재된 문서 행 개수 = 53/53
+- INDEX.md에 등재된 문서 행 개수 = 57/57
 - PROJECT-STATUS.md의 "다음 한 걸음" 항목 개수 = 5/5
 - PROJECT-STATUS.md의 "블로커" 항목 개수 = 3/3

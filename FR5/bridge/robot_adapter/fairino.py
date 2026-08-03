@@ -17,6 +17,8 @@ ERROR_TRANSLATE = {
     99: "안전정지 신호(SI0/SI1) 활성",
 }
 DRAG_CACHE_S = 0.5              # IsInDragTeach 는 xmlrpc 왕복이라 캐시한다 (신선도 게이트 이내)
+CMD_TIMEOUT_S = 3.0             # xmlrpc 왕복 상한. 넘으면 행으로 보고 던진다 (아래 _guard)
+STOP_LOCK_WAIT_S = 0.2          # stop 이 잠금을 기다리는 최대 시간. 그 뒤엔 잠금 없이 보낸다
 
 
 def _code(rtn, op):
@@ -26,6 +28,32 @@ def _code(rtn, op):
         hint = ERROR_TRANSLATE.get(code)
         raise ConnectionError(f"SDK {op} 실패 — {hint + ' ' if hint else ''}(code={code})")
     return rtn
+
+
+def _guard(fn, *args, **kwargs):
+    """xmlrpc 호출을 별도 스레드에서 돌려 상한을 씌운다.
+
+    SDK 는 연결 뒤 소켓 타임아웃을 None 으로 되돌린다 (`Robot.py` connect finally).
+    그래서 순단이 '끊김' 이 아니라 '행' 이면 호출이 영원히 안 돌아오고, 잠금을 쥔 채면
+    브리지 전체가 선다 — 실측 5.4초 공백의 뿌리다 (evidence/2026-08-03/fr5-field-gates.md).
+    데몬 스레드는 버린다: 죽일 방법이 없으니 잡아 두지 않고 호출자만 풀어 준다.
+    """
+    box = {}
+
+    def _run():
+        try:
+            box["v"] = fn(*args, **kwargs)
+        except Exception as e:      # noqa: BLE001 — 어떤 실패든 호출자에게 그대로 전달한다
+            box["e"] = e
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(CMD_TIMEOUT_S)
+    if t.is_alive():
+        raise ConnectionError(f"SDK 응답 없음 {CMD_TIMEOUT_S:.0f}s — 컨트롤러·네트워크 확인")
+    if "e" in box:
+        raise box["e"]
+    return box["v"]
 
 
 class FairinoAdapter(RobotAdapter):
@@ -60,11 +88,13 @@ class FairinoAdapter(RobotAdapter):
 
     def disconnect(self):
         if self._r is not None:
-            try:
-                self._r.CloseRPC()
-            except Exception:
-                pass
-            self._r = None
+            # 잠금 안에서 닫는다 — 명령이 소켓을 쓰는 중에 CloseRPC 가 겹치면 같은 소켓을 동시에 건드린다
+            with self._lock:
+                try:
+                    _guard(self._r.CloseRPC)
+                except Exception:
+                    pass
+                self._r = None
 
     def get_version(self):
         if self._version is None:
@@ -79,7 +109,7 @@ class FairinoAdapter(RobotAdapter):
             at, val = self._drag            # 잠금 대기 중 다른 스레드가 채웠으면 재사용
             if time.time() - at < DRAG_CACHE_S:
                 return val
-            rtn = self._r.IsInDragTeach()   # (error, state) — xmlrpc 왕복
+            rtn = _guard(self._r.IsInDragTeach)   # (error, state) — xmlrpc 왕복
         val = bool(rtn[1]) if isinstance(rtn, (list, tuple)) and len(rtn) > 1 and rtn[0] == 0 else None
         self._drag = (time.time(), val)
         return val
@@ -123,19 +153,19 @@ class FairinoAdapter(RobotAdapter):
     # ── 명령 계열 — ARMED 승격 뒤에만 브리지가 부른다. 상한 검사는 브리지 몫 ──
     def reset_errors(self):
         with self._lock:
-            _code(self._r.ResetAllError(), "reset")
+            _code(_guard(self._r.ResetAllError), "reset")
 
     def enable(self, on):
         with self._lock:
-            _code(self._r.RobotEnable(1 if on else 0), "enable")
+            _code(_guard(self._r.RobotEnable, 1 if on else 0), "enable")
 
     def set_mode(self, mode):
         with self._lock:
-            _code(self._r.Mode(int(mode)), "mode")
+            _code(_guard(self._r.Mode, int(mode)), "mode")
 
     def exit_drag_teach(self):
         with self._lock:
-            _code(self._r.DragTeachSwitch(0), "dragteach")
+            _code(_guard(self._r.DragTeachSwitch, 0), "dragteach")
         self._drag = (0.0, False)
 
     def set_sample_period(self, ms):
@@ -144,9 +174,16 @@ class FairinoAdapter(RobotAdapter):
 
     def move_j(self, joints_deg, speed_pct, tool, user):
         with self._lock:
-            _code(self._r.MoveJ(list(joints_deg), int(tool), int(user), vel=float(speed_pct)),
-                  "moveJ")
+            _code(_guard(self._r.MoveJ, list(joints_deg), int(tool), int(user),
+                         vel=float(speed_pct)), "moveJ")
 
     def stop(self):
-        with self._lock:
-            _code(self._r.StopMotion(), "stop")
+        # SAFETY-RULES 제3원칙 — 정지를 막는 조건은 만들지 않는다. 잠금도 조건이다:
+        # 앞선 명령이 행이면 잠금을 기다리다 stop 이 못 나간다. 잠깐만 기다리고,
+        # 안 잡히면 잠금 없이 보낸다. xmlrpc 동시성 위험보다 안 멈추는 쪽이 더 나쁘다.
+        got = self._lock.acquire(timeout=STOP_LOCK_WAIT_S)
+        try:
+            _code(_guard(self._r.StopMotion), "stop")
+        finally:
+            if got:
+                self._lock.release()
