@@ -1,6 +1,6 @@
 # GOAL-teach-points — 자세를 지점으로 남기고 다시 불러온다
 
-FR5 사다리 2/4. 앞: [GOAL-live-gripper.md](GOAL-live-gripper.md) ·
+FR5 사다리 2/6. 앞: [GOAL-live-gripper.md](GOAL-live-gripper.md) ·
 다음: [GOAL-program-slots.md](GOAL-program-slots.md).
 계약은 `docs/ref/API-CONTRACT.md` §이동 지점 (P3 Teach).
 

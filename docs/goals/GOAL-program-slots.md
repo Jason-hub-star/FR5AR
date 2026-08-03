@@ -1,6 +1,6 @@
 # GOAL-program-slots — 지점을 순서로 엮어 승인한 것만 실행한다
 
-FR5 사다리 3/4. 앞: [GOAL-teach-points.md](GOAL-teach-points.md) ·
+FR5 사다리 3/6. 앞: [GOAL-teach-points.md](GOAL-teach-points.md) ·
 다음: [GOAL-optimize-history.md](GOAL-optimize-history.md).
 계약은 `docs/ref/API-CONTRACT.md` §프로그램 슬롯.
 
