@@ -103,15 +103,15 @@ ROS 2 Jazzy · Nav2). 팀원 전원이 URL 하나로 켜고·몰고·매핑하�
 승인 게이트) → 맥 mock 구현(P1~P3) → 우분투 실기(P4, 날짜 확보 대기)**.
 주행 알고리즘은 팀원 몫 — `bridge/slots/` 슬롯 계약으로 꽂힌다.
 
-여기까지 왔다 — **P0~P3 완료. mock 으로 전 사이클이 완주된다** —
-계약+감사 21건(D32) · 목업 승인 · 웹앱 골격 · tb-bridge(FastAPI: 상태 WS·hello 신원·
-슬롯 프로세스 실행·SIGTERM 정리·조종권 409·1Hz 경로·travelMm·live.png·rosbag 토글).
-실행 `bash scripts/dev/tb-dev.sh` → http://localhost:5175. 실렌더 스크립트 3개
-(`scripts/check/tb-{web,bridge,cycle}-verify.mjs`)가 결함 4개를 잡았다
-(`evidence/2026-07-31/tb-mock-verify.md`).
+**P0~P4 완료 (로봇 실주행만 보류)** — 계약+감사 21건(D32) · 목업 승인 · 웹앱 ·
+tb-bridge(상태 WS·hello 신원·슬롯 프로세스·SIGTERM 정리·조종권 409·1Hz 경로·travelMm·
+live.png·rosbag) · **우분투 실기 배포**(real 어댑터·D43). mock 실행 `bash scripts/dev/tb-dev.sh`.
+실렌더 4판 61항목 + 실기 6/6 통과, 결함 6개를 잡았다 (`evidence/2026-07-31/tb-mock-verify.md`).
 
-**남은 것은 P4 하나 — 실기 게이트.** real.py(repo2 원본 대조)·우분투 스크립트.
-**우분투 PC + 실기 날짜가 확보돼야 착수한다** (플랜 Decision Gate). 주인님이 날짜를 주면 간다.
+**P4 실기 — real 브리지가 우분투(`ej@192.168.11.2`)에서 떴다.** `adapter:real`·로봇 2대
+fail-safe(disconnected) 실렌더 확인. **로봇 실주행만 남았다** — 로봇 bringup(도메인 0)이
+안 켜져 토픽이 없었다. **WiFi 교체 예정**이라 실주행은 교체 후로 보류(`config.yaml`만 갱신).
+재개: 우분투 `bash ~/start-bridge.sh`(코드 `~/fr5tb/`).
 
 ## 블로커
 
