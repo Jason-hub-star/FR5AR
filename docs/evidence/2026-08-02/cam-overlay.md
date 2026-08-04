@@ -57,7 +57,7 @@
 
 ### 거울 수정 (D43) — 여기서 실제로 걷혔다
 
-`layout-view.js` 12곳 · `props/index.js` 1곳 · `interaction.js` 4곳(되돌리기 포함)을
+`layout-view.js` 12곳 · `parts.js` 1곳 · `interaction.js` 4곳(되돌리기 포함)을
 `planToScene` 규약으로 맞췄다. yaw 부호도 같이 뒤집힌다(평면도 θ → `rotation.y = +θ`).
 게이트 `scripts/check/scene-axes.sh` 가 씬 좌표를 `planToScene` 과 대조해 재발을 막는다.
 

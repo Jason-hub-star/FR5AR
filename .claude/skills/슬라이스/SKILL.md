@@ -18,11 +18,11 @@ version: 1
 
 | 바꾸는 것 | 먼저 고칠 문서 |
 |---|---|
-| 새 엔드포인트 · WebSocket 메시지 | `docs/ref/API-CONTRACT.md` |
-| 새 폴더 · 구조 | `docs/ref/ARCHITECTURE.md` |
-| 새 의존성 · 버전 | `docs/ref/STACK.md` (`/스택가드` 참조) |
-| 안전 조건 | `docs/ref/SAFETY-RULES.md` |
-| 기능 범위 | `docs/ref/FEATURE-SPEC.md` |
+| 새 엔드포인트 · WebSocket 메시지 | `docs/ref/contract/API-CONTRACT.md` |
+| 새 폴더 · 구조 | `docs/ref/arch/ARCHITECTURE.md` |
+| 새 의존성 · 버전 | `docs/ref/arch/STACK.md` (`/스택가드` 참조) |
+| 안전 조건 | `docs/ref/contract/SAFETY-RULES.md` |
+| 기능 범위 | `docs/ref/product/FEATURE-SPEC.md` |
 
 이 표는 **자주 쓰는 것만** 적었다. 정본은 `docs/INDEX.md`의 문서 지도다.
 새 SSOT 문서가 생기면 INDEX에 등재하고, 이 표는 필요할 때만 늘린다.

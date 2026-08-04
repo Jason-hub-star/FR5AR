@@ -14,7 +14,7 @@ version: 1
 ## 소스 (이 순서로 고른다)
 
 1. `docs/status/GAP-MATRIX.md`의 **OPEN** 중 현재 단계를 막는 것
-2. `docs/ref/MILESTONES.md`의 현재 단계 완료 조건 중 미충족 항목
+2. `docs/ref/plan/MILESTONES.md`의 현재 단계 완료 조건 중 미충족 항목
 3. `docs/status/PROJECT-STATUS.md`의 "다음 한 걸음" 1번
 
 ## 절차
@@ -32,7 +32,7 @@ version: 1
 
 ## 로봇에 명령을 보내는 코드라면
 
-`docs/ref/SAFETY-RULES.md`를 먼저 읽는다. **fail-closed** — 값을 못 읽으면 차단이 기본값이다.
+`docs/ref/contract/SAFETY-RULES.md`를 먼저 읽는다. **fail-closed** — 값을 못 읽으면 차단이 기본값이다.
 속도 상한 10%, 관절 변화 5° 상한을 서버에서 강제한다. 클라이언트를 믿지 않는다.
 
 ## 하지 말 것

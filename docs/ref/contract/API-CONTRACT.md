@@ -195,11 +195,11 @@ POST /preview
     "note": "예상값 — 실제 가감속과 다를 수 있음" }
 ```
 
-FK 보간으로 계산한다. 역기구학은 쓰지 않는다 (`docs/ref/STACK.md` §궤적).
+FK 보간으로 계산한다. 역기구학은 쓰지 않는다 (`docs/ref/arch/STACK.md` §궤적).
 
 ## 배치안 (관제화면이 편집하고 AR이 읽는다)
 
-새 목표(배치별 생산성 비교)의 데이터다. **모양의 정본은 `docs/ref/SHARED-CORE.md`**이고
+새 목표(배치별 생산성 비교)의 데이터다. **모양의 정본은 `docs/ref/contract/SHARED-CORE.md`**이고
 여기는 주고받는 방법만 정한다.
 
 ```

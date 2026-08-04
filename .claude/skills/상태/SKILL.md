@@ -15,7 +15,7 @@ version: 1
 
 1. `docs/status/PROJECT-STATUS.md` — 완료·미착수·다음 걸음·블로커
 2. `docs/status/GAP-MATRIX.md` — OPEN 항목만 (CLOSED는 건너뛴다)
-3. `docs/ref/MILESTONES.md` — 지금 어느 단계(V0~V4)인가
+3. `docs/ref/plan/MILESTONES.md` — 지금 어느 단계(V0~V4)인가
 4. `git log --oneline -5` (저장소가 있으면)
 
 백로그·조사 문서·evidence·HTML은 **읽지 않는다.**

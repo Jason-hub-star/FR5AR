@@ -96,7 +96,7 @@ cd AR && vercel pull → Error: Project names ... must be lowercase (400)
 나온 것은 전부 기존 결함의 세부이거나 기계적 항목이었다(계획을 바꾸지 않는다).
 
 - `web/index.html` 의 인쇄 경로 → 결함 4와 같은 부류
-- `Shared/view3d/trajectory/trajectory.js` 의 `three` import 갱신 → 이관 C 의 기계적 항목
+- `Shared/view3d/path.js` 의 `three` import 갱신 → 이관 C 의 기계적 항목
 - `web/test/marker-images/` 를 `AR/test/` 로 → 단계 6 의 기계적 항목
 - `smoothtest.html` 삭제 → D15 에 결론이 글로 남아 안전. 반박 없음
 

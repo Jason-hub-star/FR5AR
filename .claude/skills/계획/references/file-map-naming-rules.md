@@ -13,7 +13,7 @@
 ## Good
 
 - `create: candidate:apps/web/app/dashboard/page.tsx`
-- `modify: docs/ref/PRD.md`
+- `modify: docs/ref/product/PRD.md`
 - `existing: backend/AGENTS.md`
 
 ## Bad

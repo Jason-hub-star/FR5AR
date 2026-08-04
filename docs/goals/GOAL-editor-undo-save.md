@@ -94,4 +94,4 @@ GAP-MATRIX 에 OPEN 으로만 올렸다.
 
 ## 참조
 
-- `docs/status/GAP-MATRIX.md` (편집한 배치안이 저장되지 않는다) · `docs/ref/SHARED-CORE.md`
+- `docs/status/GAP-MATRIX.md` (편집한 배치안이 저장되지 않는다) · `docs/ref/contract/SHARED-CORE.md`

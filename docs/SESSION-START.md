@@ -4,7 +4,7 @@
 
 ## 한 줄 정의
 
-**과학실험실에서 로봇팔과 자율주행로봇(AMR)의 배치에 따라 생산성이 얼마나 달라지는지** 재는
+**방산 탄두 해체 라인에서 배치와 동작에 따라 생산성이 얼마나 달라지는지** 재는
 웹 작업대. 관제화면이 배치안을 편집하고 지표를 비교하며, 폰 AR이 그 배치안을 실제 바닥에
 겹쳐 검증한다.
 
@@ -16,7 +16,7 @@
 
 **한 레포에 화면·로봇 도메인을 수직으로 둔다** — `AR/` · `Dashboard/` · `FR5/` ·
 `TurtleBot/`, 공용은 `Shared/`다. 어디를 건드리는지 먼저 정하면 읽을 문서가 두 개로 줄어든다.
-경계와 파일 귀속은 `docs/ref/BUILD-VITE.md`가 정본이다.
+경계와 파일 귀속은 `docs/ref/arch/BUILD-VITE.md`가 정본이다.
 
 | 건드리는 것 | 폴더 | 읽을 것 (이 순서로) |
 |---|---|---|
@@ -36,14 +36,14 @@
 
 | 파일 | 무엇이 들어 있나 | 언제 읽나 |
 |---|---|---|
-| `docs/ref/PRD.md` | 무엇을 왜 만드는가, 완료 판정 | 범위가 헷갈릴 때 |
-| `docs/ref/SHARED-CORE.md` | **배치안 모델 · 단위 · 설정 (두 폴더의 합의점)** | 데이터 모양을 건드릴 때 |
-| `docs/ref/BUILD-VITE.md` | 폴더 경계 · 파일 귀속 · 빌드 | 폴더·의존성을 건드릴 때 |
-| `docs/ref/CONSOLE-REACT.md` | 관제화면 규약 | React 화면을 짤 때 |
-| `docs/ref/AR-DEBUG.md` | AR 진단판 · 증상별 원인 | **AR이 안 될 때 제일 먼저** |
-| `docs/ref/ARCHITECTURE.md` | 로봇↔서버↔브라우저 구조 | 어디에 코드를 둘지 모를 때 |
-| `docs/ref/STACK.md` | 확정된 기술과 버전, 검증 결과 | 라이브러리를 고를 때 |
-| `docs/ref/API-CONTRACT.md` | REST·WebSocket 계약 **(SSOT)** | 서버·프론트 어느 쪽이든 |
+| `docs/ref/product/PRD.md` | 무엇을 왜 만드는가, 완료 판정 | 범위가 헷갈릴 때 |
+| `docs/ref/contract/SHARED-CORE.md` | **배치안 모델 · 단위 · 설정 (두 폴더의 합의점)** | 데이터 모양을 건드릴 때 |
+| `docs/ref/arch/BUILD-VITE.md` | 폴더 경계 · 파일 귀속 · 빌드 | 폴더·의존성을 건드릴 때 |
+| `docs/ref/arch/CONSOLE-REACT.md` | 관제화면 규약 | React 화면을 짤 때 |
+| `docs/ref/runbook/AR-DEBUG.md` | AR 진단판 · 증상별 원인 | **AR이 안 될 때 제일 먼저** |
+| `docs/ref/arch/ARCHITECTURE.md` | 로봇↔서버↔브라우저 구조 | 어디에 코드를 둘지 모를 때 |
+| `docs/ref/arch/STACK.md` | 확정된 기술과 버전, 검증 결과 | 라이브러리를 고를 때 |
+| `docs/ref/contract/API-CONTRACT.md` | REST·WebSocket 계약 **(SSOT)** | 서버·프론트 어느 쪽이든 |
 | `docs/status/PROJECT-STATUS.md` | 지금 어디까지 | 세션 시작 시 |
 | `docs/status/DECISION-LOG.md` | 왜 그렇게 정했나 | "이거 왜 이래?" 싶을 때 |
 | `docs/evidence/YYYY-MM-DD/` | 날짜 폴더 안의 검증 기록 | 주장의 근거가 필요할 때 |
@@ -53,7 +53,7 @@
 ## 지금 단계
 
 **AR 슬라이스가 폰에서 동작한다** (2026-07-30 실기 확인). 저장소 공개.
-목표가 확정됐고(과학실험실 배치별 생산성), 그에 맞춰 **문서를 폴더 기준으로 갈랐다.**
+목표가 확정됐고(방산 해체 라인 · 배치별+동작별 생산성 · D51), 그에 맞춰 **문서를 폴더 기준으로 갈랐다.**
 코드는 아직 importmap 방식이다 — Vite 이관이 다음이다.
 
 ## 다음 한 걸음

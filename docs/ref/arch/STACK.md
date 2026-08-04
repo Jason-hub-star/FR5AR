@@ -114,6 +114,28 @@ loader.load('/assets/FAIRINO_FR5/fairino5_v6.urdf', robot => {
 
 **STL은 비동기로 늦게 붙는다.** `load` 콜백 시점에는 메시가 아직 0개일 수 있다. 삼각형 수를 세거나 바운딩 박스를 잡는 코드는 콜백 안에서 하면 틀린다.
 
+## 에셋 저작 — 무대 소품은 파일이 아니라 함수다 (2026-08-03 등재 · D51)
+
+**로봇만 메시 파일이고, 무대 소품은 전부 절차적 코드다.** `Shared/view3d/parts.js` 에
+three.js 프리미티브로 그리는 함수 11개가 있다 — `bench` `isolator` `shelf` `instrument`
+`workstation` `chair` `fumehood` `benchRun` `wallCabinet` `safetyFence` `clutter`.
+배치안은 `type` 문자열로 이 함수를 고른다.
+
+그래서 **방산 무대 전환은 파일 교체가 아니라 함수 교체**다. `Shared/assets/` 는 안 늘고
+`dist` 용량(GAP OPEN)도 안 변한다. 새 소품(컨베이어·탄두·정밀 지그·부품 랙·방폭 격벽)도
+같은 자리에 함수로 더한다.
+
+| 도구 | 주소 | 라이선스 | 무엇 | 검증 상태 |
+|---|---|---|---|---|
+| **img2threejs** | `github.com/img2threejs/img2threejs` | Apache-2.0 | 참조 이미지 → three.js 절차적 모델 코드 생성. Claude Code 스킬로 설치(`~/.claude/skills/`) | **주소·라이선스 확인 2026-08-03. 산출물 실사용 미검증** |
+
+- **런타임 의존성이 아니다.** 저작 시점에만 돌고 산출물은 우리 코드가 된다.
+  `package.json` 에 아무것도 안 들어간다 — 기존 "새 의존성 0" 경계를 안 깬다
+- **산출물이 TypeScript 다.** 우리 저장소는 순수 JS 라(`*.ts` 0개) **JS 로 옮겨
+  `parts.js` 규약에 맞춘 뒤** 커밋한다. 생성 코드를 그대로 붙이지 않는다
+- 대안으로 harness 에 `blender-procedural-glb`·`step-to-glb` 스킬도 있다. **그쪽은 GLB 파일을
+  낳으므로 용량이 는다** — 지금 무대 소품에는 절차적 코드가 맞다
+
 ## 그리퍼 — URDF에 없다. 확장해야 한다
 
 원본: `FR5UNITY/robotapp/Assets/Runtime/EndEffectors/PGEA_100_40/Source/`
@@ -297,6 +319,12 @@ Unity `FairinoErrorTranslator` 의 `-4="비상정지"` 매핑은 **공식과 다
 | `MoveGripper(index, pos, vel, force, maxtime, block, type, rotNum, rotVel, rotTorque)` | pos/vel/force 0~100% · maxtime 0~30000ms · block 0=블로킹 1=논블로킹 · type 0=평행(PGI-140) 1=회전 · rot* 는 회전형 전용(평행형은 0). 내부에서 `GetSafetyCode()` 선검사 |
 | `GetGripperMotionDone()` | → `(err, [fault, status])` — status 1=완료 |
 | `GetGripperCurPosition()` / `GetGripperActivateStatus()` | 20004 캐시(`gripper_position`·`gripper_fault`·`gripper_active`) 읽기 — xmlrpc 왕복 없음 |
+
+**뚜껑 풀기·조이기의 회전은 그리퍼가 못 한다 (2026-08-03)** — 위 표대로 `type` 0=평행이고
+`rotNum`·`rotVel`·`rotTorque` 는 **회전형 전용이라 우리 것은 0** 이다. 즉 뚜껑을 돌리는
+회전은 **J6 축이 낸다.** 두 가지가 따라온다 — ①손목 카메라·그리퍼 케이블이 같은 방향으로
+감긴다 (`docs/research/vision-imitation.md` §5) ②J6 회전 범위가 풀거나 조일 수 있는 바퀴수의 상한이다.
+`force` 는 평행형에서도 살아 있다 — 잡는 힘의 상한이므로 반드시 준다 (`SAFETY-RULES.md` §그리퍼 힘 상한).
 
 **정체 확정 (2026-08-03 실물 라벨 육안 확인)** — 실물은 **PGE A-100-40** 이다. 메시·장착값은
 실물과 일치. 펜던트의 "PGI-140"은 SDK 대환 선택지가 그것 하나뿐이라 **빌려 쓰는 것** — 같은

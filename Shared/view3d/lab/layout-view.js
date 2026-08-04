@@ -8,8 +8,8 @@
 import * as THREE from 'three';
 import { mm } from '../../data/units/units.js';
 import { reachCheck, crossings } from '../../data/layout/schema.js';
-import { makeReachZone } from '../safety/reach-zone.js';
-import { assembleProps } from '../props/index.js';
+import { makeReachZone } from '../reach-zone.js';
+import { assembleProps } from '../parts.js';
 
 // 토큰과 같은 의미의 색. 상태 색은 두 화면에서 같아야 한다 (D21).
 // 평면도 Y(미터) → 씬 Z. **부호가 뒤집힌다.**
@@ -128,9 +128,22 @@ export function createLayoutView(layout, { mountArm } = {}) {
   for (const side of SIDES) buildWall(side);
 
   // 문틀 — 개구부 테두리를 진하게 두면 "입구" 로 읽힌다.
+  //
+  // **문·창은 `contents` 에 넣는다.** 고를 수 있어야 팔레트로 놓은 것을 다시 고치기 때문이다
+  // (피킹 루트가 `contents`). 대신 `fixed: true` 로 **끌리지는 않게** 한다 —
+  // 벽에 뚫린 구멍이라 바닥 좌표가 없다 (`interaction.js` 의 가드).
   for (const d of layout.doors ?? []) {
     const side = SIDES.find((x) => x.name === d.wall);
     if (!side) continue;
+    const dg = new THREE.Group();
+    dg.name = d.id ?? 'door';
+    // 끌 때 **벽을 따라 미끄러지려면** 축과 벽 길이를 알아야 한다 (`interaction.js`)
+    dg.userData.item = {
+      kind: 'door', id: d.id, name: '문', wall: d.wall, axis: side.axis,
+      atMm: d.atMm, widthMm: d.widthMm, spanMm: side.axis === 'x' ? layout.floor.widthMm : layout.floor.depthMm,
+    };
+    contents.add(dg);
+    const root = dg;                       // 아래 조각들이 이 그룹으로 들어간다
     const w = mm(d.widthMm); const h = mm(d.heightMm ?? 2100); const at = mm(d.atMm);
     const jamb = 0.09;
     for (const s of [-1, 1]) {
@@ -189,19 +202,30 @@ export function createLayoutView(layout, { mountArm } = {}) {
   for (const wd of layout.windows ?? []) {
     const side = SIDES.find((x) => x.name === wd.wall);
     if (!side) continue;
+    const wg = new THREE.Group();
+    wg.name = wd.id ?? 'window';
+    wg.userData.item = {
+      kind: 'window', id: wd.id, name: '창', wall: wd.wall, axis: side.axis,
+      atMm: wd.atMm, widthMm: wd.widthMm, spanMm: side.axis === 'x' ? layout.floor.widthMm : layout.floor.depthMm,
+    };
+    contents.add(wg);
+    const root = wg;                       // 아래 조각들이 이 그룹으로 들어간다
     const w = mm(wd.widthMm); const h = mm(wd.heightMm); const at = mm(wd.atMm);
     const yc = mm(wd.sillMm ?? 900) + h / 2;
     const dims = side.axis === 'x' ? [w, h, 0.04] : [0.04, h, w];
     const g2 = new THREE.Mesh(track(new THREE.BoxGeometry(...dims)), matGlassDoor);
-    if (side.axis === 'x') g2.position.set(at, yc, side.fixed);
-    else g2.position.set(side.fixed, yc, at);
+    // **여기가 `Z()` 를 빼먹고 있었다** (2026-08-03 발견). 창 유리·창틀 9개가 방 반대편
+    // 밖(z +1.6·+3.6·+1.4)에 떠 있었고, 대시보드 첫 화면에서 판때기로 보였다.
+    // D43 이 잡은 거울 사상과 같은 종류다 — 평면도 Y 는 **예외 없이** 이 함수를 지난다.
+    if (side.axis === 'x') g2.position.set(at, yc, Z(side.fixed));
+    else g2.position.set(side.fixed, yc, Z(at));
     root.add(g2);
     // 창틀
     const fd = side.axis === 'x' ? [w + 0.08, 0.06, T * 1.2] : [T * 1.2, 0.06, w + 0.08];
     for (const sy of [-1, 1]) {
       const f = new THREE.Mesh(track(new THREE.BoxGeometry(...fd)), mat.frame);
-      if (side.axis === 'x') f.position.set(at, yc + sy * h / 2, side.fixed);
-      else f.position.set(side.fixed, yc + sy * h / 2, at);
+      if (side.axis === 'x') f.position.set(at, yc + sy * h / 2, Z(side.fixed));
+      else f.position.set(side.fixed, yc + sy * h / 2, Z(at));
       root.add(f);
     }
   }
@@ -217,7 +241,10 @@ export function createLayoutView(layout, { mountArm } = {}) {
     const px = mm(st.posMm[0]); const pz = mm(st.posMm[1]);
     if (st.prop) {
       const grp = assembleProps([{
-        id: st.id, type: st.prop, posMm: [st.posMm[0], st.posMm[1], st.baseMm ?? 0],
+        // **z 는 `posMm[2]` 다.** 전에는 `baseMm ?? 0` 이라 z 를 버리고 바닥에 그렸는데,
+        // 도달 판정(`schema.js` `reachCheck`)은 같은 `posMm` 을 3D 로 재고 있었다 —
+        // **링은 900mm 기준으로 켜지는데 물건은 바닥에 있었다.** `baseMm` 은 명시 override 로 남긴다.
+        id: st.id, type: st.prop, posMm: [st.posMm[0], st.posMm[1], st.baseMm ?? st.posMm[2] ?? 0],
         rotDeg: st.rotDeg ?? 0, opts: st.opts,
       }]);
       // 스테이션은 판정 대상이라 표식을 따로 준다 — 끌면 도달 여부가 실시간으로 바뀐다

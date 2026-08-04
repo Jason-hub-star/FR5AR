@@ -13,8 +13,13 @@ node --input-type=module -e "
 import * as THREE from '$ROOT/node_modules/three/build/three.module.js';
 const { createLayoutView } = await import('$ROOT/Shared/view3d/lab/layout-view.js');
 const { planToScene } = await import('$ROOT/Shared/data/units/units.js');
+// **창·문을 반드시 넣는다.** 없으면 그 코드 경로가 아예 안 돌아 z 범위 검사가 헛돈다 —
+// 실제로 창 유리·창틀이 \`Z()\` 를 빼먹고 방 반대편에 떠 있었는데 이 게이트가 통과했다 (2026-08-03).
 const L = { id:'T', name:'t', unit:'mm-deg',
   floor:{widthMm:6000, depthMm:4000, heightMm:2700},
+  doors:[{wall:'south', atMm:3000, widthMm:1200, heightMm:2100}],
+  windows:[{wall:'west', atMm:1200, widthMm:1000, heightMm:1200, sillMm:900},
+           {wall:'north', atMm:2500, widthMm:1000, heightMm:1200, sillMm:900}],
   arm:{model:'FR5', basePosMm:[3000,2000,900], baseYawDeg:30, reachMm:922},
   stations:[{id:'s1', name:'S1', posMm:[1000,500,0]}],
   amrs:[{id:'a1', model:'tb3', reachMm:300, dockPosMm:[500,3500,0], waypointsMm:[[500,3500],[4000,1000]]}],

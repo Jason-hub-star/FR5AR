@@ -208,7 +208,7 @@ macOS live readback lock
 덤으로 `strangePosFlag`(특이 자세)를 발견해 안전 조건에 추가했다.
 
 **계획 기각 시나리오는 사라졌다.** V0 공수가 몇 배로 뛰는 위험이 제거됐고,
-v3 안전 규칙을 새로 설계하지 않고 물려받는다. → `docs/ref/SAFETY-RULES.md`
+v3 안전 규칙을 새로 설계하지 않고 물려받는다. → `docs/ref/contract/SAFETY-RULES.md`
 
 ### 이 킬-실험에서 나온 프로세스 결함
 

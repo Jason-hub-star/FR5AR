@@ -1,6 +1,6 @@
 > **출처: Unity 프로젝트 (FR5UNITY)** — 원본 `robotapp/Assets/Scripts/App/Fairino/`
 > 이 문서는 **Unity 기준**이다. 웹(three.js)에 그대로 적용하지 마라 — 좌표계와 단위가 다르다.
-> 웹 기준은 `docs/ref/CODING-CONVENTIONS.md`가 이긴다.
+> 웹 기준은 `docs/ref/arch/CODING-CONVENTIONS.md`가 이긴다.
 
 # unity-bridge-protocol — 유니티가 실기에서 검증한 값
 
@@ -157,7 +157,7 @@ EmitCurrentState()
 
 - 클라이언트가 보낼 수 있는 것은 `StopMotion()`(폴백 `MoveStopJ()`) 뿐이다
 - **하드웨어 비상정지는 컨트롤러·펜던트의 물리 버튼에 의존한다** — 소프트웨어로 대체하지 않는다
-- 이는 `docs/ref/SAFETY-RULES.md` 의 fail-closed 와 같은 방향이다
+- 이는 `docs/ref/contract/SAFETY-RULES.md` 의 fail-closed 와 같은 방향이다
 
 ## 8. 그리퍼는 별 통신이 아니다
 

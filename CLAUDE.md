@@ -15,16 +15,17 @@ FAIRINO FR5 협동로봇을 **브라우저에서 팀 전체가 함께 다루는*
 
 | 작업 | 먼저 읽을 것 |
 |---|---|
-| FR5 브리지 (Python) | `docs/ref/API-CONTRACT.md` → `docs/ref/ARCHITECTURE.md` |
-| FR5 웹 조작 화면 | `FR5/AGENTS.md` → `docs/ref/API-CONTRACT.md` |
-| 배치·지표 관제화면 | `docs/ref/CONSOLE-REACT.md` → `docs/ref/SHARED-CORE.md` |
-| AR 겹쳐 보기 | `docs/ref/STACK.md` §AR → `docs/evidence/` |
-| 로봇 실기 | `docs/ref/ARCHITECTURE.md` §로봇 |
-| 무엇을 만들지 | `docs/ref/PRD.md` |
+| FR5 브리지 (Python) | `docs/ref/contract/API-CONTRACT.md` → `docs/ref/arch/ARCHITECTURE.md` |
+| FR5 웹 조작 화면 | `FR5/AGENTS.md` → `docs/ref/contract/API-CONTRACT.md` |
+| 배치·지표 관제화면 | `docs/ref/arch/CONSOLE-REACT.md` → `docs/ref/contract/SHARED-CORE.md` |
+| AR 겹쳐 보기 | `docs/ref/arch/STACK.md` §AR → `docs/evidence/` |
+| 로봇 실기 | `docs/ref/arch/ARCHITECTURE.md` §로봇 |
+| 무엇을 만들지 | `docs/ref/product/PRD.md` |
+| 문서를 새로 만들 때 | `docs/ref/README.md` — 어느 카테고리 폴더인지 |
 
 ## 하드 룰
 
-1. **구조 변경은 문서가 먼저.** 새 최상위 폴더·새 엔드포인트·새 WebSocket 메시지는 `docs/ref/API-CONTRACT.md`를 먼저 고친 뒤 코드를 짠다. 코드가 앞서면 다음 세션이 계약을 못 찾는다.
+1. **구조 변경은 문서가 먼저.** 새 최상위 폴더·새 엔드포인트·새 WebSocket 메시지는 `docs/ref/contract/API-CONTRACT.md`를 먼저 고친 뒤 코드를 짠다. 코드가 앞서면 다음 세션이 계약을 못 찾는다.
 2. **검증은 실렌더로.** "될 것이다"로 끝내지 않는다. 3D·AR 변경은 브라우저를 띄워 눈으로 확인하고 `docs/evidence/`에 날짜별로 남긴다.
 3. **로봇에 실제 명령을 보내는 코드는 속도 상한과 확인 단계를 반드시 거친다.** 기본 상한 10%, 사람 확인 없이 큰 동작 금지.
 4. **명령 주인은 한 명.** 웹·펜던트·CLI가 동시에 움직임 명령을 보내면 충돌한다. 조종권 규칙을 우회하지 않는다.

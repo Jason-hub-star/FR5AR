@@ -16,7 +16,7 @@ Playwright/Puppeteer 없이 로컬 Chrome을 CDP(Chrome DevTools Protocol)로 �
 | **시나리오 병렬 QA** | 화면·기능이 많아 넓게 훑어야 할 때 | `references/병렬-QA.md` |
 
 **FR5Web 주의** — AR 화면은 카메라 권한 때문에 자동 검증이 안 넘어간다.
-그 한계와 우회는 `docs/ref/AR-DEBUG.md` §6 이 정본이다. **판정은 폰이다.**
+그 한계와 우회는 `docs/ref/runbook/AR-DEBUG.md` §6 이 정본이다. **판정은 폰이다.**
 
 ## Use When
 

@@ -89,7 +89,7 @@ FR5Web/
 ```
 
 **규칙** — 새 최상위 폴더를 만들기 전에 이 문단을 먼저 고친다.
-폴더 경계와 파일 귀속은 `docs/ref/BUILD-VITE.md`가 정본이다.
+폴더 경계와 파일 귀속은 `docs/ref/arch/BUILD-VITE.md`가 정본이다.
 현재 루트 `package.json`은 `Shared`·`AR`·`Dashboard`·`TurtleBot`을 **npm workspaces**로
 묶는다. `FR5`는 실행 패키지를 만들 때 추가한다. 문서성 골격 때문에 빈 패키지를 만들지 않는다.
 
@@ -171,7 +171,7 @@ Vision  ──제안(proposal)──▶  FR5/bridge 안전 게이트  ──검�
 ```
 로봇 ×2 (bringup만) ─ROS2/WiFi─ 우분투 PC (Nav2·SLAM·슬롯·tb-bridge:5055) ─┐
                                    브리지가 웹 빌드도 서빙                  ├─ 팀원 브라우저
-계약 · 안전(속도 상한·워치독·estop) · 미래 접점 5 → docs/ref/TB-CONTRACT.md ┘
+계약 · 안전(속도 상한·워치독·estop) · 미래 접점 5 → docs/ref/contract/TB-CONTRACT.md ┘
 ```
 
 - **FR5 `bridge/` 와 형제·무의존** — 로봇마다 관문 하나. 서로 호출하지 않는다.

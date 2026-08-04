@@ -53,7 +53,7 @@ API 계약 바깥면은 **도(°)**와 **밀리미터(mm)**만 쓴다. 라디안
 
 ## 6. 구조 변경
 
-API 계약과 구조 변경은 문서가 먼저다. `docs/ref/API-CONTRACT.md`와 `docs/ref/ARCHITECTURE.md`를 고치고 코드를 짠다.
+API 계약과 구조 변경은 문서가 먼저다. `docs/ref/contract/API-CONTRACT.md`와 `docs/ref/arch/ARCHITECTURE.md`를 고치고 코드를 짠다.
 
 ## 7. 검증
 

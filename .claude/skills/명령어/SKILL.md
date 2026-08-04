@@ -39,7 +39,7 @@ find scripts -name '*.sh' | sort
 ## 함께 알릴 것
 
 - 진입 문서 — `CLAUDE.md` → `docs/SESSION-START.md` → `docs/INDEX.md`
-- 로봇에 명령을 보내기 전 — `docs/ref/SAFETY-RULES.md` (**fail-closed**)
+- 로봇에 명령을 보내기 전 — `docs/ref/contract/SAFETY-RULES.md` (**fail-closed**)
 - 기준값을 바꿀 때 — `scripts/README.md`의 기준값 표
 
 ## 하지 말 것

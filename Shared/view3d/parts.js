@@ -13,7 +13,7 @@
 // `img2threejs` 로 만든 부품도 **같은 계약으로 맞춰서** 여기 넣으면 그대로 조립된다.
 
 import * as THREE from 'three';
-import { mm } from '../../data/units/units.js';
+import { mm } from '../data/units/units.js';
 
 // ── 재질. 화이트 모형이라 색이 아니라 **거칠기**로 구분한다.
 export const M = {
@@ -31,6 +31,10 @@ export const M = {
 
 const box = (wMm, hMm, dMm, material = M.body) =>
   new THREE.Mesh(new THREE.BoxGeometry(mm(wMm), mm(hMm), mm(dMm)), material);
+
+/** 원통. 기본 축은 Y — 눕히려면 부르는 쪽이 돌린다 (box 와 같은 규약). */
+const cyl = (diaMm, lenMm, material = M.body, seg = 12) =>
+  new THREE.Mesh(new THREE.CylinderGeometry(mm(diaMm / 2), mm(diaMm / 2), mm(lenMm), seg), material);
 
 /** 그림자를 켜서 붙인다 — 접지감이 없으면 물체가 떠 보인다. */
 function add(group, mesh, xMm = 0, yMm = 0, zMm = 0) {
@@ -273,3 +277,200 @@ export function clutter({ lengthMm = 1600, hMm = 900, seed = 1 } = {}) {
 }
 
 Object.assign(PROPS, { benchRun, wallCabinet, safetyFence, clutter });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 방산 해체 라인 소품 (D51 · S1). 레퍼런스는 Codex 로 뽑았고 **문구가 정본이다** —
+// `MILESTONES.md` §S1 의 스타일 문구. 이미지는 저장소에 안 넣는다 (한 장 1.2MB,
+// `Shared/assets/` 는 publicDir 로 dist 에 통째 복사된다).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 롤러 컨베이어 — 해체 라인의 입구. **1사이클의 시작점**이다.
+ *
+ * `hMm` 은 다리 높이가 아니라 **이송면(롤러 윗면) 높이**다. 기본 900 은 `bench`·`benchRun`
+ * 상판과 같은 값이라 라인이 끊기지 않는다 — 여기를 바꾸면 물건이 턱을 넘는다.
+ */
+export function conveyor({
+  lengthMm = 2400, wMm = 600, hMm = 900, rollerDiaMm = 76, pitchMm = 100,
+} = {}) {
+  const g = new THREE.Group();
+  const railH = 90;                     // 사이드 레일 높이
+  const railT = 40;                     // 사이드 레일 두께
+  // **레일 상단이 롤러 상단보다 낮다.** 실물 롤러 컨베이어가 그렇고, 반대로 하면
+  // 롤러가 홈에 파묻혀 컨베이어가 아니라 벤치로 읽힌다 (첫 렌더의 결함).
+  const railTop = hMm - rollerDiaMm * 0.16;
+  const railY = railTop - railH / 2;
+  const legT = 70;
+  const legInset = 220;                 // 다리는 끝에서 안쪽으로 — 이미지의 그 비율
+
+  // ── 사이드 레일 2개 (길이 방향 X, 폭 방향 Z)
+  for (const s of [-1, 1]) {
+    add(g, box(lengthMm, railH, railT, M.steel), 0, railY, s * (wMm / 2 - railT / 2));
+  }
+
+  // ── 롤러. 축이 Z 이므로 X 로 90° 눕힌다.
+  // ponytail: 롤러 축 볼트(레일 바깥면의 작은 머리)는 안 그린다 — 배치 축척에서 1px 미만이고
+  // 롤러당 2개면 메시가 48개 는다. 근접 뷰가 필요해지면 그때 넣는다.
+  const span = lengthMm - 2 * railT;
+  const n = Math.max(2, Math.floor(span / pitchMm));
+  const step = span / n;
+  for (let i = 0; i < n; i += 1) {
+    // 롤러는 금속이다 — `shell`(거의 흰색) 로 두면 베드가 흰 판때기로 읽힌다 (2차 렌더의 결함)
+    const r = cyl(rollerDiaMm, wMm - 2 * railT, M.steel);
+    r.rotation.x = Math.PI / 2;
+    add(g, r, -span / 2 + step * (i + 0.5), hMm - rollerDiaMm / 2, 0);
+  }
+
+  // ── 다리 4개 + 발판
+  const legH = railTop - railH;
+  const footT = legT + 50;
+  // 다리는 레일보다 살짝 안쪽이다 — **발판까지 `wMm` 안에 들어와야** bbox 가 폭과 같아지고,
+  // 배치 충돌·도달범위 검사가 실제 점유 면적을 본다.
+  const legZ = wMm / 2 - footT / 2;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const x = sx * (lengthMm / 2 - legInset);
+    add(g, box(legT, legH, legT, M.dark), x, legH / 2, sz * legZ);
+    add(g, box(footT, 16, footT, M.dark), x, 8, sz * legZ);          // 발판
+  }
+
+  // ── 하부 브레이스. 길이 방향 2줄 + 다리쌍마다 가로 1줄 — 이게 있어야 "구조물" 로 읽힌다.
+  const braceY = legH * 0.22;
+  for (const sz of [-1, 1]) {
+    add(g, box(lengthMm - 2 * legInset, 50, 30, M.dark), 0, braceY, sz * legZ);
+  }
+  for (const sx of [-1, 1]) {
+    add(g, box(30, 50, wMm - railT, M.dark), sx * (lengthMm / 2 - legInset), braceY, 0);
+  }
+  return g;
+}
+
+/**
+ * 탄두 — **소품이 아니라 작업물이다.** 다른 부품은 놓이지만 이건 로봇이 집고 분해한다.
+ *
+ * ⚠ **치수는 실물 페트병 기준(Ø65×220)이다** (D51). 실제 포탄 치수로 그리면 실물 점유
+ * 부피를 넘어 AR 에서 사람이 충돌 여지를 오판한다. **비율만 탄두처럼 간다.**
+ *
+ * `stage` 가 해체 4단계다 — 0 완성 · 1 유도부 분리 · 2 신관 분리 · 3 주탄약 분리(빈 케이싱).
+ * 사이클이 진행되며 이게 쪼개지는 것이 곧 진행률이다 (F10).
+ */
+export function warhead({ stage = 0, diaMm = 65, lengthMm = 220 } = {}) {
+  const g = new THREE.Group();
+  const noseLen = lengthMm * 0.34;
+  const bodyLen = lengthMm - noseLen;
+  // `diaMm` 은 **최대 외경(회전 밴드 기준)** 이다 — 동체는 그보다 얇다.
+  // 밴드를 동체보다 굵게 두면서 이걸 안 맞추면 바닥을 파고들고 bbox 가 인자를 넘는다.
+  const y = diaMm / 2;                       // 눕혀 놓는다 — 바닥에서 최대 반지름만큼
+  const bodyDia = (stage >= 3 ? diaMm * 0.92 : diaMm) - 6;
+  const body = cyl(bodyDia, bodyLen, M.body, 20);
+  body.rotation.z = Math.PI / 2;             // 축을 X 로 눕힌다
+  add(g, body, (lengthMm - bodyLen) / 2 - lengthMm / 2 + bodyLen / 2 - bodyLen / 2, y, 0);
+  body.position.x = mm(lengthMm / 2 - bodyLen / 2);
+
+  // 회전 밴드 2줄 — 이게 있어야 매끈한 원통이 아니라 탄체로 읽힌다
+  for (const f of [0.22, 0.74]) {
+    const band = cyl(diaMm, 10, M.dark, 20);
+    band.rotation.z = Math.PI / 2;
+    add(g, band, lengthMm / 2 - bodyLen * f, y, 0);
+  }
+
+  // 노즈. stage 0 완전 · 1 유도부만 잘려 뭉툭 · 2 이상 없음
+  if (stage <= 1) {
+    const cut = stage === 0 ? 1 : 0.55;
+    const nose = new THREE.Mesh(
+      new THREE.CylinderGeometry(mm(diaMm * (stage === 0 ? 0.06 : 0.42)), mm(diaMm / 2),
+        mm(noseLen * cut), 20),
+      M.body,
+    );
+    // +90° 여야 좁은 끝이 −X(바깥) 을 본다. −90° 면 뒤집혀 뾰족한 쪽이 동체에 박힌다.
+    nose.rotation.z = Math.PI / 2;
+    add(g, nose, -lengthMm / 2 + noseLen * cut / 2, y, 0);
+  }
+  return g;
+}
+
+/** 회전 척 — 탄두를 물고 돌린다. **3점 조가 이 물건의 정체다.** */
+export function chuck({ diaMm = 320, hMm = 420, boreMm = 90 } = {}) {
+  const g = new THREE.Group();
+  const cy = hMm - diaMm / 2;                // 척 중심 높이
+  add(g, box(diaMm * 0.9, 40, diaMm * 0.8, M.dark), 0, 20, 0);              // 베이스 판
+  // **받침은 척 뒤에 둔다.** 같은 z 에 두면 기둥이 척 앞을 가려 3점 조가 안 보인다.
+  const faceD = 120, pedD = diaMm * 0.42;
+  add(g, box(diaMm * 0.5, cy, pedD, M.body), 0, cy / 2, -(faceD / 2 + pedD / 2));
+
+  const face = cyl(diaMm, faceD, M.body, 28);                               // 척 몸통 (축 Z)
+  face.rotation.x = Math.PI / 2;
+  add(g, face, 0, cy, 0);
+  const bore = cyl(boreMm, faceD + 20, M.dark, 16);                         // 중앙 보어
+  bore.rotation.x = Math.PI / 2;
+  add(g, bore, 0, cy, 0);
+
+  // 조 3개 — 120° 간격. 계단 2단이라 "물린다" 는 느낌이 난다.
+  for (let i = 0; i < 3; i += 1) {
+    const a = (i * 2 * Math.PI) / 3 + Math.PI / 2;   // 12시부터 120° 간격
+    const jx = Math.cos(a), jy = Math.sin(a);
+    // 조는 **반경 방향으로 길고 얇은 계단**이다. 정사각 단면으로 만들면 큐브가 떠 있는
+    // 것처럼 보인다(2차 렌더의 결함). 반지름은 조 절반을 빼고 잡아 hMm 을 안 넘긴다.
+    for (const [r, len, wide, thick] of [[0.26, 78, 54, 40], [0.38, 62, 44, 26]]) {
+      const j = add(g, box(len, wide, thick, M.steel),
+        jx * diaMm * r, cy + jy * diaMm * r, faceD / 2 + thick / 2);
+      j.rotation.z = a;
+    }
+  }
+  return g;
+}
+
+/** 부품 트레이 — 해체 4단계 "분류" 의 산출물 자리. 격자가 있어야 분류대로 읽힌다. */
+export function partTray({ wMm = 700, dMm = 480, cols = 6, rows = 4, filled = 4 } = {}) {
+  const g = new THREE.Group();
+  const wall = 22, h = 70;
+  add(g, box(wMm, 18, dMm, M.body), 0, 9, 0);                               // 바닥
+  for (const [w, d, x, z] of [
+    [wMm, wall, 0, -(dMm - wall) / 2], [wMm, wall, 0, (dMm - wall) / 2],
+    [wall, dMm, -(wMm - wall) / 2, 0], [wall, dMm, (wMm - wall) / 2, 0]]) {
+    add(g, box(w, h, d, M.body), x, h / 2, z);                              // 테두리
+  }
+  // ponytail: 구멍은 안 뚫는다 (CSG 비용). 어두운 얕은 원통이 같은 값을 낸다 — 축척상 구별 불가.
+  const dia = Math.min((wMm - 80) / cols, (dMm - 80) / rows) * 0.72;
+  for (let r = 0; r < rows; r += 1) for (let c = 0; c < cols; c += 1) {
+    const x = -wMm / 2 + (wMm / cols) * (c + 0.5);
+    const z = -dMm / 2 + (dMm / rows) * (r + 0.5);
+    add(g, cyl(dia, 26, M.dark, 12), x, 22, z);                             // 구멍
+    if ((r * cols + c) % Math.max(2, Math.round((rows * cols) / filled)) === 0) {
+      add(g, cyl(dia * 0.8, 90, M.shell, 12), x, 63, z);                    // 꽂힌 부품
+    }
+  }
+  return g;
+}
+
+/**
+ * 방폭 격벽 — 해체 셀을 가른다.
+ *
+ * **기본 높이가 1200(허리)인 이유** — 2400 으로 세웠더니 메인뷰에서 셀 안이 통째로
+ * 안 보였다. 배치를 보는 화면인데 배치를 가리면 소품이 아니라 방해물이다.
+ * 전신 차폐가 필요하면 `hMm` 을 올리되 **관측창이 시선 높이(1500)에 오는지** 보고 정한다.
+ */
+export function blastWall({ lengthMm = 3000, hMm = 1200, tMm = 300, windowMm = 0 } = {}) {
+  const g = new THREE.Group();
+  const capH = 90;
+  const winH = 520;
+  // 창이 없으면 통벽. 있으면 **좌·우·위·아래로 쪼개** 진짜 구멍을 낸다 —
+  // 통벽 안에 유리판을 묻으면 렌더에서 아예 안 보인다 (첫 렌더의 결함).
+  const winW = windowMm > 0 ? Math.min(windowMm, lengthMm - 400) : 0;
+  if (winW > 0 && hMm > winH + 400) {
+    const side = (lengthMm - winW) / 2;
+    const yc = hMm * 0.62;
+    for (const s of [-1, 1]) {
+      add(g, box(side, hMm, tMm, M.body), s * (lengthMm - side) / 2, hMm / 2, 0);
+    }
+    add(g, box(winW, hMm - yc - winH / 2, tMm, M.body), 0, (hMm + yc + winH / 2) / 2, 0);  // 창 위
+    add(g, box(winW, yc - winH / 2, tMm, M.body), 0, (yc - winH / 2) / 2, 0);              // 창 아래
+    add(g, box(winW, winH, tMm - 60, M.glass), 0, yc, 0);
+  } else {
+    add(g, box(lengthMm, hMm, tMm, M.body), 0, hMm / 2, 0);
+  }
+  add(g, box(lengthMm, capH, tMm, M.dark), 0, hMm - capH / 2, 0);           // 상단 캡
+  add(g, box(lengthMm, 120, tMm, M.dark), 0, 60, 0);                        // 하단 기초
+  return g;
+}
+
+Object.assign(PROPS, { conveyor, warhead, chuck, partTray, blastWall });

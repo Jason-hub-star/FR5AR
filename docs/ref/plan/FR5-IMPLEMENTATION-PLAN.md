@@ -13,7 +13,7 @@
   비교·승인·슬롯 활성화만 한다.
 
 근거 실측은 `docs/evidence/2026-07-31/fr5-live-readback.md`, 통신 모양은
-`docs/ref/API-CONTRACT.md`, 안전 판정은 `docs/ref/SAFETY-RULES.md`가 정본이다.
+`docs/ref/contract/API-CONTRACT.md`, 안전 판정은 `docs/ref/contract/SAFETY-RULES.md`가 정본이다.
 
 ## 실기 기준선
 

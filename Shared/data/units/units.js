@@ -35,7 +35,7 @@ export const mmVec = (v) => v.map(mm);
  * 씬이 실제의 좌우 반전이 된다. 배치안만 볼 때는 아무도 눈치채지 못하지만, 글로벌 카메라
  * 영상 위에 겹치는 순간 첫 프레임에 드러나고 **카메라로는 흡수할 수 없다** —
  * 뷰 행렬 행렬식이 −1 이 되어 회전으로 표현이 안 된다
- * (`Shared/view3d/camera/global-cam.js`, 게이트 `scripts/map/check-camera.sh`).
+ * (`Shared/view3d/global-cam.js`, 게이트 `scripts/map/check-camera.sh`).
  *
  * 실험실 좌표계는 **오른손**이다 — ROS 맵(`mapToLab`)도 OpenCV `solvePnP` 도 오른손을 전제한다.
  */

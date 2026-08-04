@@ -1,7 +1,7 @@
 # GOAL-optimize-history — 후보를 비교하고, 일어난 일을 되짚는다
 
 FR5 사다리 4/6. 앞: [GOAL-program-slots.md](GOAL-program-slots.md) · 다음: [GOAL-servo-stream.md](GOAL-servo-stream.md).
-계약은 `docs/ref/API-CONTRACT.md` §프로그램 슬롯·실행 기록.
+계약은 `docs/ref/contract/API-CONTRACT.md` §프로그램 슬롯·실행 기록.
 **착수 시 확장한다** — 지금은 골 한 줄·경계·멈춤 조건만 확정한다 (문서를 미리 살찌우지 않는다).
 
 ## 골 한 줄

@@ -101,4 +101,4 @@ npm run build:dash               # → 성공
 
 ## 참조
 
-- `Shared/data/layout/schema.js` (`validateLayout`) · `docs/ref/CODING-CONVENTIONS.md` (단위)
+- `Shared/data/layout/schema.js` (`validateLayout`) · `docs/ref/arch/CODING-CONVENTIONS.md` (단위)

@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   loadConfig, loadRobot, applyMount, countTriangles,
-} from '@fr5/shared/view3d/robot/robot-view.js';
+} from '@fr5/shared/view3d/robot.js';
 import { bindNumberPair } from '../features/ui/number-pair.js';
 
 const $ = (id) => document.getElementById(id);

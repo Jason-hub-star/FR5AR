@@ -8,8 +8,8 @@
 > (`docs/evidence/2026-07-30/vite-gate.md`).
 >
 > **이 문서를 근거로 코드를 짜지 마라.** 확정본은 아래로 갔다 —
-> 번들 경계·폴더·게이트 경로·이관 순서는 **`docs/ref/BUILD-VITE.md`**,
-> 관제화면은 **`docs/ref/CONSOLE-REACT.md`**, 공용 모델은 **`docs/ref/SHARED-CORE.md`**.
+> 번들 경계·폴더·게이트 경로·이관 순서는 **`docs/ref/arch/BUILD-VITE.md`**,
+> 관제화면은 **`docs/ref/arch/CONSOLE-REACT.md`**, 공용 모델은 **`docs/ref/contract/SHARED-CORE.md`**.
 >
 > 이 문서는 **왜 그렇게 정했는지의 판단 과정**으로만 남긴다. 그 뒤 목표가 확정되면서
 > (D16) `features/` 가 4개 → 6개로 늘고 마일스톤 순서가 뒤집힌 것은 여기 반영돼 있지 않다.

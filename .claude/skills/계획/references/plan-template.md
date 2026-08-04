@@ -56,7 +56,7 @@
 ## File Map
 
 - create: `candidate:apps/...`
-- modify: `docs/ref/PRD.md`
+- modify: `docs/ref/product/PRD.md`
 - keep: `docs/status/PROJECT-STATUS.md`
 
 ## Folder Boundaries
@@ -82,7 +82,7 @@ Goal:
 - ...
 
 Files:
-- `docs/ref/PRD.md`
+- `docs/ref/product/PRD.md`
 
 Skills:
 - `/계획`

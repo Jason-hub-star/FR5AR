@@ -44,7 +44,7 @@ PY
 node --input-type=module -e "
 import { readFileSync } from 'node:fs';
 import * as THREE from '$ROOT/node_modules/three/build/three.module.js';
-const { applyCalibToCamera, labToPixel } = await import('$ROOT/Shared/view3d/camera/global-cam.js');
+const { applyCalibToCamera, labToPixel } = await import('$ROOT/Shared/view3d/global-cam.js');
 const T = JSON.parse(readFileSync('$TMP/truth.json', 'utf8'));
 const cam = new THREE.PerspectiveCamera();
 applyCalibToCamera(cam, T.calib);

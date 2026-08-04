@@ -8,7 +8,7 @@
 
 import * as THREE from 'three';
 
-/** FR5 도달거리 (m). 스펙값이다 — 편집 대상이 아니다 (docs/ref/STACK.md). */
+/** FR5 도달거리 (m). 스펙값이다 — 편집 대상이 아니다 (docs/ref/arch/STACK.md). */
 export const FR5_REACH_M = 0.922;
 
 /**

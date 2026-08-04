@@ -10,7 +10,7 @@
   목업에서 실물로 바꾸는 작업이 **파일 한 개 교체**여야 한다
 - 배치안 좌표는 **실험실 바닥 원점 기준 mm·도**로 저장한다 (SR_23).
   로봇 베이스 기준으로 저장하면 배치안끼리 비교가 불가능해진다
-- 스키마를 만들기 전에 `docs/ref/API-CONTRACT.md` 를 먼저 고친다 (하드 룰 1)
+- 스키마를 만들기 전에 `docs/ref/contract/API-CONTRACT.md` 를 먼저 고친다 (하드 룰 1)
 - **브라우저가 Supabase 를 직접 부르지 않는다.** 브리지만 서버 키로 말한다 — 로그인이 없는
   구조(D41)에서 브라우저에 키를 주면 주소를 아는 누구나 남의 기록을 지울 수 있다
 - **모든 행에 정체를 함께 저장한다** — `robotId` · 펌웨어 문자열 · tool/user · 그리퍼 정체 ·
@@ -21,4 +21,4 @@
 
 아직 비어 있다. 착수하면 여기에 구조를 적는다.
 
-읽을 것 — `docs/ref/SHARED-CORE.md` §datasource · `docs/ref/API-CONTRACT.md`
+읽을 것 — `docs/ref/contract/SHARED-CORE.md` §datasource · `docs/ref/contract/API-CONTRACT.md`

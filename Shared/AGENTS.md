@@ -21,4 +21,4 @@
 | `tokens/` | 색·간격·타이포 CSS 변수 |
 | `view3d/` | 바닐라 three.js 3D 뷰 모듈 |
 
-읽을 것 — `docs/ref/SHARED-CORE.md`
+읽을 것 — `docs/ref/contract/SHARED-CORE.md`

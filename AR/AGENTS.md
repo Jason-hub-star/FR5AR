@@ -21,4 +21,4 @@
 | `vite.config.js` | 엔트리·publicDir. `Shared/assets` 가 루트로 서빙된다 |
 | `vercel.json` | 배포 설정. **카메라 권한 헤더가 여기 있다** |
 
-읽을 것 — `docs/ref/AR-DEBUG.md` (안 될 때) · `docs/ref/BUILD-VITE.md` (경계)
+읽을 것 — `docs/ref/runbook/AR-DEBUG.md` (안 될 때) · `docs/ref/arch/BUILD-VITE.md` (경계)

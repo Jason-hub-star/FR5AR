@@ -17,7 +17,7 @@
 // 렌즈를 쓴다. `calib.intrinsics.dist` 가 크면 가장자리부터 어긋난다.
 
 import * as THREE from 'three';
-import { mm, planToScene } from '../../data/units/units.js';
+import { mm, planToScene } from '../data/units/units.js';
 
 /** planToScene 을 3x3 선형 사상으로 뽑는다 (mm→m 스케일은 뺀다). */
 function planAxes() {

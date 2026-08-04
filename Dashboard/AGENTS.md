@@ -1,6 +1,6 @@
 # Dashboard — 관제화면 (Vite + React)
 
-본체는 **L1 배치안 편집**이다 (`docs/ref/MILESTONES.md`). `control`은 기존 자리 이름만
+본체는 **L1 배치안 편집**이다 (`docs/ref/plan/MILESTONES.md`). `control`은 기존 자리 이름만
 유지하며 FR5 상태 요약·별도 앱 연결로 바꾼다. 로봇 명령은 `FR5/` 소유다(D36).
 
 - **R3F 를 쓰지 않는다.** 3D 는 `Shared/view3d/` 의 바닐라 코드를 `ref` + `useEffect` 로 마운트.
@@ -22,4 +22,4 @@
 | `src/features/metrics/` | 지표 비교 |
 | `index.html` | 브라우저 진입점 |
 
-읽을 것 — `docs/ref/CONSOLE-REACT.md`
+읽을 것 — `docs/ref/arch/CONSOLE-REACT.md`

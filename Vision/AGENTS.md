@@ -6,7 +6,7 @@
 - **비전이 죽으면 아무 일도 안 일어난다** — fail-closed (`SAFETY-RULES.md`)
 - 상한 안의 작은 보정만 자동 통과. **큰 동작은 사람 확인**
 - 제안·판정·실행을 전부 기록한다 — 나중에 "왜 움직였나" 에 답해야 한다
-- 계약은 코드보다 먼저 — `docs/ref/API-CONTRACT.md` 에 `/proposal` 을 적고 짠다
+- 계약은 코드보다 먼저 — `docs/ref/contract/API-CONTRACT.md` 에 `/proposal` 을 적고 짠다
 
 ## 폴더
 
@@ -17,11 +17,13 @@
 모방학습(그리퍼 뎁스카메라로 사람 시연을 관찰해 재현) 요구의 접근법·스택·사다리·함정이
 거기 있다. 조사 문서라 SSOT 가 아니다: **값을 박기 전에 `docs/ref/` 로 승격**한다.
 
-착수 전 이미 정해진 것 셋 — ①범위는 **시연 수집 → 학습 → 수행**까지다 (D47).
+착수 전 이미 정해진 것 다섯 — ①범위는 **시연 수집 → 학습 → 수행**까지다 (D47).
 배운 적 없는 작업을 스스로 계획하는 것만 범위 밖이다 ②학습 루프도 **브리지를 통해서만**
 로봇과 말한다. xmlrpc(20003)는 연결이 하나뿐이라 밖에서 붙으면 컨트롤러가 넘어간다 (실측)
 ③정책 실행은 `MoveJ` 가 아니라 **서보 스트리밍**이다 — 선행 골이
-`docs/goals/GOAL-servo-stream.md` 다.
+`docs/goals/GOAL-servo-stream.md` 다 ④**과제는 페트병 뚜껑 체결**, 화면은 미사일 조립이지만
+**인식 대상은 실물**이다 (D50) ⑤**제안에는 유효기한이 있다** — 잰 뒤 물체가 움직이면 옛
+좌표로 간다 (`vision-imitation.md` §5 · 착수 때 `/proposal` 에 반영).
 
-읽을 것 — `docs/ref/ARCHITECTURE.md` §비전 · `docs/ref/SAFETY-RULES.md` ·
+읽을 것 — `docs/ref/arch/ARCHITECTURE.md` §비전 · `docs/ref/contract/SAFETY-RULES.md` ·
 `docs/research/vision-imitation.md`

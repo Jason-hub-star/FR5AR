@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { buildLabSky, ENV_INTENSITY } from './sky.js';
-import { applyCalibToCamera } from '../camera/global-cam.js';
+import { applyCalibToCamera } from '../global-cam.js';
 
 /**
  * 무대를 만든다. 반환값의 `dispose()` 를 **반드시** 부른다 —

@@ -15,14 +15,14 @@ REQUIRED=(
   AGENTS.md
   docs/INDEX.md
   docs/SESSION-START.md
-  docs/ref/PRD.md
-  docs/ref/USER-REQUIREMENTS.md
-  docs/ref/FEATURE-SPEC.md
-  docs/ref/ARCHITECTURE.md
-  docs/ref/STACK.md
-  docs/ref/API-CONTRACT.md
-  docs/ref/CODING-CONVENTIONS.md
-  docs/ref/MILESTONES.md
+  docs/ref/product/PRD.md
+  docs/ref/product/USER-REQUIREMENTS.md
+  docs/ref/product/FEATURE-SPEC.md
+  docs/ref/arch/ARCHITECTURE.md
+  docs/ref/arch/STACK.md
+  docs/ref/contract/API-CONTRACT.md
+  docs/ref/arch/CODING-CONVENTIONS.md
+  docs/ref/plan/MILESTONES.md
   docs/status/PROJECT-STATUS.md
   docs/status/DECISION-LOG.md
   docs/status/GAP-MATRIX.md
@@ -59,6 +59,26 @@ for f in docs/*; do
     *) bad "docs/ 루트에 쌓임: $b  → ref/(SSOT) · status/(상태) · evidence/(증거) · research/(조사) · archive/(보존) 중 하나로" ;;
   esac
 done
+
+echo
+echo "== docs/ref 루트 쌓임 =="
+# scripts/ 와 같은 규약 — 루트에는 README 만, 나머지는 카테고리 폴더로 간다.
+REF_CATS="product contract arch plan runbook rnd unity"
+if [ -d docs/ref ]; then
+  for f in docs/ref/*; do
+    [ -f "$f" ] || continue
+    b="$(basename "$f")"
+    [ "$b" = "README.md" ] \
+      && note "$b" \
+      || bad "docs/ref/ 루트에 쌓임: $b  → $(echo $REF_CATS | tr ' ' '/') 중 하나로 (docs/ref/README.md)"
+  done
+  for c in $REF_CATS; do
+    [ -d "docs/ref/$c" ] \
+      && note "$c/ ($(find "docs/ref/$c" -name '*.md' | wc -l | tr -d ' ')건)" \
+      || bad "카테고리 폴더 없음: docs/ref/$c/"
+  done
+  [ -f docs/ref/README.md ] || bad "docs/ref/README.md 없음 — 카테고리 표가 정본이다"
+fi
 
 echo
 echo "== 증거 날짜 폴더 =="
@@ -123,12 +143,12 @@ else
 fi
 
 # docs/ref/unity/ 밖에 Unity 원본 경로를 인용하면서 유니티임을 안 밝힌 문서 찾기
-for f in docs/ref/*.md; do
+while IFS= read -r f; do
   [ -e "$f" ] || continue
   if grep -q "FR5UNITY" "$f" 2>/dev/null; then
     grep -qiE "유니티|Unity" "$f" || bad "FR5UNITY 경로를 인용하면서 유니티임을 안 밝힘: $f"
   fi
-done
+done < <(find docs/ref -name '*.md' -not -path 'docs/ref/unity/*' 2>/dev/null)
 
 echo
 echo "== 깨진 상대 링크 =="

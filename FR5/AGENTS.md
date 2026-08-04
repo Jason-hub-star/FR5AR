@@ -2,7 +2,7 @@
 
 이 폴더가 FR5 조작 기능의 수직 배포 단위다. `Dashboard/`는 배치·지표만 보여주고 명령을 안 보낸다.
 
-- 계약부터: `docs/ref/API-CONTRACT.md`. 실기 명령·엔드포인트는 문서를 먼저 바꾸고 짠다
+- 계약부터: `docs/ref/contract/API-CONTRACT.md`. 실기 명령·엔드포인트는 문서를 먼저 바꾸고 짠다
 - 브라우저는 로봇과 직접 통신하지 않는다. 유일한 관문은 `bridge/`
 - 안전은 `bridge/`에서만 강제: 속도 10% · 관절 5° · `stop`은 항상 통과.
   **stop 은 잠금도 기다리지 않는다** — 잠금도 정지를 막는 조건이다 (D45)
@@ -22,4 +22,4 @@
 
 **P0~P2 완료** · 실기 첫 조그와 그리퍼 개폐 통과. 브리지는 우분투에서 systemd 로 돈다 —
 배포 `bash scripts/deploy/fr5-ubuntu.sh`. 다음은 `docs/goals/GOAL-live-gripper.md` 부터
-사다리 4칸이고, 5개 패널 순서는 `docs/ref/FR5-IMPLEMENTATION-PLAN.md` 가 정본이다.
+사다리 4칸이고, 5개 패널 순서는 `docs/ref/plan/FR5-IMPLEMENTATION-PLAN.md` 가 정본이다.

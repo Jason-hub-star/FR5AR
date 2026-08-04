@@ -2,7 +2,7 @@
 
 FR5 사다리 3/6. 앞: [GOAL-teach-points.md](GOAL-teach-points.md) ·
 다음: [GOAL-optimize-history.md](GOAL-optimize-history.md).
-계약은 `docs/ref/API-CONTRACT.md` §프로그램 슬롯.
+계약은 `docs/ref/contract/API-CONTRACT.md` §프로그램 슬롯.
 
 ## 골 한 줄
 

@@ -91,4 +91,4 @@ npm run build:dash               # → 성공
 
 ## 참조
 
-- `docs/status/GAP-MATRIX.md` · `docs/ref/CONSOLE-REACT.md` · `docs/status/DECISION-LOG.md` D17
+- `docs/status/GAP-MATRIX.md` · `docs/ref/arch/CONSOLE-REACT.md` · `docs/status/DECISION-LOG.md` D17

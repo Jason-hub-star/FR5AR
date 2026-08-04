@@ -1,6 +1,6 @@
 # FR5 bridge 경계
 
-FAIRINO FR5의 유일한 명령 관문이다. 계약은 `docs/ref/API-CONTRACT.md`가 정본이다.
+FAIRINO FR5의 유일한 명령 관문이다. 계약은 `docs/ref/contract/API-CONTRACT.md`가 정본이다.
 
 구현됨 (P0~P2 · 2026-07-31):
 

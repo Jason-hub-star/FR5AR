@@ -2,7 +2,7 @@
 
 분류: 증거 · 2026-07-30
 
-`docs/ref/SAFETY-RULES.md`에 남아 있던 "아직 확인 안 한 것" 3건을 닫기 위해
+`docs/ref/contract/SAFETY-RULES.md`에 남아 있던 "아직 확인 안 한 것" 3건을 닫기 위해
 상태 구조체 필드를 전수로 뽑았다.
 
 ## 방법

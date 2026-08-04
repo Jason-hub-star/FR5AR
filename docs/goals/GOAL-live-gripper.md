@@ -1,7 +1,7 @@
 # GOAL-live-gripper — 화면에서 그리퍼를 연다·닫는다
 
 FR5 사다리 1/6. 다음: [GOAL-teach-points.md](GOAL-teach-points.md).
-계약은 `docs/ref/API-CONTRACT.md` §그리퍼, 실측 근거는 `docs/evidence/2026-08-03/fr5-field-gates.md`.
+계약은 `docs/ref/contract/API-CONTRACT.md` §그리퍼, 실측 근거는 `docs/evidence/2026-08-03/fr5-field-gates.md`.
 
 ## 골 한 줄
 

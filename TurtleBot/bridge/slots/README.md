@@ -1,6 +1,6 @@
 # 슬롯 계약 — 여기에 .py 를 넣으면 대시보드에 뜬다
 
-정본은 `docs/ref/TB-CONTRACT.md` §스크립트 슬롯. 요약:
+정본은 `docs/ref/contract/TB-CONTRACT.md` §스크립트 슬롯. 요약:
 
 1. **파일명이 슬롯 이름** — `[a-z0-9-_]` 만. 첫 줄 docstring 한 줄이 설명으로 뜬다
 2. 브리지가 **별도 프로세스**로 실행한다. env 로 받는다

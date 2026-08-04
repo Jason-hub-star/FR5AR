@@ -38,11 +38,18 @@ Shared/
     config/       .env 에서 생성된 설정
     datasource/   지표·배치안을 어디서 가져오나 (mock → http)
   view3d/         바닐라 three 공용. React 를 쓰지 않는다
-    robot/        URDF 로딩 · 그리퍼 부착 · 관절
-    trajectory/   FK 보간 · 궤적 · 재생
-    safety/       도달 범위 표시
+    parts.js        무대 부품 카탈로그 (실험실 11 + 방산 5) · `assembleProps`
+    robot.js        URDF 로딩 · 그리퍼 부착 · 관절
+    path.js         FK 보간 · 경로선 · 재생
+    reach-zone.js   도달 범위 표시
+    global-cam.js   실제 카메라 ↔ 씬 변환
+    lab/            방 껍데기 · 배치 뷰 · 편집 조작 · 하늘 (파일 4개)
   assets/         URDF · STL · 마커 (두 쪽이 다 쓴다)
 ```
+
+**폴더는 파일이 둘 이상일 때 만든다.** 한 파일짜리 폴더는 경로만 길게 하고
+`props/index.js`·`trajectory/trajectory.js` 같은 이름을 낳는다. 2026-08-03 에 그런 폴더
+5개를 없앴다 — `view3d/` 는 파일 5개 + `lab/` 하나다.
 
 **`Shared/view3d/` 가 React 를 쓰지 않는 것이 핵심이다.** 그래서 R3F 로 다시 쓰지 않고,
 Dashboard 는 `ref` + `useEffect` 로 마운트한다 (`CONSOLE-REACT.md`).
@@ -148,8 +155,8 @@ URL 파라미터(`?mm=`)와 `⚙` 가 이미 처리한다 (`AR-DEBUG.md` §2).
 | `web/test/marker-detect.html` | `AR/test/marker-detect.html` | 검증 하네스. 유지 |
 | `web/test/smoothtest.html` (44줄) | **삭제** | `matrixAutoUpdate` 무해함을 증명한 1회용. 결론은 D15 에 있다 |
 | `web/js/ar-marker.js` | `AR/src/features/marker/` | AR 전용 |
-| `web/js/robot-view.js` | **`Shared/view3d/robot/`** | 두 쪽이 다 쓴다 |
-| `web/js/trajectory.js` | **`Shared/view3d/trajectory/`** | 두 쪽이 다 쓴다 |
+| `web/js/robot-view.js` | **`Shared/view3d/robot.js`** | 두 쪽이 다 쓴다 |
+| `web/js/trajectory.js` | **`Shared/view3d/path.js`** | 두 쪽이 다 쓴다 |
 | `web/js/loaders/TGALoader.js` (538줄) | **삭제** | **죽은 파일.** importmap 등록만 있고 import 하는 곳이 없다 |
 | `web/js/vendor/three.module.js` `three.core.js` | **삭제** → npm `three` | |
 | `web/js/vendor/URDFLoader.js` `URDFClasses.js` | **삭제** → npm `urdf-loader` | |

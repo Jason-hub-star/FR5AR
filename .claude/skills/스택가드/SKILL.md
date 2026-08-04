@@ -22,12 +22,12 @@ version: 1
 
 ## 절차
 
-1. **`docs/ref/STACK.md`에 있는지 확인한다.** 없으면 추가한다 — 값 + **출처** + 확인 날짜.
+1. **`docs/ref/arch/STACK.md`에 있는지 확인한다.** 없으면 추가한다 — 값 + **출처** + 확인 날짜.
 2. SDK 필드라면 **원문 주석을 함께 적는다.** 중국어라도 그대로.
    번역만 적으면 다음 사람이 원본에서 못 찾는다.
 3. 기준값이라면 `scripts/README.md`의 **기준값 표**에도 올린다.
    어느 스크립트의 어느 상수인지, 언제 바꿔야 하는지.
-4. API 계약이라면 `docs/ref/API-CONTRACT.md`를 고친다. **여기가 SSOT다.**
+4. API 계약이라면 `docs/ref/contract/API-CONTRACT.md`를 고친다. **여기가 SSOT다.**
 
 ## FAIRINO SDK 필드를 다룰 때 (특히 위험)
 

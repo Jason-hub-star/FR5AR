@@ -1,6 +1,6 @@
 # TurtleBot — 터틀봇 관제 (웹앱 · tb-bridge · **P0~P4 완료, 로봇 실주행만 남음**)
 
-**계약이 먼저다** — `docs/ref/TB-CONTRACT.md` 를 고치고 코드를 짠다 (D29~D31).
+**계약이 먼저다** — `docs/ref/contract/TB-CONTRACT.md` 를 고치고 코드를 짠다 (D29~D31).
 
 - 웹앱(:5175)과 브리지(:5055)가 **이 폴더에 수직 완결** — 우분투에서 배포된다.
   Vercel 에 올리지 않는다 (D29)
@@ -23,4 +23,4 @@
 | `bridge/slots/` | 팀원 파이썬 슬롯 — 계약은 `slots/README.md` |
 
 실행 `bash scripts/dev/tb-dev.sh` · 검증 `node scripts/check/tb-{web,bridge,cycle}-verify.mjs`
-읽을 것 — `docs/ref/TB-CONTRACT.md`
+읽을 것 — `docs/ref/contract/TB-CONTRACT.md`

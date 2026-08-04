@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { loadConfig, loadRobot, setJointsDeg } from '@fr5/shared/view3d/robot/robot-view.js';
+import { loadConfig, loadRobot, setJointsDeg } from '@fr5/shared/view3d/robot.js';
 
 export function RobotTwin({ jointsDeg }) {
   const hostRef = useRef(null);

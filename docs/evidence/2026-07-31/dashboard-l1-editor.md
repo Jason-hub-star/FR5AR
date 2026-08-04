@@ -271,7 +271,7 @@ bash scripts/check/all.sh    → 전체 통과
 #### 1. 회전이 항상 0° 로 떴다
 
 3D 노드의 `userData.item` 은 `{kind, id, type}` **셋만** 담는다
-(`Shared/view3d/props/index.js:162`). 회전을 실어 나르지 않는다.
+(`Shared/view3d/parts.js:162`). 회전을 실어 나르지 않는다.
 그래서 실제로 180° 인 물건이 화면에 **0° 로 보였다.**
 
 골의 Boundaries 가 `Shared/**` 수정을 금지하므로 **거기를 고치지 않고**,

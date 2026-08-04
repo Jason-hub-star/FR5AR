@@ -13,7 +13,7 @@
 | 다른 코드 | 팀원 | AMR 자율주행 |
 
 **우리는 수치를 만들지 않는다. 받아서 보여준다.** 그래서 두 가지를 지킨다 —
-받는 모양을 우리가 먼저 제시하고(`docs/ref/API-CONTRACT.md`), 나중에 백엔드·데이터베이스로
+받는 모양을 우리가 먼저 제시하고(`docs/ref/contract/API-CONTRACT.md`), 나중에 백엔드·데이터베이스로
 바꿔 끼울 수 있게 한 곳으로 격리한다(`Shared/data/datasource/`).
 
 ## 지금 바로 보기
@@ -49,9 +49,9 @@
 
 화면·로봇 도메인은 `AR/` · `Dashboard/` · `FR5/` · `TurtleBot/`으로 갈리고 공용은
 `Shared/`다. FR5 조작은 Dashboard 탭이 아니라 `FR5/`가 웹+브리지로 수직 소유한다.
-경계는 `docs/ref/BUILD-VITE.md`.
+경계는 `docs/ref/arch/BUILD-VITE.md`.
 
-**안 될 때는 `docs/ref/AR-DEBUG.md`** — 증상별 원인표와 진단 수치 읽는 법이 있다.
+**안 될 때는 `docs/ref/runbook/AR-DEBUG.md`** — 증상별 원인표와 진단 수치 읽는 법이 있다.
 
 ## 로컬에서 돌리기
 
@@ -115,20 +115,20 @@ cd AR && vercel --prod --yes --scope kimjuyoung1127s-projects
 이게 처리량의 분모라서, 어긋나면 **배치안 A와 B의 비교 자체가 무의미해진다.**
 나머지(전달 방법·지표 필드 목록)는 목업으로 넘어간다 —
 필수 필드는 `throughputPerHour`와 `cycleTimeSec.mean` 둘뿐이다
-(`docs/ref/API-CONTRACT.md` §생산성 지표).
+(`docs/ref/contract/API-CONTRACT.md` §생산성 지표).
 
 ## 문서
 
 `docs/INDEX.md` 가 지도다. 처음이면 이 순서로 본다.
 
 1. `docs/SESSION-START.md` — **폴더 라우터.** 무엇을 건드리는지 정하면 읽을 문서가 둘로 줄어든다
-2. `docs/ref/PRD.md` — 목표와 성공 판정
+2. `docs/ref/product/PRD.md` — 목표와 성공 판정
 3. `docs/status/PROJECT-STATUS.md` — 지금 어디까지
 4. `docs/status/DECISION-LOG.md` — 왜 그렇게 정했나 (D1~D17)
-5. `docs/ref/AR-DEBUG.md` — AR 이 안 될 때
+5. `docs/ref/runbook/AR-DEBUG.md` — AR 이 안 될 때
 
-코드를 짜기 전에 보는 것 — `docs/ref/SHARED-CORE.md`(배치안 모델·단위) ·
-`docs/ref/BUILD-VITE.md`(폴더 경계) · `docs/ref/CONSOLE-REACT.md`(관제화면)
+코드를 짜기 전에 보는 것 — `docs/ref/contract/SHARED-CORE.md`(배치안 모델·단위) ·
+`docs/ref/arch/BUILD-VITE.md`(폴더 경계) · `docs/ref/arch/CONSOLE-REACT.md`(관제화면)
 
 ## 기술
 

@@ -23,8 +23,8 @@ const MM = 0.001; // 밀리미터 → 미터
 // 파일이 없거나 깨지면 빌드가 실패한다 — 런타임에 조용히 실패하면
 // 화면에 아무것도 안 뜨는데 콘솔 에러도 없다 (D15·D18, BUILD-VITE.md §설정).
 // 두 JSON 은 .env 에서 굽는 산출물이다 → node scripts/build/config.mjs
-import gripperConfig from '../../data/config/gripper-mount.json';
-import markerConfig from '../../data/config/marker-offset.json';
+import gripperConfig from '../data/config/gripper-mount.json';
+import markerConfig from '../data/config/marker-offset.json';
 
 /** 설정 두 개. 값을 코드에 박지 않기 위한 유일한 경로. */
 export function loadConfig() {

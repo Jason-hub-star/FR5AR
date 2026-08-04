@@ -9,22 +9,22 @@
 | `CLAUDE.md` | Claude 진입 문서. 5분 진입 순서, 하드 룰 6개, 검증 명령 | SSOT | Claude로 작업할 때 |
 | `AGENTS.md` | Codex/OpenCode 진입 문서. 정찰·편집 위임 규약 | SSOT | 다른 에이전트가 작업할 때 |
 | `docs/SESSION-START.md` | 세션 진입 캡슐. 문서 지도 | SSOT | 매 세션 시작 시 |
-| `docs/ref/PRD.md` | 무엇을 왜. **목표(배치별 생산성)** · 기능 F1~F9 · 완료 판정 · 미확정 | SSOT | 범위가 헷갈릴 때 |
-| `docs/ref/USER-REQUIREMENTS.md` | 사용자 요구정의서 — 페르소나 6 · UR 25 · SR 26 · 화면 14 | SSOT | **무엇을 만들지 정할 때 제일 먼저** |
-| `docs/ref/FEATURE-SPEC.md` | 기능 F1~F9의 ID·우선순위·폴더·의존 관계 | SSOT | 무엇부터 만들지 정할 때 |
-| `docs/ref/ARCHITECTURE.md` | **역할 분담(우리=시각화)** · 확장성 경계 · 폴더 구조 · 좌표계 · UI 토큰 규약 | SSOT | 구조·폴더·공용 디자인을 바꿀 때 |
-| `docs/ref/STACK.md` | 확정 기술과 버전, AR 마커 방식 근거, 그리퍼, 함정 | SSOT | 라이브러리를 고를 때 |
-| `docs/ref/API-CONTRACT.md` | REST/WS 계약. 상태·명령·조종권·이동지점·**배치안·지표 요구 모양** | SSOT | 서버·프론트·AR가 맞출 때 |
-| `docs/ref/TB-CONTRACT.md` | **터틀봇 관제 계약** — 상태·teleop·슬롯·맵·기록·미래 접점 5 | SSOT | 터틀봇 브리지·웹을 짤 때 |
-| `docs/ref/CODING-CONVENTIONS.md` | 단위·좌표계·안전·네이밍 규칙 | SSOT | 코드를 쓰기 전에 |
-| `docs/ref/SAFETY-RULES.md` | 안전 판정 조건 19개와 SDK 필드 매핑, fail-closed 원칙 | SSOT | **로봇에 명령 보내는 코드 쓰기 전** |
-| `docs/ref/MILESTONES.md` | **L1~L3(배치 실험)** + H0~V7(FR5 플랫폼) 단계와 완료 조건 | SSOT | 다음에 뭘 할지 정할 때 |
-| `docs/ref/FR5-IMPLEMENTATION-PLAN.md` | **FR5 상세 계획** — 5패널·실기 게이트·슬롯·기록·수천 회 시뮬레이션 | SSOT | FR5 구현·범위·순서를 정할 때 |
-| `docs/ref/FR5-BRINGUP.md` | **FR5 브링업 절차** — 우분투 호스트에서 로봇 붙이는 5분 순서·증상별 조치 | SSOT | **로봇을 켜고 붙일 때 제일 먼저** |
-| `docs/ref/AR-DEBUG.md` | AR 디버깅 — 화면 진단판 읽는 법 · 증상별 원인 · 자동화 한계 | SSOT | **AR이 안 될 때 제일 먼저** |
-| `docs/ref/BUILD-VITE.md` | 앱(`AR`/`Dashboard`/`FR5`/`TurtleBot`)·`Shared` 경계 · 파일 귀속 · 게이트 경로 | SSOT | **폴더·빌드·의존성을 건드릴 때** |
-| `docs/ref/SHARED-CORE.md` | 배치안 모델 · 단위 · 설정 · datasource — **두 폴더의 합의점** | SSOT | **데이터 모양을 건드릴 때 제일 먼저** |
-| `docs/ref/CONSOLE-REACT.md` | 관제화면(React) 규약 — R3F 금지 · 목업 우선 · 상태 규약 | SSOT | React 화면을 짤 때 |
+| `docs/ref/product/PRD.md` | 무엇을 왜. **목표(배치별 생산성)** · 기능 F1~F9 · 완료 판정 · 미확정 | SSOT | 범위가 헷갈릴 때 |
+| `docs/ref/product/USER-REQUIREMENTS.md` | 사용자 요구정의서 — 페르소나 6 · UR 25 · SR 26 · 화면 14 | SSOT | **무엇을 만들지 정할 때 제일 먼저** |
+| `docs/ref/product/FEATURE-SPEC.md` | 기능 F1~F9의 ID·우선순위·폴더·의존 관계 | SSOT | 무엇부터 만들지 정할 때 |
+| `docs/ref/arch/ARCHITECTURE.md` | **역할 분담(우리=시각화)** · 확장성 경계 · 폴더 구조 · 좌표계 · UI 토큰 규약 | SSOT | 구조·폴더·공용 디자인을 바꿀 때 |
+| `docs/ref/arch/STACK.md` | 확정 기술과 버전, AR 마커 방식 근거, 그리퍼, 함정 | SSOT | 라이브러리를 고를 때 |
+| `docs/ref/contract/API-CONTRACT.md` | REST/WS 계약. 상태·명령·조종권·이동지점·**배치안·지표 요구 모양** | SSOT | 서버·프론트·AR가 맞출 때 |
+| `docs/ref/contract/TB-CONTRACT.md` | **터틀봇 관제 계약** — 상태·teleop·슬롯·맵·기록·미래 접점 5 | SSOT | 터틀봇 브리지·웹을 짤 때 |
+| `docs/ref/arch/CODING-CONVENTIONS.md` | 단위·좌표계·안전·네이밍 규칙 | SSOT | 코드를 쓰기 전에 |
+| `docs/ref/contract/SAFETY-RULES.md` | 안전 판정 조건 19개와 SDK 필드 매핑, fail-closed 원칙 | SSOT | **로봇에 명령 보내는 코드 쓰기 전** |
+| `docs/ref/plan/MILESTONES.md` | **L1~L3(배치 실험)** + H0~V7(FR5 플랫폼) 단계와 완료 조건 | SSOT | 다음에 뭘 할지 정할 때 |
+| `docs/ref/plan/FR5-IMPLEMENTATION-PLAN.md` | **FR5 상세 계획** — 5패널·실기 게이트·슬롯·기록·수천 회 시뮬레이션 | SSOT | FR5 구현·범위·순서를 정할 때 |
+| `docs/ref/runbook/FR5-BRINGUP.md` | **FR5 브링업 절차** — 우분투 호스트에서 로봇 붙이는 5분 순서·증상별 조치 | SSOT | **로봇을 켜고 붙일 때 제일 먼저** |
+| `docs/ref/runbook/AR-DEBUG.md` | AR 디버깅 — 화면 진단판 읽는 법 · 증상별 원인 · 자동화 한계 | SSOT | **AR이 안 될 때 제일 먼저** |
+| `docs/ref/arch/BUILD-VITE.md` | 앱(`AR`/`Dashboard`/`FR5`/`TurtleBot`)·`Shared` 경계 · 파일 귀속 · 게이트 경로 | SSOT | **폴더·빌드·의존성을 건드릴 때** |
+| `docs/ref/contract/SHARED-CORE.md` | 배치안 모델 · 단위 · 설정 · datasource — **두 폴더의 합의점** | SSOT | **데이터 모양을 건드릴 때 제일 먼저** |
+| `docs/ref/arch/CONSOLE-REACT.md` | 관제화면(React) 규약 — R3F 금지 · 목업 우선 · 상태 규약 | SSOT | React 화면을 짤 때 |
 | `docs/status/PROJECT-STATUS.md` | 현재 상태 | 상태 | 세션 시작 시 |
 | `docs/status/DECISION-LOG.md` | 결정 기록 | 상태 | "왜 이렇게 됐나" 할 때 |
 | `docs/status/DECISION-LOG-CURRENT.md` | **최신 13건** 의 결정 원문 — 먼저 여기를 본다 | 상태 | 최근에 왜 그렇게 정했나 |
@@ -45,7 +45,7 @@
 | `docs/evidence/2026-07-30/doc-weight.md` | 문서 적재 실태·임계값 출처·하네스 이식 판정 | 증거 | 문서가 무거워졌을 때 · 하네스를 더 가져올 때 |
 | `docs/ref/unity/unity-bridge-protocol.md` | **유니티가 실기에서 검증한 값** — IP·포트·타임아웃·브링업 순서·함정 8개 | 참고 | **브리지 서버를 짤 때** |
 | `docs/evidence/2026-07-30/ar-baseline.md` | **AR 이관 기준값 7개** — 뜯기 전 배포본에서 뽑았다 | 증거 | **이관 후 대조할 때** |
-| `docs/ref/SLICE-AR-DEMO.md` | AR 실증 슬라이스 계획 — 5단계·정합 오차 실측 | 조사 | AR 슬라이스 착수 시 |
+| `docs/ref/plan/SLICE-AR-DEMO.md` | AR 실증 슬라이스 계획 — 5단계·정합 오차 실측 | 조사 | AR 슬라이스 착수 시 |
 | `docs/ref/rnd/V3-PORT-CONVERGE-LOOP-2026-07-29.md` | v3 이식 계획 수렴 루프 — 크럭스와 킬-실험 | 조사 | 착수 전 판단이 필요할 때 |
 | `docs/ref/rnd/NEXT-REFACTOR-2026-07-30.md` | 구조 개편 선택지 — 프레임워크·폴더·이름 | 조사 | **다음 세션 착수 시** |
 | `docs/ref/rnd/MIGRATION-CONVERGE-LOOP-2026-07-30.md` | 이관 계획 수렴 루프 — 크럭스와 킬실험. 결함 10개 중 2개 사살 | 조사 | **이관 착수·재개 시** |
@@ -61,6 +61,7 @@
 | `docs/goals/GOAL-optimize-history.md` | FR5 사다리 4/6 — 비교·기록 (경계만 확정) | 계약 | P5·P6 착수 전 확장 |
 | `docs/goals/GOAL-servo-stream.md` | FR5 사다리 5/6 — 서보 스트리밍 (모방학습 선행) | 계약 | 정책·원격조종을 붙이기 전 |
 | `docs/goals/GOAL-imitation-demo.md` | FR5 사다리 6/6 — 시연 학습·수행 (경계만 확정) | 계약 | 모방학습 착수 전 확장 |
+| `docs/ref/README.md` | **ref 카테고리 표** — 새 SSOT 문서를 어느 폴더에 넣나 | SSOT | 문서를 새로 만들 때 |
 | `docs/archive/ARCHIVE-INDEX.md` | 보관 문서 목록·이름 규칙 | 완료보존 | 옛 결정을 되짚을 때 |
 | `docs/INDEX.md` | 문서 지도 | SSOT | 문서를 찾을 때 |
 
@@ -80,7 +81,12 @@
 
 | 폴더 | 담는 것 | 분류 |
 |---|---|---|
-| `ref/` | 코드의 근거가 되는 문서 | SSOT |
+| `ref/` | 코드의 근거가 되는 문서. **루트에는 `README.md`만** — 카테고리 표가 거기 있다 | SSOT |
+| `ref/product/` | 무엇을 왜 만드나 (PRD·요구정의·기능목록) | SSOT |
+| `ref/contract/` | 두 쪽 이상이 맞출 모양 (API·TB·Shared·안전) | SSOT |
+| `ref/arch/` | 구조·기술·코딩 규약 | SSOT |
+| `ref/plan/` | 순서와 완료 조건 (마일스톤·구현계획·슬라이스) | SSOT |
+| `ref/runbook/` | 현장 절차·증상별 조치 (브링업·AR 디버깅) | SSOT |
 | `ref/rnd/` | 수렴 루프 같은 착수 전 판단 기록 | 조사 |
 | `status/` | 현재 상태·결정·갭 | 상태 |
 | `evidence/YYYY-MM-DD/` | 날짜 폴더 안의 검증 기록 | 증거 |
@@ -113,7 +119,7 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 ```markdown
 > **출처: Unity 프로젝트 (FR5UNITY)** — 원본 `<원본 경로>`
 > 이 문서는 **Unity 기준**이다. 웹(three.js)에 그대로 적용하지 마라 — 좌표계와 단위가 다르다.
-> 웹 기준은 `docs/ref/CODING-CONVENTIONS.md`가 이긴다.
+> 웹 기준은 `docs/ref/arch/CODING-CONVENTIONS.md`가 이긴다.
 ```
 
 - 전문 복사가 아니라 **발췌**한다. 원본이 정본이고 이쪽은 사본이다.
@@ -121,6 +127,6 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 
 ## 자가검증
 
-- INDEX.md에 등재된 문서 행 개수 = 57/57
+- INDEX.md에 등재된 문서 행 개수 = 58/58
 - PROJECT-STATUS.md의 "다음 한 걸음" 항목 개수 = 5/5
 - PROJECT-STATUS.md의 "블로커" 항목 개수 = 3/3

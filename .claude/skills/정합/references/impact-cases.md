@@ -3,7 +3,7 @@
 ## Route Rename
 
 - core paths: `apps/web/app/...`, `backend/app/api/...`
-- companion docs: `docs/ref/PROJECT-PLAN.md`, `docs/ref/ARCHITECTURE.md`
+- companion docs: `docs/ref/PROJECT-PLAN.md`, `docs/ref/arch/ARCHITECTURE.md`
 - verify matrix: route smoke, project check
 
 ## Env Var Rename

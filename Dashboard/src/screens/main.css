@@ -132,3 +132,68 @@ main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column
   .view3d-hint { bottom: var(--s-2); }
   .facts { padding: var(--s-2) var(--s-3); gap: 2px var(--s-3); font-size: 11px; }
 }
+
+/* ── 편집기 본문 = 좌 팔레트 + 우 3D. 팔레트는 폭 고정, 3D 가 남는 폭을 먹는다. */
+.editor-body { display: flex; flex: 1; min-height: 0; }
+.editor-body .view3d { flex: 1; min-width: 0; }
+
+.palette { width: 232px; flex: none; display: flex; flex-direction: column;
+           border-right: 1px solid var(--c-line); background: var(--c-bg); min-height: 0; }
+.palette-head { padding: var(--s-3) var(--s-3) var(--s-2); border-bottom: 1px solid var(--c-line); }
+.palette-head h3 { margin: 0 0 4px; font-size: 12px; letter-spacing: .04em; text-transform: uppercase;
+                   color: var(--c-fg-mute); }
+.palette-head p { margin: 0 0 var(--s-2); font-size: 11px; line-height: 1.5; color: var(--c-fg-mute); }
+.palette-head input { width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; font-size: 12px;
+                      border: 1px solid var(--c-line); border-radius: var(--r-ctl);
+                      background: var(--c-bg); color: var(--c-fg); }
+
+.palette-list { flex: 1; min-height: 0; overflow-y: auto; padding: var(--s-2) var(--s-3); }
+.palette-list section { margin-bottom: var(--s-3); }
+.palette-list h4 { margin: 0 0 6px; font-size: 11px; color: var(--c-fg-mute); font-weight: 600; }
+
+/* 카드 — 중립 흑백. 선택·주요 동작만 흑백을 쓴다는 규약(D38) 그대로. */
+.part-card { display: block; width: 100%; text-align: left; margin-bottom: 4px;
+             padding: 7px 9px; background: var(--c-bg); color: var(--c-fg);
+             border: 1px solid var(--c-line); border-radius: var(--r-ctl); cursor: pointer; }
+.part-card:hover { border-color: var(--c-fg); }
+.part-card:active { background: var(--c-fg); color: var(--c-bg); }
+.part-name { font-size: 12.5px; }
+.part-badge { float: right; font-size: 10px; padding: 1px 5px; color: var(--c-fg-mute);
+              border: 1px solid var(--c-line); border-radius: 2px; }
+.part-hint { display: block; margin-top: 2px; font-size: 10.5px; line-height: 1.4; color: var(--c-fg-mute); }
+.palette-empty { font-size: 12px; color: var(--c-fg-mute); }
+
+.palette-foot { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap;
+                padding: var(--s-2) var(--s-3); border-top: 1px solid var(--c-line);
+                font-size: 11px; color: var(--c-fg-mute); }
+.pane-head kbd, .palette-head kbd { font: inherit; font-size: 10px; padding: 0 3px;
+                border: 1px solid var(--c-line); border-radius: 2px; color: var(--c-fg-mute); }
+
+/* 썸네일 카드 — 그림 + 글. 그림은 코드로 구운 dataURL 이라 자산 파일이 없다. */
+.editor-stage { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.part-card { display: flex; align-items: flex-start; gap: 8px; }
+.part-thumb { flex: none; width: 40px; height: 40px; display: grid; place-items: center;
+              border: 1px solid var(--c-line); border-radius: 2px; background: var(--c-bg-soft, #fafafa);
+              overflow: hidden; }
+.part-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.part-thumb i { font-style: normal; font-size: 17px; color: var(--c-fg-mute); }
+.part-text { flex: 1; min-width: 0; }
+
+/* 씬 드롭다운 — 헤더 오른쪽으로 민다 */
+.scene-pick, .scene-name { margin-left: auto; font: inherit; font-size: 12px; padding: 4px 7px;
+             border: 1px solid var(--c-line); border-radius: var(--r-ctl);
+             background: var(--c-bg); color: var(--c-fg); max-width: 190px; }
+.scene-name { margin-left: 0; }
+.pane-head .scene-pick ~ * { margin-left: 0; }
+
+/* 문·창 편집 — 3D 위 정보판. 반투명은 여기만 허용된다 (D38) */
+.opening-edit { position: absolute; left: var(--s-4); bottom: var(--s-3);
+                display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap;
+                padding: 7px 11px; font-size: 12px;
+                background: var(--c-overlay, rgba(255,255,255,.86));
+                border: 1px solid var(--c-line); border-radius: var(--r-ctl); }
+.opening-edit label { display: inline-flex; align-items: center; gap: 4px; color: var(--c-fg-mute); }
+.opening-edit input, .opening-edit select { font: inherit; font-size: 12px; padding: 2px 5px; width: 74px;
+                border: 1px solid var(--c-line); border-radius: 2px; background: var(--c-bg); color: var(--c-fg); }
+.opening-edit select { width: 56px; }
+.facts .mute { color: var(--c-fg-mute); }

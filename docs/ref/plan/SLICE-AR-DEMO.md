@@ -51,7 +51,7 @@ AR.js 최소 예제. 로봇 없이 `BoxGeometry` 하나만.
 판정 — 마커를 비추면 상자가 뜨고, 마커를 가리면 사라진다.
 
 ### 3단계 — 상자를 FR5로 교체 ✅ 2026-07-30 완료
-`urdf-loader`로 우리 URDF를 마커 좌표계에 붙인다. `Shared/view3d/robot/robot-view.js` — **AR 전용이 아니라
+`urdf-loader`로 우리 URDF를 마커 좌표계에 붙인다. `Shared/view3d/robot.js` — **AR 전용이 아니라
 V0 화면과 공유하는 모듈**이다.
 
 **그리퍼도 함께 붙인다.** URDF에는 팔 링크 7개뿐이라 코드로 `wrist3_link`에 매단다.
@@ -164,8 +164,8 @@ A트랙 3단계 이후 언제든. **팀원에게 보여줄 것이 아니다.**
 ```
 AR/ar.html                    AR 화면
 AR/src/features/marker/ar-marker.js            마커 정합 · 스무딩
-Shared/view3d/robot/robot-view.js           URDF 로드 (3D 슬라이스와 공유)
-Shared/view3d/trajectory/trajectory.js           FK 보간 · 궤적 생성 · 애니메이션
+Shared/view3d/robot.js           URDF 로드 (3D 슬라이스와 공유)
+Shared/view3d/path.js           FK 보간 · 궤적 생성 · 애니메이션
 Shared/data/config/marker-offset.json  마커 원점 → 로봇 원점 오프셋
 Shared/assets/marker/             마커 패턴
 docs/evidence/2026-07-30/ar-marker-accuracy.md

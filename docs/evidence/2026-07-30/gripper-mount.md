@@ -1,7 +1,7 @@
 # 증거 — 그리퍼 장착값 실측 (2026-07-30)
 
 분류: **증거**. 이 시점에 브라우저에서 실제로 확인한 것만 적는다.
-확정 결과는 `web/config/gripper-mount.json`에, 배경은 `docs/ref/STACK.md` §그리퍼에 있다.
+확정 결과는 `web/config/gripper-mount.json`에, 배경은 `docs/ref/arch/STACK.md` §그리퍼에 있다.
 
 ## 무엇을 닫았나
 

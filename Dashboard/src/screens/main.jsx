@@ -6,7 +6,7 @@
 import './main.css';
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { FR5_REACH_M } from '@fr5/shared/view3d/safety/reach-zone.js';
+import { FR5_REACH_M } from '@fr5/shared/view3d/reach-zone.js';
 import { LayoutEditor } from '../features/layout/LayoutEditor.jsx';
 import { MetricsCompare } from '../features/metrics/MetricsCompare.jsx';
 import { RobotControl } from '../features/control/RobotControl.jsx';

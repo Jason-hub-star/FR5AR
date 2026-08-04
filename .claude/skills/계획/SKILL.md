@@ -47,7 +47,7 @@ FR5Web 에서 **수직 기능 1개를 끝까지 완결**하는 것은 `/슬라�
 - Goal: 이 작업이 끝나면 무엇이 가능해져야 하는가
 - Non-Goal: 이번 phase에서 하지 않을 것은 무엇인가
 
-`docs/ref/PRD.md`와 `docs/ref/PROJECT-PLAN.md`를 함께 연다.
+`docs/ref/product/PRD.md`와 `docs/ref/PROJECT-PLAN.md`를 함께 연다.
 
 ### Step 2: Naming Contract를 잠근다
 
@@ -125,7 +125,7 @@ FR5Web 에서 **수직 기능 1개를 끝까지 완결**하는 것은 `/슬라�
 
 최소 산출물:
 
-- `docs/ref/PRD.md`
+- `docs/ref/product/PRD.md`
 - `docs/ref/PROJECT-PLAN.md`
 - `docs/status/PROJECT-STATUS.md`
 - 필요 시 `docs/status/DECISION-LOG.md`

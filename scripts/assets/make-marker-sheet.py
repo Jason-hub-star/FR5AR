@@ -13,7 +13,7 @@
   ④ 배치가 용지를 벗어나면 파일을 만들지 않고 실패한다
 
 시트에 인쇄·부착 지침을 넣지 않는다 — 인쇄하기 **전에** 읽는 내용이고
-`AR/index.html` 과 `docs/ref/STACK.md` 에 있다. 종이에는 한 줄만 남긴다:
+`AR/index.html` 과 `docs/ref/arch/STACK.md` 에 있다. 종이에는 한 줄만 남긴다:
 어느 마커이고 몇 mm인지. 그게 없으면 종이만 보고 barcodeValue 를 알 수 없다.
 
 사용
@@ -302,7 +302,7 @@ def main():
     ap.add_argument("--test", action="store_true",
                     help="크기 실험 시트 (A4 한 장에 25·35·45·55·80mm)")
     # 원본은 쓰는 것만 남겼다 — 5(정본) · 2(예비) · 3(검출 테스트 음성 대조군).
-    # 다른 번호가 필요하면 출처에서 다시 받는다 (docs/ref/STACK.md §마커).
+    # 다른 번호가 필요하면 출처에서 다시 받는다 (docs/ref/arch/STACK.md §마커).
     ap.add_argument("--barcode", type=int, default=5, help="바코드 번호 (원본이 있는 것: 2·3·5)")
     args = ap.parse_args()
 

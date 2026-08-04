@@ -114,6 +114,23 @@ export function createInteraction({
       ray.setFromCamera(ptr, camera);
       if (!ray.ray.intersectPlane(floor, hit)) return;
       toLocal(dragging, hit);
+      const it0 = dragging.userData.item;
+
+      // **벽에 붙은 것(문·창)은 벽을 따라서만 미끄러진다.**
+      // 좌표가 `[x,y]` 가 아니라 `어느 벽 · 벽 위 몇 mm` 라서, 자유 이동은 표현할 데가 없다.
+      // 벽을 바꾸는 것은 옆 패널의 드롭다운이 한다.
+      if (it0?.wall) {
+        const along = it0.axis === 'x' ? toMm(hit.x) : -toMm(hit.z);   // 씬 Z → 평면도 Y (D43)
+        const half = (it0.widthMm ?? 900) / 2;
+        const at = Math.min(Math.max(snap(along), half), (it0.spanMm ?? 0) - half);
+        // 그룹을 통째로 밀어 **끄는 동안에도 보이게** 한다. 놓으면 데이터가 다시 그린다.
+        const d = mm(at - it0.atMm);
+        dragging.position.set(it0.axis === 'x' ? d : 0, 0, it0.axis === 'x' ? 0 : -d);
+        ringTo(selectRing, dragging);
+        onPick?.({ ...it0, atMm: at, live: true });
+        return;
+      }
+
       // **그리드 스냅.** 손으로 놓아도 줄이 맞는다 (ArduinoDT 의 2.54mm 스냅과 같은 발상)
       const xMm = snap(toMm(hit.x - grab.x));
       const zMm = snap(-toMm(hit.z - grab.z));    // 씬 Z → 평면도 Y (부호 반전 · D43)
@@ -175,7 +192,14 @@ export function createInteraction({
     // 안 그러면 클릭 한 번에 저장 배지가 뜨고 되돌리기 기록이 쌓인다
     if (!moved) return;
     // **여기서 데이터에 커밋한다.** 끄는 동안은 메시만 움직였다.
-    onCommit?.({ ...it.userData.item, posMm: [toMm(it.position.x), -toMm(it.position.z)] });
+    const it1 = it.userData.item;
+    if (it1?.wall) {
+      // 그룹을 민 거리를 되돌려 읽는다 — 원래 `atMm` + 민 거리
+      const moveMm = it1.axis === 'x' ? toMm(it.position.x) : -toMm(it.position.z);
+      onCommit?.({ ...it1, atMm: Math.round(it1.atMm + moveMm) });
+      return;
+    }
+    onCommit?.({ ...it1, posMm: [toMm(it.position.x), -toMm(it.position.z)] });
   }
 
   /** 90° 씩 돌린다. 벽에 붙이는 가구라 자유 각도는 쓸 일이 없다.

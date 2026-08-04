@@ -53,7 +53,7 @@ function NumBox({ label, value, min, max, step, onCommit }) {
   );
 }
 
-export function LayoutView({ layout, onReport, onCommit }) {
+export function LayoutView({ layout, onReport, onCommit, onPickId }) {
   const hostRef = useRef(null);
   const stageRef = useRef(null);
   const editRef = useRef(null);
@@ -88,8 +88,8 @@ export function LayoutView({ layout, onReport, onCommit }) {
   useEffect(() => { if (picked) closeHint(); }, [picked, closeHint]);
 
   // 콜백을 ref 로 잡아둔다 — 부모가 새 함수를 넘겨도 무대를 다시 만들지 않기 위해서다
-  const cbRef = useRef({ onReport, onCommit });
-  cbRef.current = { onReport, onCommit };
+  const cbRef = useRef({ onReport, onCommit, onPickId });
+  cbRef.current = { onReport, onCommit, onPickId };
 
   const fit = useCallback(() => {
     if (stageRef.current && viewRef.current) stageRef.current.frame(viewRef.current.contents);
@@ -125,7 +125,7 @@ export function LayoutView({ layout, onReport, onCommit }) {
       controls: stage.controls,
       pickRoot: () => viewRef.current?.contents,
       gridMm: 100,
-      onPick: setPicked,
+      onPick: (it) => { setPicked(it); cbRef.current.onPickId?.(it?.id ?? null); },
       onCommit: (item) => {
         // 끌기가 끝났으니 **미리보기 모드를 끈다.** 안 끄면 `shown` 이 계속 손끝 좌표를 보고
         // 있어서 되돌리기를 해도 패널이 놓은 자리에 얼어붙는다 (배포본 실렌더에서 확인)

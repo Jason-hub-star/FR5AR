@@ -16,12 +16,12 @@ version: 1
 ### 1. 뿌리 SSOT를 찾는다
 | 바뀐 것 | 뿌리 |
 |---|---|
-| 라이브러리 버전 · SDK 필드 | `docs/ref/STACK.md` |
-| API 스키마 · 메시지 | `docs/ref/API-CONTRACT.md` |
-| 안전 조건 | `docs/ref/SAFETY-RULES.md` |
-| 기능 범위 | `docs/ref/FEATURE-SPEC.md` |
-| 단계 완료 조건 | `docs/ref/MILESTONES.md` |
-| 구조 · 폴더 | `docs/ref/ARCHITECTURE.md` |
+| 라이브러리 버전 · SDK 필드 | `docs/ref/arch/STACK.md` |
+| API 스키마 · 메시지 | `docs/ref/contract/API-CONTRACT.md` |
+| 안전 조건 | `docs/ref/contract/SAFETY-RULES.md` |
+| 기능 범위 | `docs/ref/product/FEATURE-SPEC.md` |
+| 단계 완료 조건 | `docs/ref/plan/MILESTONES.md` |
+| 구조 · 폴더 | `docs/ref/arch/ARCHITECTURE.md` |
 
 **뿌리를 먼저 고친다.** 사본을 먼저 고치면 어느 쪽이 맞는지 알 수 없게 된다.
 

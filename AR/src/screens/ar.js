@@ -8,11 +8,11 @@
 
 import './ar.css';
 import * as THREE from 'three';
-import { loadConfig, loadRobot } from '@fr5/shared/view3d/robot/robot-view.js';
+import { loadConfig, loadRobot } from '@fr5/shared/view3d/robot.js';
 import {
   interpolateJoints, tipPath, pathLength, makeTube, createPlayer,
-} from '@fr5/shared/view3d/trajectory/trajectory.js';
-import { makeReachZone, FR5_REACH_M } from '@fr5/shared/view3d/safety/reach-zone.js';
+} from '@fr5/shared/view3d/path.js';
+import { makeReachZone, FR5_REACH_M } from '@fr5/shared/view3d/reach-zone.js';
 import { initAR } from '../features/marker/ar-marker.js';
 import { bindNumberPair } from '../features/ui/number-pair.js';
 import { createRecorder } from '../features/record/screen-record.js';
