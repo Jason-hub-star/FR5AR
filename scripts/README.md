@@ -14,7 +14,8 @@ scripts/
 │   ├── docs.sh                   필수 문서 · INDEX 등재 · 깨진 링크 · Unity 배너
 │   ├── assets.sh                 URDF·메시 존재와 삼각형 수
 │   ├── consts.sh                 기준값 표 ↔ 실제 상수 대조 (드리프트)
-│   └── docs-weight.sh            문서 무게 — 쌓이는 것만 재서 임계 초과 시 알린다
+│   ├── docs-weight.sh            문서 무게 — 쌓이는 것만 재서 임계 초과 시 알린다
+│   └── fr5-unit.sh               FR5 브리지 단위 테스트 (safety.py 순수 함수 · unittest)
 ├── build/                      설정·산출물 생성
 │   └── config.mjs                .env → Shared/data/config/*.json (검증 포함)
 ├── dev/                        개발 중 사람이 손으로 부른다
@@ -110,6 +111,7 @@ node scripts/build/config.mjs --check  # 쓰지 않고 대조만 (게이트가 �
 | `check/harness.sh` | `WANT_COMMANDS` `WANT_SKILLS` | 0 / 15 | 스킬을 더 만들거나 합칠 때 |
 | `check/assets.sh` | `WANT_ARM_TRIS` `WANT_GRIP_TRIS` | 58482 / 70102 | 유니티 원본 모델이 바뀔 때 |
 | `check/docs.sh` | `REQUIRED` 배열 | 15개 | SSOT 문서를 추가·삭제할 때 |
+| `check/fr5-unit.sh` | 상수 없음 — 테스트가 스스로 기준 | 29 케이스 | `safety.py` 조건을 더하면 테스트도 더한다 |
 | `assets/make-marker-sheet.py` | `SHEETS` · `QUIET_RATIO_MIN` | A4 170/14mm · A3 240/20mm · 하한 6% | 마커 크기·용지를 바꿀 때 |
 | `map/make-tags.py` | `SHEETS` · `QUIET_RATIO` · `TAG_IDS` | A4 160mm · 1/8 · id 0~4 | 태그 크기·용지를 바꿀 때 |
 | `map/aim.py` | `SAFE` · `RISKY` | 5.0 · 3.0 px/칸 | 검출 한계 실측이 갱신될 때 |

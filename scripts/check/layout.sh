@@ -15,7 +15,7 @@ node --input-type=module -e "
 import { PRESETS, buildPreset } from './Shared/data/layout/presets.js';
 import { validateLayout, reachCheck, crossings } from './Shared/data/layout/schema.js';
 import { PROPS, assembleProps } from './Shared/view3d/parts.js';
-import { CATALOG, CATEGORIES, PROP_CARDS, cardKey } from './Shared/data/layout/catalog.js';
+import { CATALOG, CATEGORIES, PROP_CARDS, cardKey, SIZE_MM, SIZE_LABEL, SIZE_RANGE_MM } from './Shared/data/layout/catalog.js';
 import * as THREE from 'three';
 
 let fail = 0;
@@ -133,6 +133,26 @@ for (const c of PROP_CARDS) {
 for (const name of Object.keys(PROPS)) {
   if (!catIds.has(name)) bad('팩토리에 있는데 카탈로그에 없다 — ' + name + ' (팔레트에 영영 안 뜬다)');
 }
+// 크기 손잡이 — **키마다 실제로 형태가 바뀌어야 한다.**
+// 오타가 나면 화면에 칸은 뜨는데 아무 일도 안 일어난다. 그게 제일 나쁜 실패다.
+for (const [name, keys2] of Object.entries(SIZE_MM)) {
+  if (!PROPS[name]) { bad('크기 손잡이가 없는 부품을 가리킨다 — ' + name); continue; }
+  // **크기가 아니라 상자 전체를 본다** — \`baseMm\` 처럼 위치만 옮기는 손잡이도 살아 있는 키다.
+  const b0 = new THREE.Box3().setFromObject(PROPS[name]({}));
+  for (const k of keys2) {
+    if (!SIZE_LABEL[k]) bad(name + ': 이름표 없는 치수 키 — ' + k);
+    // 기본값을 모르므로 **범위 양끝**으로 흔들어 본다. 하나라도 달라지면 살아 있는 키다.
+    let moved = false;
+    for (const v of [SIZE_RANGE_MM.min * 3, 2400]) {
+      const b = new THREE.Box3().setFromObject(PROPS[name]({ [k]: v }));
+      if (!b.min.equals(b0.min) || !b.max.equals(b0.max)) moved = true;
+    }
+    if (!moved) bad(name + ': 치수 키가 형태를 안 바꾼다 — ' + k + ' (오타면 칸만 뜨고 아무 일도 안 난다)');
+  }
+}
+note('크기 손잡이 ' + Object.keys(SIZE_MM).length + '종 · '
+  + Object.values(SIZE_MM).flat().length + '칸 — 전부 형태를 바꾼다');
+
 const keys = CATALOG.map(cardKey);
 if (new Set(keys).size !== keys.length) bad('카탈로그 카드 키가 겹친다 — 같은 id 를 여러 장 두려면 key 를 준다');
 note('카탈로그 ' + CATALOG.length + '장(소품 ' + PROP_CARDS.length + ') · 분류 ' + CATEGORIES.length + '개 — 팩토리와 양방향 일치');
