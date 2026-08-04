@@ -14,7 +14,9 @@ html, body { margin: 0; height: 100%; background: #14161a; color: #eef1f4;
 #host canvas { display: block; width: 100% !important; height: 100% !important; }
 #host.off { display: none; }
 
-#hud { display: flex; gap: 12px; align-items: center; padding: 10px 14px; }
-#status { font-variant-numeric: tabular-nums; opacity: .85; }
-#toggle { padding: 6px 12px; border-radius: 8px; border: 1px solid #4a5058;
-  background: #232830; color: inherit; cursor: pointer; }
+#hud { display: flex; gap: 12px; align-items: center; padding: 10px 14px; flex-wrap: wrap; }
+#status, #scale { font-variant-numeric: tabular-nums; opacity: .85; }
+#status.warn, #scale.warn { color: #ffcf6b; opacity: 1; }   /* 합성 고정물·축소 배율을 눈에 띄게 */
+.dim { opacity: .55; }
+#toggle, .btn { padding: 6px 12px; border-radius: 8px; border: 1px solid #4a5058;
+  background: #232830; color: inherit; cursor: pointer; font: inherit; }

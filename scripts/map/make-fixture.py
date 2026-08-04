@@ -78,6 +78,19 @@ def main():
                      "camPosMm": cam.tolist(), "heightMm": round(float(cam[2]), 1)},
         "verified": False,
     }, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    # 같은 장면의 배치안 — **여기서 같이 낸다.** 태그 자리를 화면 쪽에 손으로 다시 적으면
+    # 사진과 배치안이 조용히 어긋나고, 그러면 겹침이 틀린 건지 코드가 틀린 건지 못 가른다.
+    (OUT / "layout.json").write_text(json.dumps({
+        "id": "FIX", "name": "합성 고정물", "unit": "mm-deg",
+        "floor": {"widthMm": 3000, "depthMm": 1600, "heightMm": 2000},
+        "arms": [{"id": "fr5", "model": "FR5", "role": "process",
+                  "basePosMm": [1500, 800, 900], "baseYawDeg": 0, "reachMm": 922}],
+        "stations": [{"id": f"tag{i}", "name": f"tag{i}", "posMm": [int(x), int(y), 0]}
+                     for i, (x, y) in sorted(POS.items())],
+        "amrs": [], "props": [], "verified": False,
+    }, ensure_ascii=False, indent=1), encoding="utf-8")
+
     print(f"{OUT.relative_to(ROOT)}/ · 사진에서 푼 카메라 "
           f"({cam[0]:.0f}, {cam[1]:.0f}, {cam[2]:.0f}) mm · 참값 대비 "
           f"{np.linalg.norm(cam - EYE):.1f}mm")
