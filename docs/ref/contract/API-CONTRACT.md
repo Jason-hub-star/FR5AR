@@ -54,9 +54,51 @@ WebSocket `/ws/state`로 브로드캐스트. 접속한 전원이 같은 것을 �
   "gripper": { "opened": true, "pos": 0 },
   "owner": "kim",                // 조종권 보유자 (없으면 null)
   "phase": "OBSERVE_ONLY",      // 연결 상태기계 (FR5-IMPLEMENTATION-PLAN §안전 상태) — 클라이언트가 이걸 보고 조작 UI를 잠근다
-  "failReason": null             // FAIL_CLOSED 일 때만 사유 문자열
+  "failReason": null,            // FAIL_CLOSED 일 때만 사유 문자열
+  "appliedSettings": null        // 아래 §로봇 안전 설정. arm 전에는 null
 }
 ```
+
+### 로봇 안전 설정 — 주인은 브리지다 (2026-08-04 · D53)
+
+우리 안전 게이트(조건 4·5·25)는 **컨트롤러가 설정돼 있어야** 값을 준다. 충돌 감지는 기본으로
+켜져 있지 않고 기본 민감도는 사람 접촉에 반응하지 않는다 (`SAFETY-RULES.md` §설정이 전제다).
+그래서 **ARM 할 때마다 브리지가 넣는다** — 펜던트에서 누가 바꿔도 우리 값으로 돌아온다.
+
+robot profile(`config.yaml`)에 `settings` 블록을 둔다:
+
+```yaml
+settings:
+  payloadKg: 0.6          # 말단 하중 — 그리퍼 PGE A-100-40 실측 사양
+  cogMm: [0, 0, 60]       # 무게중심 (근사 — 자동 인식은 나중)
+  installPos: 0           # 0=바닥 1=측면 2=천장
+  collisionMode: 0        # 0=등급(1~10) 1=퍼센트
+  collisionLevel: [5,5,5,5,5,5]   # 작을수록 민감 — **실기 실측으로 확정한다**
+  collisionStrategy: 2    # 2=에러 후 정지
+  toolCoordId: 0          # 0=툴 없음(플랜지). 캘리브레이션 전까지 0 — 아래 주의
+```
+
+`/state.appliedSettings` 모양:
+
+```jsonc
+{
+  "appliedAt": 1785329668.42,   // 브리지가 넣은 시각
+  "sent": { "payloadKg": 0.6, "collisionLevel": [5,5,5,5,5,5], … },   // 넣은 값 그대로
+  "readback": { "payloadKg": 0.6, "cogMm": [0,0,60], "toolCoord": […] },  // 되읽은 값
+  "unverifiable": ["collisionLevel", "collisionStrategy", "installPos", "powerLimitW"],
+  "mismatch": []                 // 되읽기와 다른 항목 — 비어 있지 않으면 arm 거부
+}
+```
+
+- **`/arm` 시퀀스에 단계가 늘었다**: 서보 ON → **설정 적용 → 되읽기 대조** →
+  샘플주기 → ExitDragTeach → 자동 모드. 되읽을 수 있는 값이 다르면 **arm 을 거부**한다
+- **되읽기가 없는 항목은 `unverifiable` 로 정직하게 노출한다.** "확인했다"가 아니라
+  "넣었다"이다. 화면도 그렇게 표시한다
+- `appliedSettings` 가 없으면 모션이 나가지 않는다 (조건 26)
+- ⚠ **`toolCoordId: 0` 은 "툴 없음(플랜지 기준)"** 이다. 그리퍼를 달았으므로 정의상 맞지
+  않지만, 지금은 **관절값 저장 + `MoveJ` 재생** 조합이라 동작이 바뀌지 않는다. 대신
+  **화면의 TCP 값은 그리퍼 끝이 아니라 플랜지 기준**임을 표시한다. 좌표 기반 이동을
+  도입하기 전에 툴 좌표계 캘리브레이션이 선행돼야 한다 (별도 골)
 
 `phase` 는 `DISCONNECTED → PREFLIGHT → OBSERVE_ONLY → OWNER_HELD → ARMED → EXECUTING`
 + `FAIL_CLOSED` 다 (2026-07-31, D40). 미연결이면 `robotId: null · connected: false ·
@@ -103,8 +145,10 @@ WebSocket 같은 연결로 올린다. **조종권을 가진 클라이언트의 �
 ### 명령 승격 — ARMED (2026-07-31, D41)
 
 observe-only 연결은 명령을 받지 않는다. 승격은 별도 REST 한 번이며 **서버가 SAFETY-RULES 의
-게이트를 전부 통과시켜야** `phase: ARMED` 가 된다. 실행 순서는 §실기 연결의 2단계 그대로다
-(서보 on → SetRealtimeStateSamplePeriod(33) → ExitDragTeach → SetMode(0)).
+게이트를 전부 통과시켜야** `phase: ARMED` 가 된다. 실행 순서는
+**서보 on → 안전 설정 적용·되읽기 대조(2026-08-04 신설, 위 §로봇 안전 설정) →
+SetRealtimeStateSamplePeriod(33) → ExitDragTeach → SetMode(0)** 이다.
+설정을 넣지 못했거나 되읽기가 어긋나면 **거기서 멈추고 arm 을 거부**한다.
 
 ```text
 POST /arm     { "who": "kim", "confirm": "현장확인" }   → { ok, phase, reasons }

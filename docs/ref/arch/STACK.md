@@ -253,6 +253,40 @@ def preview_path(q_from, q_to, steps=100):
 | 함정 | xmlrpc 연결 1개·동시성 취약 → 어댑터 단일 잠금. 브리지 밖 병행 접속 금지 | Request-sent 실측 |
 | 함정 | `robot_state_pkg` 는 첫 프레임 전엔 **클래스**다 — 인스턴스 확인 후 사용 | 원본 확인 |
 
+## 로봇 안전 설정 API — 2026-08-04 등재 (소스 확인 · 실기 미검증)
+
+**왜 여기 있나** — 우리 안전 게이트(조건 4·5·25)는 컨트롤러가 설정돼 있어야 값을 준다.
+공식 매뉴얼 대조에서 그 설정이 전혀 안 돼 있는 것이 드러났다 (`SAFETY-RULES.md` §설정이 전제다).
+아래는 벤더링 `Robot.py` 소스에서 직접 읽은 시그니처다. **넣는 것과 되읽는 것을 갈라 적는다.**
+
+| 넣는다 | 인자 의미 | 되읽는다 |
+|---|---|---|
+| `SetAnticollision(mode, level[6], config)` | mode 0=등급(**1~10, 작을수록 민감**)·1=퍼센트(0~100) · config 1=설정파일 갱신(재부팅 후 유지) | **없음** |
+| `SetCollisionStrategy(strategy, safeTime=1000, safeDistance=100, safeVel=250, safetyMargin=[10]*6)` | strategy 0=에러후정지·1=계속·2=에러정지·3=중력토크·4=진동응답·5=리바운드 · time[1000-2000]ms · dist[1-150]mm · vel[50-250]mm/s | **없음** |
+| `SetCollisionDetectionMethod(method, thresholdMode)` | method 0=전류·1=이중엔코더·2=둘 다 · thresholdMode 0=등급 고정·1=사용자 정의 | **없음** |
+| `SetStaticCollisionOnOff(status)` | 정지 상태에서의 충돌 검출 0=끔·1=켬 | **없음** |
+| `SetLoadWeight(loadNum, weight)` | 말단 하중 [kg] | `GetTargetPayload(flag=1)` ✅ |
+| `SetLoadCoord(x, y, z, loadNum=0)` | 무게중심 [mm] | `GetTargetPayloadCog(flag=1)` ✅ |
+| `SetRobotInstallPos(method)` | 0=바닥·1=측면·2=천장 | **없음** (각도만 `GetRobotInstallAngle`) |
+| `SetToolCoord(id[1~15], [x,y,z,rx,ry,rz], type, install, toolID, loadNum)` | 툴 중심점의 플랜지 기준 상대 위치 [mm][°] | `GetCurToolCoord` · `GetToolCoordWithID` ✅ |
+| `SetPowerLimit(status, power)` | 출력 상한 [W] — 접촉 충격을 안전 기준 이하로 | **없음** |
+| — | — | `GetJointSoftLimitDeg(flag=1)` → 12값 ✅ — **컨트롤러 소프트리밋을 읽어 우리 URDF 한계와 대조** |
+
+⚠ **되읽기가 없는 항목이 절반이다.** 그래서 "설정했다"를 상태로 삼지 않고 **매 ARM 마다
+다시 넣고, 넣은 값을 기록**한다 (조건 26). 그리고 소스가 **호출 가능 시점을 문서화하지 않는다** —
+서보 ON·모드 조건이 주석에 없다. 실기에서 순서를 확정한다.
+
+⚠ `GetJointSoftLimitDeg` 는 함수명이 Deg 인데 **주석의 단위는 mm** 이라 모순이다.
+값 신뢰도가 낮아 **대조 후 기록만** 하고 거부 근거로는 아직 쓰지 않는다.
+
+**그리퍼 실물 사양 (대환 사양서 · 2026-08-04)** — 무게 **0.6 kg**(브레이크 유무 무관) ·
+파지력 15~50N · 스트로크 40mm · 반복정밀도 ±0.02mm · 정격 20W · 24V DC · Modbus RTU(RS485) ·
+권장 작업물 1kg. **페이로드 설정의 근거값이다.**
+
+**로봇 사양 (공식 개요)** — 가반하중 5kg · 도달 922mm · 반복정밀도 ±0.03mm ·
+**전 관절 최대 속도 180°/s** · TCP 통상 1m/s. → 서보 스트리밍 상한 30°/s 는 **1/6**이고,
+컨트롤러 감속 모드 예시(36°/s)보다도 보수적이다.
+
 ## ~~FR5 실기 C# SDK 경로~~ — 폐기 (D41→D42 · 2026-07-31)
 
 **쓰지 않는다.** macOS Mono 에서 xmlrpc 클라이언트가 쓰기마다 예외 → SDK 가 삼켜
