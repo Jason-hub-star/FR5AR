@@ -13,7 +13,8 @@
 | `docs/ref/product/USER-REQUIREMENTS.md` | 사용자 요구정의서 — 페르소나 6 · UR 25 · SR 26 · 화면 14 | SSOT | **무엇을 만들지 정할 때 제일 먼저** |
 | `docs/ref/product/FEATURE-SPEC.md` | 기능 F1~F9의 ID·우선순위·폴더·의존 관계 | SSOT | 무엇부터 만들지 정할 때 |
 | `docs/ref/arch/ARCHITECTURE.md` | **역할 분담(우리=시각화)** · 확장성 경계 · 폴더 구조 · 좌표계 · UI 토큰 규약 | SSOT | 구조·폴더·공용 디자인을 바꿀 때 |
-| `docs/ref/arch/STACK.md` | 확정 기술과 버전, AR 마커 방식 근거, 그리퍼, 함정 | SSOT | 라이브러리를 고를 때 |
+| `docs/ref/arch/STACK.md` | 확정 기술과 버전 · 그리퍼 · **뎁스카메라 D435·Min-Z** · 함정 | SSOT | 라이브러리·부품을 고를 때 |
+| `docs/ref/arch/AR-MARKER.md` | AR 마커 방식·번호·인쇄 규격·검출 실측(대비>크기) | SSOT | 마커를 인쇄하거나 검출이 안 될 때 |
 | `docs/ref/contract/API-CONTRACT.md` | REST/WS 계약. 상태·명령·조종권·이동지점·**배치안·지표 요구 모양** | SSOT | 서버·프론트·AR가 맞출 때 |
 | `docs/ref/contract/LAYOUT-METRICS-CONTRACT.md` | 배치안·생산성 지표 계약 — 관제화면이 편집하고 AR이 읽는다 | SSOT | 배치안 데이터·지표 모양을 맞출 때 |
 | `docs/ref/contract/TB-CONTRACT.md` | **터틀봇 관제 계약** — 상태·teleop·슬롯·맵·기록·미래 접점 5 | SSOT | 터틀봇 브리지·웹을 짤 때 |
@@ -128,6 +129,6 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 
 ## 자가검증
 
-- INDEX.md에 등재된 문서 행 개수 = 59/59
+- INDEX.md에 등재된 문서 행 개수 = 60/60
 - PROJECT-STATUS.md의 "다음 한 걸음" 항목 개수 = 5/5
 - PROJECT-STATUS.md의 "블로커" 항목 개수 = 3/3

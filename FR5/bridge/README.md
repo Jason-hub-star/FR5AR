@@ -14,7 +14,7 @@ FAIRINO FR5의 유일한 명령 관문이다. 계약은 `docs/ref/contract/API-C
 - 빌드된 웹(`FR5/dist`)을 같은 주소에서 LAN 서빙 — 주소를 여는 누구나 조작 후보 (팀 신뢰)
 - 실행 `bash scripts/dev/fr5-dev.sh` (준비물 없음 — 순수 파이썬 SDK, D42) ·
   검증 `node scripts/check/fr5-{bridge,web}-verify.mjs` ·
-  실기 배포 `bash scripts/deploy/fr5-ubuntu.sh` (우분투 호스트 · `http://192.168.10.49:5055`)
+  실기 배포 `bash scripts/deploy/fr5-ubuntu.sh` (우분투 호스트 · `http://192.168.30.240:5055`)
 
 예정 책임:
 

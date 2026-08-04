@@ -18,7 +18,8 @@ details in docs/goals/GOAL-live-gripper.md
 2. 지령 %와 실측 %가 **같은 방향으로** 화면에 보인다 — 브리지가 한 곳에서 변환한다
    (실측: 지령 30 → 읽기 76. 변환을 화면에 흩뿌리면 하드 룰 5 위반)
 3. `state.gripper` 가 `{ pct, fault, motionDone, active }` 를 싣고, 못 읽으면 `missing` 으로
-   올라가 fail-closed 된다
+   올라가 fail-closed 된다. **`GetGripperMotionDone` 의 필드 순서를 먼저 실측한다** —
+   실측이 `[1, 0]` 이라 `[status, fault]` 일 수 있고, 뒤집혀 있으면 **고장을 완료로 읽는다**
 4. 그리퍼 전용 게이트를 탄다 — 관절용 5°·URDF 한계·모션큐는 **걸지 않는다**
 5. 활성화(`ActGripper`)가 안 된 상태에서 이동 명령을 보내면 사람이 읽는 사유로 거부된다
 

@@ -11,14 +11,14 @@ version: 1
 
 절차 정본은 `docs/ref/runbook/FR5-BRINGUP.md`. 이 스킬은 그 ①~④를 대신 돌리고 **판정만 보고**한다.
 
-호스트 `ej@192.168.10.49` · 팀 주소 `http://192.168.10.49:5055` · 로봇 `192.168.57.2`.
+호스트 `ej@192.168.30.240` · 팀 주소 `http://192.168.30.240:5055` · 로봇 `192.168.57.2`.
 
 ## 순서 (막히면 그 단계에서 멈추고 보고한다)
 
 ### 0. 우분투가 켜져 있나
 
 ```bash
-ping -c 2 -t 3 192.168.10.49 | tail -2
+ping -c 2 -t 3 192.168.30.240 | tail -2
 ```
 
 무응답이면 **PC 가 꺼졌거나 망에 없다.** 원격으로 켤 방법이 없으니 여기서 멈추고
@@ -27,26 +27,26 @@ ping -c 2 -t 3 192.168.10.49 | tail -2
 ### 1. 로봇이 우분투에서 닿나
 
 ```bash
-ssh -o ConnectTimeout=5 ej@192.168.10.49 'ping -c 2 -W 2 192.168.57.2 | tail -2'
+ssh -o ConnectTimeout=5 ej@192.168.30.240 'ping -c 2 -W 2 192.168.57.2 | tail -2'
 ```
 
 실패면 **랜선 또는 고정 IP** 다. `ssh ej@… 'ip -brief addr'` 로 로봇쪽 NIC 에
 `192.168.57.10/24` 가 붙어 있는지 본다. 없으면 사람에게 아래를 부탁한다 (sudo 필요):
 
 ```
-! ssh -t ej@192.168.10.49 'sudo nmcli connection up "Wired connection 1"'
+! ssh -t ej@192.168.30.240 'sudo nmcli connection up "Wired connection 1"'
 ```
 
 ### 2. 브리지가 살아 있나
 
 ```bash
-rtk proxy curl -s -m 5 http://192.168.10.49:5055/robots | head -c 60
+rtk proxy curl -s -m 5 http://192.168.30.240:5055/robots | head -c 60
 ```
 
 비었으면 재시작:
 
 ```bash
-ssh ej@192.168.10.49 'export XDG_RUNTIME_DIR=/run/user/$(id -u); systemctl --user restart fr5-bridge'
+ssh ej@192.168.30.240 'export XDG_RUNTIME_DIR=/run/user/$(id -u); systemctl --user restart fr5-bridge'
 ```
 
 그래도 안 되면 로그를 본다 — `journalctl --user -u fr5-bridge -n 50`.
@@ -54,7 +54,7 @@ ssh ej@192.168.10.49 'export XDG_RUNTIME_DIR=/run/user/$(id -u); systemctl --use
 ### 3. observe-only 연결
 
 ```bash
-rtk proxy curl -s -X POST http://192.168.10.49:5055/connect \
+rtk proxy curl -s -X POST http://192.168.30.240:5055/connect \
   -H 'Content-Type: application/json' -d '{"robotId":"fr5-lab-a","observeOnly":true}'
 ```
 
@@ -64,7 +64,7 @@ rtk proxy curl -s -X POST http://192.168.10.49:5055/connect \
 ### 4. 값이 흐르나
 
 ```bash
-rtk proxy curl -s http://192.168.10.49:5055/state | python3 -c 'import json,sys; s=json.load(sys.stdin); print("phase:", s["phase"], "| 서보:", s.get("enabled"), "| 관절:", s["jointsDeg"])'
+rtk proxy curl -s http://192.168.30.240:5055/state | python3 -c 'import json,sys; s=json.load(sys.stdin); print("phase:", s["phase"], "| 서보:", s.get("enabled"), "| 관절:", s["jointsDeg"])'
 ```
 
 **맥에서는 `rtk proxy curl` 을 쓴다.** 그냥 `curl` 로 파이프하면 rtk 훅이 출력을

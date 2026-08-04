@@ -4,7 +4,7 @@
 # 재시작하면 로봇 세션이 끊긴다 — 끝에서 observe-only 재연결까지 해 준다.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-HOST=${FR5_HOST:-ej@192.168.10.49}
+HOST=${FR5_HOST:-ej@192.168.30.240}
 IP=${HOST#*@}
 
 npm run build:fr5

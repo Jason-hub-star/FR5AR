@@ -9,7 +9,9 @@ robots:
   - robotId: fr5-lab-a
     name: 실험실 FR5 (실기)
     adapter: fairino        # 순수 파이썬 SDK (fairino_sdk/ · D42)
-    endpoint: 192.168.57.2:8080   # 2026-07-31 실측값. 기본값이 아니라 증거값이다
+    endpoint: 192.168.57.2:8080   # 2026-07-31 실측 · 2026-08-04 재확인 (20003·20004·8080 열림)
+                                  # ⚠ 랜선을 비상정지 박스 쪽 포트에 꽂으면 로봇이 192.168.58.2 로 보인다.
+                                  # 컨트롤러 랜 1번 포트에 꽂아야 이 주소다 (2026-08-04 실측)
     expectedModel: FR5-V1-002(V6.0)   # GetSoftwareVersion 실측 (2026-07-31) — 개체 정체성 검증값
     settings:
       payloadKg: 0.6        # 그리퍼 PGE A-100-40 실측 사양 (대환 사양서 · STACK §안전 설정 API)
