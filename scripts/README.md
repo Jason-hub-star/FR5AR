@@ -120,7 +120,7 @@ node scripts/build/config.mjs --check  # 쓰지 않고 대조만 (게이트가 �
 | `check/docs-weight.sh` | `CAP_DOC_*` `CAP_INDEX_*` | 300/450 · 45/60 | 개별 문서·INDEX 행 상한 |
 | `check/docs-weight.sh` | `CAP_EVID_*` `CAP_RND_*` `CAP_TOTAL_*` | **8/14** · 5/8 · 9000/13000 | 폴더 개수·총량 상한 |
 | `check/docs-weight.sh` | `STALE_DAYS` | 30 | 방치 판정. 템플릿은 7일이나 세션 간격이 길어 늘렸다 |
-| `check/docs-weight.sh` | `CAP_DECLOG_*` | 600/900 | **DECISION-LOG 전용.** 자르지 않는 문서라 일반 상한을 안 쓴다 |
+| `check/docs-weight.sh` | `CAP_DECLOG_*` | 1200/없음 | **DECISION-LOG 전용.** 덧붙이기 전용 문서라 줄수는 경고만 — 하드 판정은 목차 대조가 한다 (2026-08-04) |
 | `check/docs-weight.sh` | `CAP_FOLDER_MD` | 15 | 폴더별 `CLAUDE.md` 상한. 넘으면 SSOT 로 옮긴다 |
 
 `make-marker-sheet.py`는 **자기 출력을 픽셀로 검사한다.** quiet zone 안에 검은 잉크가

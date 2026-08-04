@@ -42,7 +42,7 @@ CAP_INDEX_W=45;    CAP_INDEX_H=60       # docs/INDEX.md 등재 행
 CAP_EVID_W=8;      CAP_EVID_H=14        # docs/evidence/<날짜>/ 폴더 **하나당** 파일 수 (D37)
 CAP_RND_W=5;       CAP_RND_H=8          # docs/ref/rnd/ 파일 수
 CAP_TOTAL_W=9000;  CAP_TOTAL_H=13000    # docs/**.md 총 줄수
-CAP_DECLOG_W=600;  CAP_DECLOG_H=900     # DECISION-LOG 는 자르지 않는다 (아래 참조)
+CAP_DECLOG_W=1200; CAP_DECLOG_H=99999   # DECISION-LOG 줄수는 **경고만** — 아래 참조
 STALE_DAYS=30                           # weekend: 방치 판정
 
 # DECISION-LOG 만 상한이 다르다.
@@ -50,6 +50,11 @@ STALE_DAYS=30                           # weekend: 방치 판정
 # 그래서 "절을 잘라 이관하라" 는 일반 처방이 적용되지 않는다. 조치할 수 없는 경고는
 # 소음이고, 소음이 쌓이면 경고를 무시하게 된다. (템플릿의 7일 방치 경고를 30일로 늘린 것과 같은 이유)
 # 대신 **상단 목차가 실제 결정 개수와 맞는지**를 잰다 — 그게 이 문서의 진짜 불변식이다.
+#
+# 2026-08-04: 줄수 하드 상한(900)을 없앴다. 이 문서는 **덧붙이기 전용**이고(결정은 버리지
+# 않는다) 처방("최신 N건을 CURRENT 로 분리")은 이미 적용돼 있어, 하드 실패를 푸는 유일한
+# 방법이 역사를 지우는 것뿐이었다. 위 주석이 경고한 "조치할 수 없는 경고" 가 바로 그것이라
+# 줄수는 경고로 낮추고, 하드 판정은 목차 대조에 맡긴다.
 DECLOG=docs/status/DECISION-LOG.md
 
 lines() { [ -f "$1" ] && wc -l < "$1" | tr -d ' ' || echo 0; }

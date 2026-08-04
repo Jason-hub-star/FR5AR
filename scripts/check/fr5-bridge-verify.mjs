@@ -104,7 +104,7 @@ try {
   check('observeOnly:false → 거부 (P0 은 관측만)', promo.json.ok === false);
 
   // ── P2 — 조종권·arm·guarded jog/stop (mock 전체 사이클) ──────────────────
-  const wsClient = (hello) => new Promise((resolve, reject) => {
+  const wsClient = (hello, token) => new Promise((resolve, reject) => {
     const sock = new WebSocket(`ws://127.0.0.1:${PORT}/ws/state`);
     const refusals = [];
     sock.onmessage = (e) => {
@@ -112,7 +112,7 @@ try {
       if (m.ok === false) refusals.push(m.reason);
     };
     sock.onopen = () => {
-      if (hello) sock.send(JSON.stringify({ cmd: 'hello', who: hello }));
+      if (hello) sock.send(JSON.stringify({ cmd: 'hello', who: hello, token }));
       resolve({ sock, refusals, send: (m) => sock.send(JSON.stringify(m)) });
     };
     sock.onerror = () => reject(new Error('ws error'));
@@ -121,12 +121,15 @@ try {
   const getState = async () => (await api('/state')).json;
 
   await api('/connect', { robotId: 'fr5-mock-a' });
-  const kim = await wsClient('kim');
   const lee = await wsClient('lee');
   const anon = await wsClient(null);
 
-  // 조종권 — 두 번째 사람은 409
-  check('owner claim kim', (await api('/owner/claim', { who: 'kim' })).json.ok === true);
+  // 조종권 — 두 번째 사람은 409. claim 이 토큰을 준다 (D55)
+  const claimed = (await api('/owner/claim', { who: 'kim' })).json;
+  check('owner claim kim', claimed.ok === true);
+  check('claim 이 토큰을 발급한다', typeof claimed.token === 'string' && claimed.token.length >= 16);
+  const T = claimed.token;
+  const kim = await wsClient('kim', T);
   const dup2 = await api('/owner/claim', { who: 'lee' });
   check('두 번째 claim 409 (명령 주인 한 명)', dup2.status === 409 && dup2.json.ok === false);
   check('claim 후 phase OWNER_HELD', (await getState()).phase === 'OWNER_HELD');
@@ -140,11 +143,11 @@ try {
   check('조종권 없는 jog 거부', lee.refusals.some((r) => r.includes('조종권')));
 
   // arm — confirm 리터럴·조종권 강제
-  const noConfirm = await api('/arm', { who: 'kim' });
+  const noConfirm = await api('/arm', { who: 'kim', token: T });
   check('confirm 없는 arm 403', noConfirm.status === 403);
-  const wrongOwner = await api('/arm', { who: 'lee', confirm: '현장확인' });
+  const wrongOwner = await api('/arm', { who: 'lee', token: T, confirm: '현장확인' });
   check('조종권 없는 arm 403', wrongOwner.status === 403);
-  const armed = await api('/arm', { who: 'kim', confirm: '현장확인' });
+  const armed = await api('/arm', { who: 'kim', token: T, confirm: '현장확인' });
   check('arm → ARMED + 서보 ON', armed.json.phase === 'ARMED' && (await getState()).enabled === true);
 
   // 안전 설정 (D53 · 조건 26) — 컨트롤러 충돌 감지는 기본으로 안 켜져 있다
@@ -156,21 +159,34 @@ try {
     (applied?.unverifiable || []).includes('collisionLevel'));
 
   // 설정이 안 먹는 로봇이면 arm 자체가 거부돼야 한다 — 게이트가 있는 척하지 않는다
-  await api('/disarm', { who: 'kim' });
-  await api('/owner/release', { who: 'kim' });
+  await api('/disarm', { who: 'kim', token: T });
+  await api('/owner/release', { who: 'kim', token: T });
   await api('/disconnect', {});
   await api('/connect', { robotId: 'fr5-mock-setfail', observeOnly: true });
-  await api('/owner/claim', { who: 'kim' });
-  const setfail = await api('/arm', { who: 'kim', confirm: '현장확인' });
+  let T2 = (await api('/owner/claim', { who: 'kim' })).json.token;   // 재claim = 새 토큰
+  const setfail = await api('/arm', { who: 'kim', token: T2, confirm: '현장확인' });
   check('설정이 안 먹는 로봇 → arm 거부 (조건 26)',
     setfail.json.ok === false && JSON.stringify(setfail.json.reasons).includes('안전 설정'),
     (setfail.json.reasons || [])[0]);
   check('거부 뒤 서보는 OFF 로 남는다', (await getState()).enabled === false);
-  await api('/owner/release', { who: 'kim' });
+  await api('/owner/release', { who: 'kim', token: T2 });
   await api('/disconnect', {});
   await api('/connect', { robotId: 'fr5-mock-a', observeOnly: true });
-  await api('/owner/claim', { who: 'kim' });
-  await api('/arm', { who: 'kim', confirm: '현장확인' });
+  T2 = (await api('/owner/claim', { who: 'kim' })).json.token;
+  await api('/arm', { who: 'kim', token: T2, confirm: '현장확인' });
+
+  // 위장 — 이름은 방송되므로 이름만으로는 조종권이 안 된다 (D55)
+  const faker = await wsClient('kim', 'wrong-token');
+  faker.send({ cmd: 'jog', joint: 0, deltaDeg: 1 });
+  await sleep(200);
+  check('남의 이름으로 hello → 조종권 거부 (토큰 불일치)',
+    faker.refusals.some((r) => r.includes('조종권')));
+  const fakeArm = await api('/arm', { who: 'kim', token: 'wrong-token', confirm: '현장확인' });
+  check('토큰 없는 arm 403', fakeArm.status === 403);
+  faker.sock.close();
+
+  kim.send({ cmd: 'hello', who: 'kim', token: T2 });   // 재claim 했으므로 세션도 새 토큰으로
+  await sleep(100);
 
   // 상한 — 초과는 자르지 않고 거부한다
   kim.send({ cmd: 'jog', joint: 0, deltaDeg: 10 });
@@ -208,7 +224,9 @@ try {
     && Math.abs(s2.jointsDeg[0] - (j1a + 2 + 4)) > 0.5);
 
   // 조종권 반납 → 자동 disarm (주인 없는 ARMED 를 남기지 않는다)
-  await api('/owner/release', { who: 'kim' });
+  check('옛 토큰으로는 반납도 안 된다',
+    (await api('/owner/release', { who: 'kim', token: T })).status === 409);
+  await api('/owner/release', { who: 'kim', token: T2 });
   await sleep(200);
   const released = await getState();
   check('owner release → 자동 disarm (서보 OFF · OBSERVE_ONLY)',

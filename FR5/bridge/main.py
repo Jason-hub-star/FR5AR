@@ -125,7 +125,8 @@ async def disconnect(body: dict | None = None):
     # 주인이 있을 때는 주인만 끊는다 — 남의 실행을 아무나 중단시키면 그것도 사고다.
     # 주인이 없으면 누구나 끊을 수 있다 (observe-only 정리는 막을 이유가 없다).
     holder = owner.get()
-    if holder and not owner.is_owner((body or {}).get("who")):
+    b = body or {}
+    if holder and not owner.is_owner(b.get("who"), b.get("token")):
         return refuse([f"조종권이 {holder} 에게 있다 — 먼저 STOP 하거나 주인이 끊는다"], 403)
     await asyncio.to_thread(session.close)
     return {"ok": True, "phase": "DISCONNECTED", "reasons": []}
@@ -134,23 +135,25 @@ async def disconnect(body: dict | None = None):
 # ── 조종권 (API-CONTRACT §조종권) ────────────────────────────────────────────
 @app.post("/owner/claim")
 async def owner_claim(body: dict):
-    okey, reason = owner.claim(body.get("who"))
-    return {"ok": True, "owner": owner.get()} if okey else refuse([reason], 409)
+    okey, result = owner.claim(body.get("who"))
+    # 토큰이 조종권을 증명한다 — 이름은 화면 표시용이다 (D55 · 계약 §조종권)
+    return {"ok": True, "owner": owner.get(), "token": result} if okey \
+        else refuse([result], 409)
 
 
 @app.post("/owner/release")
 async def owner_release(body: dict):
-    okey, reason = owner.release(body.get("who"))
+    okey, reason = owner.release(body.get("who"), body.get("token"))
     return {"ok": True, "owner": None} if okey else refuse([reason], 409)
 
 
 # ── 명령 승격 (API-CONTRACT §명령 승격 — D41) ────────────────────────────────
 @app.post("/arm")
 async def arm(body: dict):
-    who = body.get("who")
+    who, token = body.get("who"), body.get("token")
     if body.get("confirm") != "현장확인":
         return refuse(['confirm: "현장확인" 이 없다 — 현장에 사람이 있음을 명시해야 한다'], 403)
-    if not owner.is_owner(who):
+    if not owner.is_owner(who, token):
         return refuse(["조종권이 없다 — 먼저 /owner/claim"], 403)
     if session.adapter is None:
         return refuse(["미연결"])
@@ -190,7 +193,7 @@ async def arm(body: dict):
         return refuse(reasons)
     # arm 시퀀스가 도는 동안(수 초) 조종권이 넘어갔을 수 있다 — 그 사이 자동 해제가 돌면
     # armed 가 아직 False 라 _owner_lost 가 아무것도 안 하고, 여기서 주인 없는 ARMED 가 남는다
-    if not owner.is_owner(who):
+    if not owner.is_owner(who, token):
         await asyncio.to_thread(session.disarm_hw, "arm 중 조종권 소실")
         return refuse(["arm 중 조종권을 잃었다 — 다시 잡고 ARM"], 403)
     session.armed = True
@@ -200,7 +203,7 @@ async def arm(body: dict):
 
 @app.post("/disarm")
 async def disarm(body: dict):
-    if not owner.is_owner(body.get("who")):
+    if not owner.is_owner(body.get("who"), body.get("token")):
         return refuse(["조종권이 없다"], 403)
     await asyncio.to_thread(session.disarm_hw, f"disarm by {body.get('who')}")
     return {"ok": True, "phase": session.current_phase(owner.get()), "reasons": []}
@@ -233,7 +236,7 @@ def _do_motion(target_deg, speed_pct):
     return []
 
 
-async def handle_cmd(msg, who):
+async def handle_cmd(msg, who, token):
     cmd = msg.get("cmd")
     if cmd == "stop":                            # 제3원칙 — 조종권·신원·phase 무관 항상 실행
         if session.adapter is None:
@@ -247,7 +250,7 @@ async def handle_cmd(msg, who):
             return {"ok": False, "reason": f"stop 실패 — {e}"}
     if not who:
         return {"ok": False, "reason": "hello 로 신원을 먼저 묶는다 (stop 은 예외)"}
-    if not owner.is_owner(who):
+    if not owner.is_owner(who, token):
         return {"ok": False, "reason": f"조종권이 없다 — 보유자 {owner.get() or '없음'}"}
     if session.adapter is None or not session.armed:
         return {"ok": False,
@@ -278,6 +281,7 @@ async def handle_cmd(msg, who):
 async def ws_state(ws: WebSocket):
     await ws.accept()
     who = None
+    token = None
     log("ws-open", str(ws.client))
 
     async def sender():
@@ -295,13 +299,15 @@ async def ws_state(ws: WebSocket):
             except json.JSONDecodeError:
                 continue
             if msg.get("cmd") == "hello":
+                # 이름은 표시용, 토큰이 조종권을 증명한다 (D55)
                 if who:
                     owner.session_close(who)
                 who = str(msg.get("who") or "") or None
+                token = msg.get("token")
                 if who:
                     owner.session_open(who)
                 continue
-            res = await handle_cmd(msg, who)
+            res = await handle_cmd(msg, who, token)
             if not res.get("ok"):
                 await ws.send_text(json.dumps(res))
     except WebSocketDisconnect:

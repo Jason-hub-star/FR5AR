@@ -15,6 +15,7 @@
 | `docs/ref/arch/ARCHITECTURE.md` | **역할 분담(우리=시각화)** · 확장성 경계 · 폴더 구조 · 좌표계 · UI 토큰 규약 | SSOT | 구조·폴더·공용 디자인을 바꿀 때 |
 | `docs/ref/arch/STACK.md` | 확정 기술과 버전, AR 마커 방식 근거, 그리퍼, 함정 | SSOT | 라이브러리를 고를 때 |
 | `docs/ref/contract/API-CONTRACT.md` | REST/WS 계약. 상태·명령·조종권·이동지점·**배치안·지표 요구 모양** | SSOT | 서버·프론트·AR가 맞출 때 |
+| `docs/ref/contract/LAYOUT-METRICS-CONTRACT.md` | 배치안·생산성 지표 계약 — 관제화면이 편집하고 AR이 읽는다 | SSOT | 배치안 데이터·지표 모양을 맞출 때 |
 | `docs/ref/contract/TB-CONTRACT.md` | **터틀봇 관제 계약** — 상태·teleop·슬롯·맵·기록·미래 접점 5 | SSOT | 터틀봇 브리지·웹을 짤 때 |
 | `docs/ref/arch/CODING-CONVENTIONS.md` | 단위·좌표계·안전·네이밍 규칙 | SSOT | 코드를 쓰기 전에 |
 | `docs/ref/contract/SAFETY-RULES.md` | 안전 판정 조건 19개와 SDK 필드 매핑, fail-closed 원칙 | SSOT | **로봇에 명령 보내는 코드 쓰기 전** |
@@ -127,6 +128,6 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 
 ## 자가검증
 
-- INDEX.md에 등재된 문서 행 개수 = 58/58
+- INDEX.md에 등재된 문서 행 개수 = 59/59
 - PROJECT-STATUS.md의 "다음 한 걸음" 항목 개수 = 5/5
 - PROJECT-STATUS.md의 "블로커" 항목 개수 = 3/3
