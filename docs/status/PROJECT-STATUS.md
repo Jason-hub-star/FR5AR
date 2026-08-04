@@ -69,17 +69,31 @@ mock 실행 `bash scripts/dev/tb-dev.sh`. real 브리지는 우분투(`ej@192.16
 - ~~Fairino Python SDK 미확인이 V0 어댑터를 막는다~~ → **해소(D42)** — 원본 확인 결과
   순수 표준 라이브러리라 macOS 에서 그대로 돈다. 실기 첫 조그까지 통과
 
-## 핸드오프 (2026-08-04 · 방산 무대 전환 + 팔레트 편집기)
+## 핸드오프 (2026-08-04 · 두 트랙이 나란히 갔다)
 
-| | |
-|---|---|
-| **시작 지점** | `Dashboard/src/features/layout/LayoutEditor.jsx` — 배치안 편집기 본체 |
-| **먼저 읽을 것** | `DECISION-LOG-CURRENT.md` **D56~D58** → `evidence/2026-08-04/editor-ux.md` |
-| **첫 명령** | `bash scripts/check/all.sh` → `npm run dev:dash` 로 화면 확인 |
-| **막힌 것** | **아무것도 손으로 안 눌러 봤다**(전부 합성 이벤트) · **폰 미검증** · **게이트 RED** — `API-CONTRACT.md` 460>450, FR5 트랙이 다른 세션에서 미커밋으로 키웠다 (전부 GAP OPEN) |
-| **주의** | 워킹트리에 **다른 세션의 미커밋 작업**이 섞여 있다 — `FR5/bridge/owner.py` · `API-CONTRACT.md`(조종권 토큰 D55). 결정 번호 충돌을 피해 배치 편집 쪽은 **D56~D58** 로 올렸다 |
+**게이트는 전부 green 이다.** 앞선 판의 "게이트 RED · 미커밋 섞임" 경고는 해소됐다 —
+`API-CONTRACT.md` 는 배치안·지표를 `LAYOUT-METRICS-CONTRACT.md` 로 갈라 322줄이 됐고,
+FR5 트랙(D53~D55)은 전부 커밋됐다.
 
-**이번 세션 (2026-08-03~04)** — 상세는 `evidence/2026-08-03/props-defense-line.md` ·
+| | FR5 브리지 트랙 | 배치 편집기 트랙 |
+|---|---|---|
+| **시작 지점** | `docs/goals/GOAL-live-gripper.md` (사다리 1/6) | `Dashboard/src/features/layout/LayoutEditor.jsx` |
+| **먼저 읽을 것** | `DECISION-LOG-CURRENT.md` **D53~D55** → `evidence/2026-08-04/fr5-{safety-settings,maintainability}.md` | **D56~D58** → `evidence/2026-08-04/editor-ux.md` |
+| **막힌 것** | **실기 미반영** — 마감 시점 우분투 무응답. 코드는 커밋됨 | **손으로 안 눌러 봤다**(전부 합성 이벤트) · 폰 미검증 |
+| **첫 명령** | `bash scripts/check/all.sh` → `/우분투` | `bash scripts/check/all.sh` → `npm run dev:dash` |
+
+**FR5 브리지 (2026-08-04)** — 상세는 `evidence/2026-08-04/fr5-{safety-settings,maintainability}.md`
+
+- **공식 매뉴얼 7종을 코드와 대조** → 게이트의 전제가 없었다. 컨트롤러 충돌 감지는 기본으로
+  안 켜지고 기본 민감도는 사람 접촉에 무반응 — **조건 4·5 가 종이호랑이였다**. 브리지가
+  ARM 마다 설정을 넣고 되읽어 대조하게 했다 (D53 · 조건 26 신설)
+- **실기가 바로 잡아 준 것** — j3 소프트리밋이 우리(±162)가 컨트롤러(±160)보다 넓었다.
+  툴 0 에 이미 Z 135mm 오프셋이 있어 계약의 "TCP 는 플랜지 기준" 서술이 틀렸다
+- **유지보수 정비 4건** (D54·D55) — 세션을 클래스로(`main.py` 463→328) · `safety.py` 단위
+  테스트 29 · **조종권 토큰**(이름만으로 뚫리던 구멍) · 실렌더 검증을 `data-t` 로 분리
+- 검증: 브리지 **42/42** · 실렌더 21/21 · 단위 29 · 게이트 전부 통과
+
+**배치 편집기 (2026-08-03~04)** — 상세는 `evidence/2026-08-03/props-defense-line.md` ·
 `evidence/2026-08-04/{palette-editor,presets,editor-ux}.md`
 
 - **무대를 방산 탄두 해체 라인으로** (D51). "한 사이클의 정의"가 **1발 해체 = 1사이클**로 풀렸다
