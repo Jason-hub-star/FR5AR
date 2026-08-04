@@ -43,7 +43,7 @@ export function LivePanel({ state, who }) {
     <div className="live">
       <RobotTwin jointsDeg={state.jointsDeg ?? [0, 0, 0, 0, 0, 0]} />
       <aside>
-        <section className="card diag">
+        <section className="card diag" data-t="diag">
           <h2>연결 진단</h2>
           <label>로봇 프로필
             <select value={picked} disabled={state.connected || busy}
@@ -59,11 +59,11 @@ export function LivePanel({ state, who }) {
                 disabled={busy || !picked}>
                 observe-only 연결
               </button>}
-          {lastRefusal && <p className="refusal">거부됨 — {lastRefusal}</p>}
+          {lastRefusal && <p className="refusal" data-t="refusal">거부됨 — {lastRefusal}</p>}
           {state.phase === 'FAIL_CLOSED' && state.failReason
-            && <p className="refusal">FAIL_CLOSED — {state.failReason}</p>}
+            && <p className="refusal" data-t="refusal">FAIL_CLOSED — {state.failReason}</p>}
           <dl>
-            <dt>WS 재연결</dt><dd className="ws-reconnects">{datasource.wsReconnects()}회</dd>
+            <dt>WS 재연결</dt><dd className="ws-reconnects" data-t="ws-reconnects">{datasource.wsReconnects()}회</dd>
             {version && <>
               <dt>SDK</dt><dd>{version.sdk ?? '미보고'}</dd>
               <dt>컨트롤러</dt><dd>{version.controller ?? '미보고'}</dd>
@@ -71,7 +71,7 @@ export function LivePanel({ state, who }) {
           </dl>
         </section>
 
-        <section className="card control">
+        <section className="card control" data-t="control">
           <h2>조종권 · 명령</h2>
           {!state.connected && <p className="hint">연결 후 조종권을 잡을 수 있다</p>}
           {state.connected && (
@@ -87,12 +87,12 @@ export function LivePanel({ state, who }) {
                   </button>}
               {mine && !armed && (
                 <div className="armrow">
-                  <label className="confirm">
+                  <label className="confirm" data-t="confirm">
                     <input type="checkbox" checked={siteConfirmed}
                       onChange={(e) => setSiteConfirmed(e.target.checked)} />
                     현장에 사람이 있고 즉시 정지할 수 있다
                   </label>
-                  <button type="button" className="arm" disabled={busy || !siteConfirmed}
+                  <button type="button" className="arm" data-t="arm" disabled={busy || !siteConfirmed}
                     onClick={() => run(() => datasource.arm(who))}>
                     ARM — 서보 ON
                   </button>
@@ -106,7 +106,7 @@ export function LivePanel({ state, who }) {
               {armed && mine && (
                 <div className="jog">
                   {JOINT_LABELS.map((name, i) => (
-                    <div key={name} className="jogrow">
+                    <div key={name} className="jogrow" data-t="jogrow">
                       <span>{name}</span>
                       <button type="button" onClick={() => datasource.jog(i, -JOG_STEP_DEG)}>−{JOG_STEP_DEG}°</button>
                       <button type="button" onClick={() => datasource.jog(i, +JOG_STEP_DEG)}>+{JOG_STEP_DEG}°</button>
@@ -121,7 +121,7 @@ export function LivePanel({ state, who }) {
 
         <section className="card">
           <h2>관절 (°)</h2>
-          <table className="joints"><tbody>
+          <table className="joints" data-t="joints"><tbody>
             {JOINT_LABELS.map((name, i) => (
               <tr key={name}><th>{name}</th>
                 <td>{state.connected ? state.jointsDeg[i].toFixed(3) : '—'}</td></tr>
@@ -130,7 +130,7 @@ export function LivePanel({ state, who }) {
         </section>
         <section className="card">
           <h2>TCP (mm·°)</h2>
-          <table className="tcp"><tbody>
+          <table className="tcp" data-t="tcp"><tbody>
             {TCP_LABELS.map((name, i) => (
               <tr key={name}><th>{name}</th>
                 <td>{state.connected ? state.tcpMmDeg[i].toFixed(3) : '—'}</td></tr>

@@ -80,5 +80,5 @@ export function RobotTwin({ jointsDeg }) {
     };
   }, []);
 
-  return <div className="twin" ref={hostRef} />;
+  return <div className="twin" data-t="twin" ref={hostRef} />;
 }

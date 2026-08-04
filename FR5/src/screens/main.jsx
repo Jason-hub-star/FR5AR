@@ -33,14 +33,14 @@ function SafetyBar({ s }) {
     ['기록', '—', 'off'],          // P6 에서 산다
   ];
   return (
-    <div className="safetybar">
+    <div className="safetybar" data-t="safetybar">
       {items.map(([label, value, tone]) => (
-        <span key={label} className="safeitem" data-tone={tone}>
+        <span key={label} className="safeitem" data-t="safeitem" data-tone={tone}>
           <b>{label}</b> {value}
         </span>
       ))}
       {/* 제3원칙 — stop 은 항상 통과한다. 어느 화면에서든 한 번에 누른다 */}
-      <button type="button" className="estop" onClick={() => datasource.stop()}>STOP</button>
+      <button type="button" className="estop" data-t="estop" onClick={() => datasource.stop()}>STOP</button>
     </div>
   );
 }
@@ -63,11 +63,11 @@ function App() {
       <header>
         <h1>FR5 조작</h1>
         <span className="sub">FAIRINO FR5 · API-CONTRACT.md</span>
-        <label className="who">이름
+        <label className="who" data-t="who">이름
           <input value={who} placeholder="조종권에 쓸 이름" onChange={(e) => changeWho(e.target.value)} />
         </label>
         {/* 출처 배지 — 목업을 실기로 오인하는 것이 가장 비싼 사고다 (SR_24) */}
-        <span className="source" data-src={state.robotId?.includes('mock') ? 'mock' : state.connected ? 'real' : 'none'}>
+        <span className="source" data-t="source" data-src={state.robotId?.includes('mock') ? 'mock' : state.connected ? 'real' : 'none'}>
           {state.connected ? state.robotId : '미연결'}
         </span>
       </header>
