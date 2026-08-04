@@ -26,6 +26,7 @@ scripts/
 │   └── make-marker-test-images.py  마커 검출 실측용 합성 이미지 117장
 └── map/                        실제 맵 + 글로벌 카메라 (한 워크플로 = 한 폴더)
     ├── make-tags.py              AprilTag 36h11 + ChArUco 인쇄 시트 · tags.json (제원 SSOT)
+    ├── cam-lock.sh               폰 카메라 해상도·초점·줌 잠금 + 되읽어 확인 (찍기 전 매번)
     ├── aim.py                    카메라 위치 잡기 — 실시간 px/칸 판정 (찍기 전에 쓴다)
     ├── capture.py                웹캠 촬영 (오토포커스·해상도 잠금)
     ├── intrinsics.py             ChArUco 사진 → 카메라 화각·왜곡
@@ -49,11 +50,16 @@ scripts/
 
 ```
 map/make-tags.py                                 →  인쇄물 (1회)
+map/cam-lock.sh                                  →  해상도·초점·줌 잠금 (찍기 전 매번)
 map/aim.py                                       →  카메라 자리 (찍기 전 · 화면 보고)
 map/capture.py charuco  →  map/intrinsics.py     →  렌즈  (카메라당 1회)
 map/capture.py tags     →  map/extrinsics.py     →  위치  (카메라를 건드릴 때마다)
                            map/check-calib.sh    →  게이트
 ```
+
+`cam-lock.sh` 가 맨 앞인 이유 — 해상도·초점·줌이 바뀌면 **뒤의 결과가 전부 무효**인데,
+앱을 재시작하거나 케이블을 다시 꽂으면 그 값들이 조용히 되돌아간다. 실측으로
+`quality` 가 49(태그 검출을 깎는 압축)로, `focusmode` 가 자동으로 돌아가는 것을 봤다.
 
 **순서를 바꿀 수 없다.** 내부 파라미터가 나쁘면 외부가 조용히 틀어진다 — 합성 검증에서
 내부 fy 를 1.3% 틀리게 넣었더니 카메라 높이가 2.4m → 4.4m 로 나왔다. 그래서 두 build

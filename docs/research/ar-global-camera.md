@@ -112,9 +112,13 @@ python3 scripts/map/extrinsics.py
 bash scripts/map/check-calib.sh
 ```
 
-**폰을 카메라로 쓸 때 잠글 것 넷** — HEIF 저장 끄기(cv2 가 못 읽는다) · 초광각 금지(메인 1x만) ·
-초점 수동 고정 · 손떨림 보정(VDIS) 끄기. 사진만 필요하면 앱 없이 `calib-shots/charuco|tags/` 에
-넣어도 된다 (두 스크립트 모두 jpg 를 읽는다).
+**폰을 카메라로 쓸 때 잠글 것** — 해상도(2560×1440) · JPEG 화질 · 화이트밸런스 · 줌 1.0x
+(초광각 금지) · 초점. **`scripts/map/cam-lock.sh` 가 이걸 넣고 되읽어 확인한다** — 손으로 하지 않는다.
+사진만 필요하면 앱 없이 `calib-shots/charuco|tags/` 에 넣어도 된다 (두 스크립트 모두 jpg 를 읽는다).
+
+⚠ **"초점 수동 고정"은 틀린 처방이었다** (2026-08-04 실측 · D64). Galaxy S24+ · IP Webcam 에서
+수동 초점은 되읽기가 거짓을 돌려주고 렌즈는 딴 데 있다. `focusmode=auto` + `/focus` **1회**로
+맞추고 **선명도 수렴**으로 판정한다 — `evidence/2026-08-04/global-cam-phone.md`.
 
 **B5 가 이 프로젝트의 진짜 관문이다.** `mapToLab` 측정 절차가 아직 계약에 "P4 에서 정한다"로만 남아 있다 — AMR·FR5·AR 이 하나로 붙는지는 전적으로 여기서 갈린다.
 
