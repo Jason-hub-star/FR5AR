@@ -197,3 +197,20 @@ main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column
                 border: 1px solid var(--c-line); border-radius: 2px; background: var(--c-bg); color: var(--c-fg); }
 .opening-edit select { width: 56px; }
 .facts .mute { color: var(--c-fg-mute); }
+
+/* 우클릭 메뉴 — **단축키를 같이 적어 메뉴가 단축키를 가르친다.**
+ * 3D 위에 얹히므로 `position: absolute` 이고, 화면 밖으로 나가지 않게 좌표를 잘라 붙인다. */
+.view3d-menu { position: absolute; z-index: 5; min-width: 148px; margin: 0; padding: 4px;
+               list-style: none; background: var(--c-panel); border: 1px solid var(--c-line-strong);
+               border-radius: var(--r-ctl); box-shadow: 0 6px 18px rgba(0,0,0,.14); font-size: 12px; }
+.view3d-menu-head { padding: 4px 8px 6px; color: var(--c-fg-mute); border-bottom: 1px solid var(--c-line);
+                    margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view3d-menu button { display: flex; width: 100%; align-items: center; justify-content: space-between;
+                      gap: var(--s-3); padding: 6px 8px; background: none; border: 0; border-radius: 3px;
+                      color: var(--c-fg); font: inherit; cursor: pointer; }
+.view3d-menu button:hover:not(:disabled) { background: var(--c-sunken); }
+.view3d-menu button:disabled { opacity: .4; cursor: default; }
+.view3d-menu button.danger { color: var(--c-danger); }
+.view3d-menu kbd { color: var(--c-fg-mute); font-size: 11px; }
+/* 끄는 동안 뜨는 틈 — **좌표가 아니라 이 숫자가 알고 싶은 값이다** */
+.view3d-pick .gap { color: var(--c-warn, #b06d00); }

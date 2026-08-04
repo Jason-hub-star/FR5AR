@@ -17,6 +17,7 @@ import { mountZMm, kindOf } from '@fr5/shared/data/layout/catalog.js';
 import {
   loadStore, saveStore, newScene, uniqueName, nextSceneId,
 } from '@fr5/shared/data/layout/scenes.js';
+import { PRESETS } from '@fr5/shared/data/layout/presets.js';
 import { LayoutView } from './LayoutView.jsx';
 import { PartsPalette } from './PartsPalette.jsx';
 
@@ -99,14 +100,54 @@ export function LayoutEditor() {
     });
   }, [edit]);
 
+  /**
+   * 고른 것을 **하나 더 놓는다.** 배치 작업은 같은 것을 여러 개 두는 일이 대부분이다.
+   *
+   * 소품은 200mm 비껴 놓는다 — 정확히 겹쳐 놓으면 새로 생긴 게 안 보여서
+   * "안 눌렸나" 싶어 또 누르게 된다. 문·창은 벽 위에서 폭만큼 비킨다.
+   */
+  const duplicateItem = useCallback((itemId) => {
+    if (!itemId) return;
+    let made = null;
+    edit((s) => {
+      const prop = (s.props ?? []).find((x) => x.id === itemId);
+      if (prop) {
+        made = { ...structuredClone(prop), id: freshId(s, prop.type),
+          posMm: [prop.posMm[0] + 200, prop.posMm[1] - 200, prop.posMm[2] ?? 0] };
+        return { ...s, props: [...s.props, made] };
+      }
+      for (const [key, kind] of [['doors', 'door'], ['windows', 'window']]) {
+        const o = (s[key] ?? []).find((x) => x.id === itemId);
+        if (!o) continue;
+        const span = ['south', 'north'].includes(o.wall) ? s.floor.widthMm : s.floor.depthMm;
+        const w = o.widthMm ?? 900;
+        const at = Math.min(Math.max(o.atMm + w + 200, w / 2), span - w / 2);
+        made = { ...structuredClone(o), id: freshId(s, kind), atMm: at };
+        return { ...s, [key]: [...s[key], made] };
+      }
+      const amr = (s.amrs ?? []).find((x) => x.id === itemId);
+      if (amr) {
+        const n = (s.amrs.length + 1);
+        made = { ...structuredClone(amr), id: `amr${n}`,
+          dockPosMm: [amr.dockPosMm[0] + 600, amr.dockPosMm[1]] };
+        return { ...s, amrs: [...s.amrs, made] };
+      }
+      return s;
+    });
+    if (made) setPickedId(made.id);
+  }, [edit]);
+
   /** 고른 것을 치운다 — 소품·문·창 어디 있든. */
   const removeItem = useCallback((itemId) => {
-    if (!itemId) return;
+    const ids = new Set(Array.isArray(itemId) ? itemId : [itemId].filter(Boolean));
+    if (!ids.size) return;
+    const keep = (x) => !ids.has(x.id);
     edit((s) => ({
       ...s,
-      props: (s.props ?? []).filter((x) => x.id !== itemId),
-      doors: (s.doors ?? []).filter((x) => x.id !== itemId),
-      windows: (s.windows ?? []).filter((x) => x.id !== itemId),
+      props: (s.props ?? []).filter(keep),
+      doors: (s.doors ?? []).filter(keep),
+      windows: (s.windows ?? []).filter(keep),
+      amrs: (s.amrs ?? []).filter(keep),
     }));
     setPickedId(null);
   }, [edit]);
@@ -127,24 +168,49 @@ export function LayoutEditor() {
       editOpening(item.id, { atMm: item.atMm });
       return;
     }
+    // **여럿을 함께 옮긴 결과.** 하나씩 보내면 되돌리기가 물건 수만큼 쌓인다
+    if (item.many) {
+      const by = new Map(item.many.map((m) => [m.id, m.posMm]));
+      const move = (x) => (by.has(x.id)
+        ? { ...x, posMm: [...by.get(x.id).map(Math.round), x.posMm?.[2] ?? 0] } : x);
+      edit((s) => ({
+        ...s,
+        props: (s.props ?? []).map(move),
+        stations: (s.stations ?? []).map(move),
+        amrs: (s.amrs ?? []).map((x) => (by.has(x.id)
+          ? { ...x, dockPosMm: by.get(x.id).map(Math.round) } : x)),
+      }));
+      return;
+    }
     const patch = (x) => ({
       ...x,
-      ...(item.posMm ? { posMm: [item.posMm[0], item.posMm[1], x.posMm?.[2] ?? 0] } : {}),
+      // **정수 mm 로 못 박는다.** 클램프가 격자 밖 값을 내는데, 그대로 두면
+      // 저장분에 9700.000047 같은 숫자가 남는다 (하드 룰 5 — 저장 단위는 mm)
+      ...(item.posMm
+        ? { posMm: [Math.round(item.posMm[0]), Math.round(item.posMm[1]), x.posMm?.[2] ?? 0] }
+        : {}),
       ...(item.rotDeg !== undefined ? { rotDeg: item.rotDeg } : {}),
+      // **크기는 `opts` 로 간다** — 부품마다 인자 이름이 다르다 (`catalog.js` 의 SIZE_MM)
+      ...(item.opts ? { opts: { ...x.opts, ...item.opts } } : {}),
     });
     edit((s) => ({
       ...s,
       props: (s.props ?? []).map((x) => (x.id === item.id ? patch(x) : x)),
       stations: (s.stations ?? []).map((x) => (x.id === item.id ? patch(x) : x)),
+      // AMR 은 `posMm` 이 아니라 **도킹 자리**를 옮긴다 — 경유점은 그대로 둔다
+      amrs: (s.amrs ?? []).map((x) => (x.id === item.id && item.posMm
+        ? { ...x, dockPosMm: [Math.round(item.posMm[0]), Math.round(item.posMm[1])] } : x)),
     }));
   }, [edit, editOpening]);
 
   // ── 씬 관리 ────────────────────────────────────────────────────────────
-  const addScene = useCallback(() => {
+  /** 프리셋에서 새 씬을 꺼낸다. **현재 씬은 안 건드린다** — 잘못 골라도 잃는 게 없다. */
+  const addScene = useCallback((preset) => {
     setStore((prev) => {
       const id = nextSceneId(prev.scenes);
-      const s = { ...newScene(uniqueName(prev.scenes, '배치안')), id };
-      setPast((p) => [...p, prev].slice(-UNDO_MAX));
+      const p = PRESETS.find((x) => x.id === preset);
+      const s = { ...newScene(uniqueName(prev.scenes, p?.label ?? '배치안'), preset), id };
+      setPast((p2) => [...p2, prev].slice(-UNDO_MAX));
       return { current: id, scenes: { ...prev.scenes, [id]: s } };
     });
     setPickedId(null);
@@ -189,13 +255,16 @@ export function LayoutEditor() {
       if ((e.key === 'z' || e.key === 'Z') && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
         e.preventDefault(); undo(); return;
       }
+      if ((e.key === 'd' || e.key === 'D') && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault(); duplicateItem(pickedId); return;
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && pickedId) {
         e.preventDefault(); removeItem(pickedId);
       }
     };
     addEventListener('keydown', onKey);
     return () => removeEventListener('keydown', onKey);
-  }, [undo, removeItem, pickedId]);
+  }, [undo, removeItem, duplicateItem, pickedId]);
 
   useEffect(() => { if (renaming) nameRef.current?.select(); }, [renaming]);
 
@@ -211,6 +280,7 @@ export function LayoutEditor() {
       scenes: Object.keys(store.scenes).length, current: store.current, name: scene.name,
       props: scene.props?.length ?? 0, doors: scene.doors?.length ?? 0,
       windows: scene.windows?.length ?? 0, past: past.length, saveErr, pickedId,
+      presets: PRESETS.length,
     };
   });
 
@@ -223,15 +293,29 @@ export function LayoutEditor() {
         <h2>배치안 편집</h2>
 
         {/* 씬 드롭다운 — 저장된 배치안을 오간다. 저장은 자동이다 */}
+        {/* **드롭다운은 하나다.** 고르기와 새로 만들기를 둘로 나눴더니 똑같이 생긴 것이
+            둘이라 무엇이 무엇인지 안 보였다 (주인님 지적). 묶음 라벨로 가른다 */}
         <select
           className="scene-pick"
           value={store.current}
-          onChange={(e) => { setStore((p) => ({ ...p, current: e.target.value })); setPickedId(null); }}
-          aria-label="배치안 고르기"
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v.startsWith('new:')) { addScene(v.slice(4)); return; }
+            setStore((p) => ({ ...p, current: v }));
+            setPickedId(null);
+          }}
+          aria-label="배치안 고르기 · 프리셋에서 새로 만들기"
         >
-          {Object.values(store.scenes).map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
+          <optgroup label="저장된 배치안">
+            {Object.values(store.scenes).map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </optgroup>
+          <optgroup label="＋ 프리셋에서 새로">
+            {PRESETS.map((p) => (
+              <option key={`new:${p.id}`} value={`new:${p.id}`} title={p.hint}>{p.label}</option>
+            ))}
+          </optgroup>
         </select>
         {renaming
           ? (
@@ -245,10 +329,11 @@ export function LayoutEditor() {
             />
           )
           : <button type="button" className="revert" onClick={() => setRenaming(true)}>이름</button>}
-        <button type="button" className="revert" onClick={addScene}>새로</button>
-        <button type="button" className="revert" onClick={dupScene}>복제</button>
+        {/* **"복제" 만 쓰면 물건 복제인지 맵 복제인지 안 보인다** (주인님 지적).
+            물건 복제는 우클릭 메뉴와 <kbd>Ctrl+D</kbd> 에 있다 */}
+        <button type="button" className="revert" onClick={dupScene}>배치안 복제</button>
         {Object.keys(store.scenes).length > 1 && (
-          <button type="button" className="revert" onClick={delScene}>삭제</button>
+          <button type="button" className="revert" onClick={delScene}>배치안 삭제</button>
         )}
 
         <span className={saveErr ? 'unsaved' : 'saved'}>
@@ -257,7 +342,7 @@ export function LayoutEditor() {
         {past.length > 0 && <button type="button" className="revert" onClick={undo}>되돌리기</button>}
         {pickedId && (
           <button type="button" className="revert" onClick={() => removeItem(pickedId)}>
-            치우기 <kbd>Del</kbd>
+            삭제 <kbd>Del</kbd>
           </button>
         )}
       </div>
@@ -270,6 +355,11 @@ export function LayoutEditor() {
             onReport={onReport}
             onCommit={onCommit}
             onPickId={setPickedId}
+            onDuplicate={duplicateItem}
+            onRemove={removeItem}
+            boundsMm={scene.floor}
+            onUndo={undo}
+            canUndo={past.length > 0}
           />
           {/* 문·창은 끌 수 없다 — 벽에 뚫린 구멍이라 **어느 벽 · 벽 위 위치**로 고친다 */}
           {opening && (

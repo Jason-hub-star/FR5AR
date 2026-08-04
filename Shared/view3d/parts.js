@@ -9,6 +9,10 @@
 //   · 원점은 **바닥 중앙**. 그래야 `y=0` 에 놓기만 하면 선다
 //   · 반환은 `THREE.Group`. 재질은 공유본을 쓴다 (드로우콜·메모리)
 //   · **회전은 부르는 쪽이 한다.** 팩토리는 항상 정면(+Z)을 본다
+//   · **두 조각의 겉면을 같은 평면에 두지 마라.** 덧대는 것(캡·테두리·판)은 감싸거나
+//     파묻는다. 면이 정확히 겹치면 깊이 버퍼가 앞뒤를 못 정해 카메라가 움직일 때마다
+//     승자가 바뀌어 **반짝인다**(z-fighting). 재질을 아무리 고쳐도 안 없어진다.
+//     `blastWall` 캡에서 두 번 놓쳤다 — 처음엔 옆면만 고치고 **윗면**을 남겼다 (2026-08-04)
 //
 // `img2threejs` 로 만든 부품도 **같은 계약으로 맞춰서** 여기 넣으면 그대로 조립된다.
 
@@ -107,16 +111,22 @@ export function instrument({ wMm = 700, dMm = 600, hMm = 550 } = {}) {
 // ── 모니터 + 키보드. 작업대 위에 이게 있으면 "쓰는 자리" 가 된다.
 export function workstation({ wMm = 620, hMm = 420 } = {}) {
   const g = new THREE.Group();
-  add(g, box(120, 30, 180, M.dark), 0, 15, 0);                          // 받침
-  add(g, box(60, hMm * 0.4, 60, M.dark), 0, hMm * 0.2, 0);              // 기둥
-  const panel = add(g, box(wMm, hMm * 0.6, 24, M.screen), 0, hMm * 0.62, 0);
+  // **원점은 발자국 가운데다** (파일 머리 규약). 키보드가 260mm 앞으로 나와 있어
+  // 그냥 두면 원점이 122mm 뒤로 치우친다 — 자리를 작업대 밖으로 흘리는 원인이었다.
+  // 모니터를 그만큼 뒤로 물려 앞뒤를 맞춘다.
+  const dz = -122;
+  add(g, box(120, 30, 180, M.dark), 0, 15, dz);                          // 받침
+  add(g, box(60, hMm * 0.4, 60, M.dark), 0, hMm * 0.2, dz);              // 기둥
+  const panel = add(g, box(wMm, hMm * 0.6, 24, M.screen), 0, hMm * 0.62, dz);
   panel.rotation.x = -0.12;
-  add(g, box(420, 18, 150, M.shell), 0, 9, 260);                        // 키보드
+  add(g, box(420, 18, 150, M.shell), 0, 9, 260 + dz);                    // 키보드
   return g;
 }
 
 // ── 의자. 사람이 쓰는 공간이라는 신호. 하나만 있어도 크게 다르다.
-export function chair({ hMm = 850 } = {}) {
+// **인자를 안 받는다.** 예전엔 `hMm` 을 받는 척했는데 본문에서 한 번도 안 썼다 —
+// 게이트가 잡았다 (2026-08-04). 안 쓰는 인자는 다음 사람에게 거짓말이 된다.
+export function chair() {
   const g = new THREE.Group();
   add(g, box(420, 60, 420, M.shell), 0, 450, 0);                        // 좌판
   add(g, box(400, 380, 50, M.shell), 0, 660, -190);                     // 등받이
@@ -144,6 +154,27 @@ export function fumehood({ wMm = 1500, dMm = 800, hMm = 2300 } = {}) {
 
 /** 이름 → 팩토리. 배치안이 이 이름으로 부품을 부른다. */
 export const PROPS = { bench, isolator, shelf, instrument, workstation, chair, fumehood };
+
+/**
+ * 부품의 **지금 크기**(mm). 화면의 크기 칸이 현재 값을 보여주려고 쓴다.
+ *
+ * 팩토리 기본값은 코드 안에만 있어서 화면이 알 길이 없다. 서명을 문자열로 파싱하는
+ * 방법도 있지만 **압축 빌드에서 인자 이름이 바뀌어** 개발에선 되고 배포에선 깨진다 —
+ * 그 종류의 버그는 안 만든다. 그래서 **실제로 만들어 재고** 결과를 캐시한다.
+ */
+const sizeCache = new Map();
+export function sizeMmOf(type, opts = {}) {
+  const key = type + JSON.stringify(opts);
+  let v = sizeCache.get(key);
+  if (!v) {
+    const make = PROPS[type];
+    if (!make) return null;
+    const s = new THREE.Box3().setFromObject(make(opts)).getSize(new THREE.Vector3());
+    v = { x: Math.round(s.x * 1000), y: Math.round(s.y * 1000), z: Math.round(s.z * 1000) };
+    sizeCache.set(key, v);
+  }
+  return v;
+}
 
 /**
  * 배치안의 `props` 배열을 실제 3D 로 조립한다.
@@ -468,8 +499,15 @@ export function blastWall({ lengthMm = 3000, hMm = 1200, tMm = 300, windowMm = 0
   } else {
     add(g, box(lengthMm, hMm, tMm, M.body), 0, hMm / 2, 0);
   }
-  add(g, box(lengthMm, capH, tMm, M.dark), 0, hMm - capH / 2, 0);           // 상단 캡
-  add(g, box(lengthMm, 120, tMm, M.dark), 0, 60, 0);                        // 하단 기초
+  // 캡·기초는 **본체를 감싼다 — 면을 하나도 맞추지 않는다.**
+  //
+  // 두 면이 정확히 같은 평면이면 깊이 버퍼가 앞뒤를 못 정해 카메라가 움직일 때마다
+  // 픽셀 단위로 승자가 바뀐다(z-fighting) — 벽이 반짝거린다. 재질 문제가 아니다.
+  // 처음엔 옆면만 어긋나게 했다가 **윗면이 둘 다 y=hMm** 인 걸 놓쳤다 (2026-08-04).
+  // 그래서 캡을 세 방향 전부 키워 본체 밖으로 내민다 — 실제 코핑도 그렇게 생겼다.
+  const OVER = 30;                                    // 옆으로 내미는 양(편측 15mm)
+  add(g, box(lengthMm + OVER, capH + 8, tMm + OVER, M.dark), 0, hMm - capH / 2 + 4, 0);
+  add(g, box(lengthMm + OVER, 120, tMm + OVER, M.dark), 0, 60, 0);            // 하단 기초
   return g;
 }
 

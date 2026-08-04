@@ -7,26 +7,18 @@
 // **천장** — `localStorage` 라 이 브라우저 안에서만 산다. 팀 공유는 D46(Supabase)이고
 // `GAP-MATRIX` 에 OPEN 이다. 그때 바뀌는 것은 아래 `read`/`write` 두 함수뿐이다.
 
-import { emptyLayout } from './schema.js';
+import { buildPreset, DEFAULT_PRESET } from './presets.js';
 
 const KEY = 'fr5.scenes';
 
-/** 벽·문·창만 있는 빈 방. 새 씬은 여기서 시작한다. */
-export const EMPTY_ROOM = {
-  floor: { widthMm: 12000, depthMm: 8000, heightMm: 3000 },
-  doors: [{ id: 'door-1', wall: 'south', atMm: 6000, widthMm: 1800, heightMm: 2200 }],
-  windows: [],
-  props: [],
-  stations: [],
-  amrs: [],
-};
-
-export function newScene(name = '새 배치안') {
-  return {
-    ...emptyLayout('scene', name),
-    ...structuredClone(EMPTY_ROOM),
-    arm: { model: 'FR5', basePosMm: [2400, 6000, 900], baseYawDeg: 0, reachMm: 922 },
-  };
+/**
+ * 새 씬 — **프리셋에서 꺼낸다.** 모양은 여기 없다 (`presets.js` 가 SSOT).
+ *
+ * 꺼낸 순간부터는 그냥 씬이다 — 프리셋을 나중에 고쳐도 이미 만든 씬은 안 따라간다.
+ * 저장분이 발밑에서 바뀌는 것보다 낫다.
+ */
+export function newScene(name = '새 배치안', preset = DEFAULT_PRESET) {
+  return buildPreset(preset, 'scene', name);
 }
 
 function read() {

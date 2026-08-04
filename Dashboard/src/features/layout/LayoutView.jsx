@@ -10,9 +10,57 @@
 // 시점 맞추기(`frame`)는 **배치안 자체가 바뀐 첫 순간에만** 한다 (A↔B 전환·최초 진입).
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import * as THREE from 'three';
 import { createStage } from '@fr5/shared/view3d/lab/stage.js';
 import { createLayoutView } from '@fr5/shared/view3d/lab/layout-view.js';
 import { createInteraction } from '@fr5/shared/view3d/lab/interaction.js';
+import { SIZE_MM, SIZE_LABEL, SIZE_RANGE_MM, SIZE_AXIS } from '@fr5/shared/data/layout/catalog.js';
+import { sizeMmOf } from '@fr5/shared/view3d/parts.js';
+import { loadConfig, loadRobot, setJointsDeg } from '@fr5/shared/view3d/robot.js';
+
+// **작업 자세.** URDF 기본값(전부 0°)은 팔이 일직선이라 흰 막대로 보인다 — 로봇으로 안 읽힌다.
+// 이 화면은 배치를 보는 곳이라 관절값은 표시용이다 (실기 각도는 F9 가 따로 받는다).
+const READY_DEG = { j1: 0, j2: -60, j3: 90, j4: -120, j5: -90, j6: 0 };
+
+/**
+ * FR5 팔 — **한 번만 받아서 돌려 쓴다.**
+ *
+ * 물건 하나를 옮길 때마다 `createLayoutView` 가 새로 만들어진다. 그때마다 URDF·STL 6MB 를
+ * 다시 받으면 편집이 멈춘다. 그래서 모듈 수준에 한 개만 두고 **부모만 갈아 끼운다.**
+ *
+ * ⚠ `view.dispose()` 는 트리를 훑으며 지오메트리를 지운다 — **떼어낸 뒤에 부른다.**
+ * 안 그러면 두 번째 편집부터 팔이 빈 껍데기가 된다.
+ *
+ * 실패해도 조용히 없는 채로 간다 — 배치 판단의 근거는 도달 링이지 팔 모형이 아니다.
+ */
+let armPromise = null;
+let armObj = null;         // 받아 놓은 것. **동기로 떼어내야** dispose 보다 먼저 돈다
+function getArm() {
+  if (!armPromise) {
+    const { gripper } = loadConfig();
+    armPromise = loadRobot({
+      urdfUrl: '/FAIRINO_FR5/fairino5_v6.urdf',
+      gripperCfg: gripper,
+      gripperDir: '/PGEA_100_40/',
+    }).then(({ robot }) => {
+      setJointsDeg(robot, READY_DEG);
+      // URDF 는 Z-up, three 는 Y-up. **로봇을 돌리지 않고 부모를 돌린다** —
+      // 로봇 자체를 돌리면 관절 각도 해석이 헷갈린다 (AR/src/screens/robot.js 와 같은 규약).
+      const holder = new THREE.Group();
+      holder.rotation.x = -Math.PI / 2;
+      holder.add(robot);
+      // **피킹에서 뺀다.** 팔은 배치안의 물건이 아니라 배경이다 — 끌 수도 지울 수도 없다.
+      holder.traverse((o) => { o.raycast = () => {}; });
+      armObj = holder;
+      return holder;
+    }).catch((e) => {
+      // **조용히 실패하지 않는다** (D15·D18). 화면은 계속 돌지만 이유는 콘솔에 남긴다.
+      console.warn('FR5 팔을 못 불러왔다 — 도달 링만 그린다:', e?.message ?? e);
+      return null;
+    });
+  }
+  return armPromise;
+}
 
 /**
  * 숫자 한 칸. **끌기는 100mm 격자에 붙어 그 사이 값을 못 넣는다** — 그래서 이게 있다.
@@ -53,13 +101,24 @@ function NumBox({ label, value, min, max, step, onCommit }) {
   );
 }
 
-export function LayoutView({ layout, onReport, onCommit, onPickId }) {
+// 우클릭 메뉴 항목. **단축키를 같이 적는다** — 메뉴가 단축키를 가르치는 자리다.
+const MENU = [
+  { id: 'dup',  label: '복제',      key: 'Ctrl+D' },
+  { id: 'rot',  label: '90° 회전',  key: 'R' },
+  { id: 'undo', label: '되돌리기',  key: 'Ctrl+Z' },
+  { id: 'del',  label: '삭제',      key: 'Del', danger: true },
+];
+
+export function LayoutView({
+  layout, onReport, onCommit, onPickId, onDuplicate, onRemove, onUndo, canUndo, boundsMm,
+}) {
   const hostRef = useRef(null);
   const stageRef = useRef(null);
   const editRef = useRef(null);
   const viewRef = useRef(null);
   const framedRef = useRef(null);          // 마지막으로 시점을 맞춘 배치안 id
   const [picked, setPicked] = useState(null);
+  const [menu, setMenu] = useState(null);          // { item, x, y } — 우클릭 자리
   // 커밋 콜백이 매번 새로 만들어지지 않게 최신 선택을 ref 로도 들고 있는다
   const pickedRef = useRef(null);
   pickedRef.current = picked;
@@ -75,6 +134,18 @@ export function LayoutView({ layout, onReport, onCommit, onPickId }) {
   }
   const shownRef = useRef(null);
   shownRef.current = shown;
+
+  // 크기 칸 — **정본은 배치안의 `opts`** 다. 아직 안 건드린 치수는 팩토리 기본값이라
+  // 여기서 알 길이 없다. 그래서 `parts.js` 를 불러 재보는 대신 **비워 두지 않고**
+  // 첫 편집 때 배치안에 박히게 한다 (`SIZE_RANGE` 안의 값이면 무엇이든 유효하다).
+  const rec = picked ? [...(layout.props ?? []), ...(layout.stations ?? [])]
+    .find((o) => o.id === picked.id) : null;
+  const sizeKeys = (!picked?.live && rec && SIZE_MM[rec.type ?? rec.prop]) || [];
+  const measured = sizeKeys.length ? sizeMmOf(rec.type ?? rec.prop, rec.opts ?? {}) : null;
+  // 아직 안 건드린 치수는 `opts` 에 없다 — **잰 값을 보여준다.** 빈 칸을 보여주면
+  // 지금 몇인지 모르는 채로 숫자를 넣게 된다.
+  const sizeOf = (k) => rec?.opts?.[k]
+    ?? (SIZE_AXIS[k] && measured ? measured[SIZE_AXIS[k]] : '');
   // 사용법 안내는 한 번 닫으면 안 돌아온다. **사파리 프라이빗에서 던진다** — 삼키고 계속 돈다
   const [hintOff, setHintOff] = useState(() => {
     try { return localStorage.getItem('fr5.hint.layout') === '1'; } catch { return false; }
@@ -90,6 +161,12 @@ export function LayoutView({ layout, onReport, onCommit, onPickId }) {
   // 콜백을 ref 로 잡아둔다 — 부모가 새 함수를 넘겨도 무대를 다시 만들지 않기 위해서다
   const cbRef = useRef({ onReport, onCommit, onPickId });
   cbRef.current = { onReport, onCommit, onPickId };
+  // 메뉴가 부르는 것들도 같은 이유로 ref 에 담는다 — 무대를 다시 만들지 않기 위해서다
+  const actRef = useRef({ onDuplicate, onRemove, onUndo });
+  actRef.current = { onDuplicate, onRemove, onUndo };
+  // 클램프용 방 치수. **무대는 한 번만 만드는데 방은 씬마다 바뀐다** — 그래서 ref 다
+  const boundsRef = useRef(boundsMm);
+  boundsRef.current = boundsMm;
 
   const fit = useCallback(() => {
     if (stageRef.current && viewRef.current) stageRef.current.frame(viewRef.current.contents);
@@ -126,6 +203,8 @@ export function LayoutView({ layout, onReport, onCommit, onPickId }) {
       pickRoot: () => viewRef.current?.contents,
       gridMm: 100,
       onPick: (it) => { setPicked(it); cbRef.current.onPickId?.(it?.id ?? null); },
+      onMenu: setMenu,
+      bounds: () => boundsRef.current,
       onCommit: (item) => {
         // 끌기가 끝났으니 **미리보기 모드를 끈다.** 안 끄면 `shown` 이 계속 손끝 좌표를 보고
         // 있어서 되돌리기를 해도 패널이 놓은 자리에 얼어붙는다 (배포본 실렌더에서 확인)
@@ -138,6 +217,7 @@ export function LayoutView({ layout, onReport, onCommit, onPickId }) {
     // **dispose 를 반드시 부른다** — 탭을 왕복하면 WebGL 컨텍스트가 쌓여 브라우저가 막는다
     return () => {
       edit.dispose();
+      armObj?.removeFromParent();
       viewRef.current?.dispose();
       viewRef.current = null;
       stage.dispose();
@@ -149,13 +229,68 @@ export function LayoutView({ layout, onReport, onCommit, onPickId }) {
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
-    if (viewRef.current) { stage.scene.remove(viewRef.current.root); viewRef.current.dispose(); }
-    // **FR5 로봇을 안 붙인다.** 지금은 실험실 공간 자체를 보는 화면이다 —
-    // 로봇을 얹으면 URDF·STL 10MB 를 받아야 하고, 공간 판단에 방해가 된다.
-    // 도달 범위 링은 남긴다. **그게 배치 판정의 근거**라 로봇 모형과 별개다.
+    // 새로 만들기 **전에** 무엇이 골라져 있었는지 적어 둔다 — 아래에서 id 로 다시 잡는다
+    const keepIds = editRef.current?.selectedIds?.() ?? [];
+    const keepPrimary = pickedRef.current?.id ?? null;
+    if (viewRef.current) {
+      // **팔을 먼저 떼어낸다** — `dispose()` 가 트리의 지오메트리를 지운다.
+      // `.then()` 으로 떼면 마이크로태스크라 dispose **뒤에** 돌아 팔이 빈 껍데기가 된다.
+      armObj?.removeFromParent();
+      stage.scene.remove(viewRef.current.root);
+      viewRef.current.dispose();
+    }
     const view = createLayoutView(layout);
     viewRef.current = view;
     stage.scene.add(view.root);
+    editRef.current?.reselect?.(keepIds, keepPrimary);
+    // 팔은 `armSlot` 에 붙는다 — 베이스 좌표·요각이 이미 걸려 있다 (D56 이후 주인님 요청).
+    getArm().then((arm) => { if (arm && viewRef.current === view) view.armSlot.add(arm); });
+    // 헤드리스 검증용 노출 — `LayoutEditor` 의 `window.__fr5edit` 와 같은 방식이다
+    window.__fr5view = () => {
+      let lines = 0; let amrs = 0; let robot = 0; let items = 0;
+      view.root.traverse((o) => {
+        if (o.isLine) lines += 1;
+        if (o.userData?.item) { items += 1; if (o.userData.item.kind === 'amr') amrs += 1; }
+        if (o.isMesh && o.parent && !o.userData?.item) robot += 0;
+      });
+      let tris = 0;
+      view.armSlot.traverse((o) => {
+        if (!o.isMesh) return;
+        robot += 1;
+        const g = o.geometry;
+        tris += g?.index ? g.index.count / 3 : (g?.attributes?.position?.count ?? 0) / 3;
+      });
+      // 편집 단위마다 **화면 좌표**를 같이 낸다 — 헤드리스에서 실제로 눌러 보기 위해서다.
+      // 좌표만 보고 넘기면 링이 어디 뜨는지·골라지는지를 영영 확인 못 한다.
+      const cam = stageRef.current?.camera;
+      const el = stageRef.current?.renderer?.domElement;
+      const at = {};
+      if (cam && el) {
+        const r = el.getBoundingClientRect();
+        const v = new THREE.Vector3();
+        const bb = new THREE.Box3();
+        view.contents.traverse((o) => {
+          const it = o.userData?.item;
+          if (!it) return;
+          // **원점이 아니라 상자 가운데.** 문·창 그룹은 원점이 (0,0,0) 이다 (링과 같은 계산)
+          bb.setFromObject(o).getCenter(v);
+          v.project(cam);
+          at[it.id] = [
+            Math.round(r.left + ((v.x + 1) / 2) * r.width),
+            Math.round(r.top + ((1 - v.y) / 2) * r.height),
+          ];
+        });
+      }
+      const ring = stageRef.current?.scene?.children?.find(
+        (c) => c.isGroup && c.children?.[0]?.isLineLoop && c.visible,
+      );
+      const ol = ring?.children?.[0];
+      return { lines, amrs, items, armMeshes: robot, armTris: Math.round(tris),
+        armSlotKids: view.armSlot.children.map((c) => c.name || c.type),
+        at,
+        ring: ring ? { x: +ring.position.x.toFixed(2), z: +ring.position.z.toFixed(2),
+          w: +ol.scale.x.toFixed(2), d: +ol.scale.z.toFixed(2) } : null };
+    };
     if (framedRef.current !== layout.id) { stage.frame(view.contents); framedRef.current = layout.id; }
     cbRef.current.onReport?.(view.report());
   }, [layout]);
@@ -172,14 +307,47 @@ export function LayoutView({ layout, onReport, onCommit, onPickId }) {
           폰·데스크톱 문구를 하나로 합쳤다 — 회전은 위 버튼이 이미 알려준다 */}
       {!hintOff && (
         <div className="view3d-hint">
-          <span>물건을 끌어서 옮겨보세요<br />100mm 격자에 붙고, 빈 곳을 누르면 선택이 풀려요</span>
+          <span>물건을 끌어서 옮겨보세요<br />100mm 격자에 붙어요 · <b>우클릭</b>하면 복제·회전·삭제가 나와요</span>
           <button type="button" onClick={closeHint} aria-label="안내 닫기">✕</button>
         </div>
+      )}
+      {/* 우클릭 메뉴. **화면 밖으로 안 나가게** 오른쪽·아래를 잘라 붙인다 */}
+      {menu && (
+        <ul
+          className="view3d-menu"
+          style={{
+            left: Math.min(menu.x, (hostRef.current?.clientWidth ?? 0) - 150),
+            top: Math.min(menu.y, (hostRef.current?.clientHeight ?? 0) - 140),
+          }}
+          onPointerLeave={() => setMenu(null)}
+        >
+          <li className="view3d-menu-head">{menu.item.name ?? menu.item.type ?? menu.item.id}</li>
+          {MENU.map((m) => (
+            <li key={m.id}>
+              <button
+                type="button"
+                className={m.danger ? 'danger' : undefined}
+                disabled={m.id === 'undo' && !canUndo}
+                onClick={() => {
+                  const id = menu.item.id;
+                  setMenu(null);
+                  if (m.id === 'dup') actRef.current.onDuplicate?.(id);
+                  if (m.id === 'rot') editRef.current?.rotate();
+                  if (m.id === 'undo') actRef.current.onUndo?.();
+                  if (m.id === 'del') actRef.current.onRemove?.(id);
+                }}
+              >
+                <span>{m.label}</span><kbd>{m.key}</kbd>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
       {picked && (
         <div className="view3d-pick">
           <b>{picked.name ?? picked.id}</b>
           <span className="dim">{picked.kind === 'station' ? '스테이션' : picked.type}</span>
+          {picked.count > 1 && <span className="dim">{picked.count}개 선택</span>}
           {shown && (
             <>
               {/* 범위는 **방 치수에서 온다** — 매직넘버를 여기 박지 않는다 */}
@@ -199,6 +367,21 @@ export function LayoutView({ layout, onReport, onCommit, onPickId }) {
               />
               <span className="dim">mm · °</span>
             </>
+          )}
+          {/* **크기.** 부품마다 인자 이름이 달라 `catalog.js` 가 무엇을 보여줄지 정한다 */}
+          {sizeKeys.map((k) => (
+            <NumBox
+              key={k} label={SIZE_LABEL[k]} value={sizeOf(k)}
+              min={SIZE_RANGE_MM.min} max={SIZE_RANGE_MM.max} step={SIZE_RANGE_MM.step}
+              onCommit={(v) => commitField({ opts: { [k]: v } })}
+            />
+          ))}
+          {/* **좌표가 아니라 틈이 알고 싶은 값이다** — 벽·이웃까지 몇 mm 남았나 */}
+          {picked.gapsMm && (picked.gapsMm.xMm !== null || picked.gapsMm.zMm !== null) && (
+            <span className="gap">
+              틈 {[picked.gapsMm.xMm, picked.gapsMm.zMm]
+                .filter((v) => v !== null).join(' · ')}mm
+            </span>
           )}
         </div>
       )}

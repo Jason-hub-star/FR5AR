@@ -88,3 +88,53 @@ export function mountZMm(c) {
   if (c.mount === 'wall') return 0;      // 벽걸이는 팩토리가 `baseMm` 으로 스스로 올라간다
   return 0;
 }
+
+// ── 크기 손잡이 ──────────────────────────────────────────────────────────────
+//
+// **부품마다 인자 이름이 다르다** — `lengthMm` · `wMm` · `diaMm`. 화면이 그걸 알아야
+// 고른 물건의 크기를 고칠 수 있다. 여기 적힌 키는 **팩토리 인자 이름 그대로**이고,
+// 값은 그 물건의 `opts` 로 들어간다 (하드 룰 5 — 단위는 mm 한 곳).
+//
+// `scripts/check/layout.sh` 가 **키마다 실제로 형태가 바뀌는지** 확인한다.
+// 오타가 나면 화면에 칸은 뜨는데 아무 일도 안 일어난다 — 그게 제일 나쁜 실패다.
+
+/** 인자 이름 → 사람 말. 부품이 달라도 같은 이름은 같은 뜻이다. */
+export const SIZE_LABEL = {
+  lengthMm: '길이', wMm: '폭', dMm: '깊이', hMm: '높이',
+  diaMm: '지름', tMm: '두께', baseMm: '설치높이',
+};
+
+/** 부품 → 고칠 수 있는 치수. **순서가 화면 순서다.** */
+export const SIZE_MM = {
+  bench:       ['wMm', 'dMm', 'hMm'],
+  benchRun:    ['lengthMm', 'dMm', 'hMm'],
+  wallCabinet: ['lengthMm', 'dMm', 'hMm', 'baseMm'],
+  shelf:       ['wMm', 'dMm', 'hMm'],
+  isolator:    ['wMm', 'dMm', 'hMm'],
+  instrument:  ['wMm', 'dMm', 'hMm'],
+  workstation: ['wMm', 'hMm'],
+  fumehood:    ['wMm', 'dMm', 'hMm'],
+  safetyFence: ['wMm', 'dMm', 'hMm'],
+  clutter:     ['lengthMm'],
+  conveyor:    ['lengthMm', 'wMm', 'hMm'],
+  blastWall:   ['lengthMm', 'hMm', 'tMm'],
+  chuck:       ['diaMm', 'hMm'],
+  partTray:    ['wMm', 'dMm'],
+  warhead:     ['diaMm', 'lengthMm'],
+};
+
+/** 크기 칸의 범위. **한 곳에서만 정한다** — 부품마다 다른 한계를 두면 아무도 못 외운다. */
+export const SIZE_RANGE_MM = { min: 100, max: 12000, step: 100 };
+
+/**
+ * 치수 키 → **재서 읽을 축**. 화면이 현재 값을 보여줄 때 쓴다 (`sizeMmOf`).
+ *
+ * 뜻이 축에 묶여 있어 안 흔들린다 — `hMm` 은 어느 부품에서든 높이다.
+ * `null` 은 잰 값으로 대신할 수 없는 것(설치 높이 같은 위치 인자)이다.
+ */
+export const SIZE_AXIS = {
+  lengthMm: 'x', wMm: 'x', diaMm: 'x',
+  dMm: 'z', tMm: 'z',
+  hMm: 'y',
+  baseMm: null,
+};

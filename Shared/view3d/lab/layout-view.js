@@ -279,28 +279,35 @@ export function createLayoutView(layout, { mountArm } = {}) {
 
   mountArm?.(armSlot, layout);
 
-  // ── AMR + 경로. 가상 팔의 도달 범위도 같이 — 이게 "이동하는 도달 범위" 다.
+  // ── AMR. 가상 팔의 도달 범위도 같이 — 이게 "이동하는 도달 범위" 다.
+  //
+  // **경로 선을 안 그린다** (주인님 요청 · 2026-08-04). 배치를 정하는 화면에서 선 두 줄이
+  // 바닥을 가로질러 가구보다 눈에 띄었다. 이동거리는 숫자줄이 계속 말한다.
+  // 대신 **도킹 자리에 세우고 고를 수 있게** 한다 — 도킹존이 배치의 변수이기 때문이다.
   for (const a of layout.amrs ?? []) {
+    const g = new THREE.Group();
+    const at = a.dockPosMm ?? a.waypointsMm?.[0] ?? [0, 0];
+    g.position.set(mm(at[0]), 0, Z(mm(at[1])));
+    g.name = a.id ?? 'amr';
+    g.userData.item = { kind: 'amr', id: a.id, type: 'amr', name: a.model ?? 'AMR' };
+    contents.add(g);
+
+    // 몸통 + **라이다**. 상자만 두면 바닥에 붙은 회색 덩어리라 가구에 묻힌다 —
+    // 위로 솟은 원통 하나가 "자율주행 로봇" 신호를 완성한다 (터틀봇 실물도 그렇다).
     const body = new THREE.Mesh(track(new THREE.BoxGeometry(0.28, 0.19, 0.3)), mat.amr);
-    const start = a.waypointsMm?.[0] ?? a.dockPosMm;
-    body.position.set(mm(start[0]), 0.095, Z(mm(start[1])));
+    body.position.y = 0.095;
     body.castShadow = true;
-    contents.add(body);
+    g.add(body);
+    const lidar = new THREE.Mesh(track(new THREE.CylinderGeometry(0.037, 0.037, 0.09, 12)), mat.amr);
+    lidar.position.set(0, 0.235, -0.06);
+    lidar.castShadow = true;
+    g.add(lidar);
 
     if (a.reachMm) {
       const r = makeReachZone({ radius: mm(a.reachMm), height: 0.5, color: C.virtual });
       r.rotation.x = -Math.PI / 2;
-      r.position.set(body.position.x, 0.006, body.position.z);
-      contents.add(r);
-    }
-
-    const pts = (a.waypointsMm ?? []).map(([x, y]) => new THREE.Vector3(mm(x), 0.02, Z(mm(y))));
-    if (pts.length > 1) {
-      const line = new THREE.Line(
-        track(new THREE.BufferGeometry().setFromPoints(pts)),
-        new THREE.LineBasicMaterial({ color: C.path, transparent: true, opacity: 0.9 }),
-      );
-      contents.add(line);
+      r.position.y = 0.006;
+      g.add(r);
     }
   }
 
