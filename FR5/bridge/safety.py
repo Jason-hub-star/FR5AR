@@ -19,9 +19,15 @@ REQUIRED_FOR_MOTION = ["emergencyStop", "safetyStop", "collisionDetected",
                        "inDragTeach", "mainErrorCode", "subErrorCode"]
 
 
-def check_motion(state, state_age_s, target_deg, speed_pct):
+def check_motion(state, state_age_s, target_deg, speed_pct, applied_settings=None):
     """jog/moveJ 게이트 (SAFETY-RULES §명령별 최소 조건). 반환: 사유 목록, 비면 허용."""
     reasons = []
+    # 조건 26 — 컨트롤러 충돌 감지는 기본으로 안 켜져 있다. 브리지가 넣었다는 기록이
+    # 없으면 조건 4·5 는 판정할 게 없는 상태다 (SAFETY-RULES §설정이 전제다)
+    if not applied_settings:
+        reasons.append("안전 설정 적용 기록이 없다 — 충돌 감지가 켜졌는지 모른다 (조건 26)")
+    elif applied_settings.get("mismatch"):
+        reasons.append("안전 설정 되읽기 불일치 — " + " · ".join(applied_settings["mismatch"]))
     if state is None:
         return ["상태를 읽지 못했다 — fail-closed (조건 17)"]
     if state_age_s > STATE_FRESH_S:

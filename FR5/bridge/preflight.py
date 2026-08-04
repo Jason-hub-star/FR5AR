@@ -31,4 +31,24 @@ def check(profile, version, state):
     for f in REQUIRED_SAFETY:
         if f not in safety:
             reasons.append(f"안전 필드 누락 — safety.{f}")
+    if not profile.get("settings"):
+        # 없으면 arm 이 어차피 막힌다. 연결 단계에서 미리 알려 주는 게 친절하다
+        reasons.append("프로필에 settings 가 없다 — 안전 설정 없이 명령 승격을 못 한다 (D53)")
     return reasons
+
+
+def compare_soft_limits(readback, ours):
+    """컨트롤러 소프트리밋과 우리 URDF 한계를 대조한다. **거부가 아니라 기록**이다.
+
+    `GetJointSoftLimitDeg` 는 함수명이 Deg 인데 주석 단위가 mm 로 적혀 있어 모순이다
+    (STACK §로봇 안전 설정 API). 값 신뢰도가 낮아 실측으로 확인하기 전에는 판정에 쓰지 않는다.
+    반환: 사람이 읽는 차이 설명 목록 (없으면 빈 목록).
+    """
+    if not readback or len(readback) != 12:
+        return []
+    notes = []
+    for i, (lo, hi) in enumerate(ours):
+        c_lo, c_hi = readback[i * 2], readback[i * 2 + 1]
+        if abs(c_lo - lo) > 0.5 or abs(c_hi - hi) > 0.5:
+            notes.append(f"j{i + 1} 컨트롤러 [{c_lo:.1f}, {c_hi:.1f}] vs 우리 [{lo:.1f}, {hi:.1f}]")
+    return notes

@@ -36,7 +36,7 @@ try {
 
   // 1. 프로필 목록 — 계약 모양, 비밀번호 없음
   const robots = (await api('/robots')).json;
-  check('GET /robots — 프로필 4개', robots.length === 4);
+  check('GET /robots — 프로필 5개', robots.length === 5);
   const lab = robots.find(r => r.robotId === 'fr5-lab-a');
   check('실기 프로필 endpoint 는 증거값', lab?.endpoint === '192.168.57.2:8080');
   check('프로필에 비밀번호류 없음', !JSON.stringify(robots).match(/password|passwd|secret/i));
@@ -146,6 +146,31 @@ try {
   check('조종권 없는 arm 403', wrongOwner.status === 403);
   const armed = await api('/arm', { who: 'kim', confirm: '현장확인' });
   check('arm → ARMED + 서보 ON', armed.json.phase === 'ARMED' && (await getState()).enabled === true);
+
+  // 안전 설정 (D53 · 조건 26) — 컨트롤러 충돌 감지는 기본으로 안 켜져 있다
+  const applied = (await getState()).appliedSettings;
+  check('arm 이 안전 설정을 넣고 기록한다', !!applied && applied.sent?.payloadKg === 0.6,
+    `payload=${applied?.sent?.payloadKg}`);
+  check('되읽은 하중이 넣은 값과 일치', applied?.readback?.payloadKg === 0.6 && !applied.mismatch.length);
+  check('되읽기 불가 항목을 정직하게 노출',
+    (applied?.unverifiable || []).includes('collisionLevel'));
+
+  // 설정이 안 먹는 로봇이면 arm 자체가 거부돼야 한다 — 게이트가 있는 척하지 않는다
+  await api('/disarm', { who: 'kim' });
+  await api('/owner/release', { who: 'kim' });
+  await api('/disconnect', {});
+  await api('/connect', { robotId: 'fr5-mock-setfail', observeOnly: true });
+  await api('/owner/claim', { who: 'kim' });
+  const setfail = await api('/arm', { who: 'kim', confirm: '현장확인' });
+  check('설정이 안 먹는 로봇 → arm 거부 (조건 26)',
+    setfail.json.ok === false && JSON.stringify(setfail.json.reasons).includes('안전 설정'),
+    (setfail.json.reasons || [])[0]);
+  check('거부 뒤 서보는 OFF 로 남는다', (await getState()).enabled === false);
+  await api('/owner/release', { who: 'kim' });
+  await api('/disconnect', {});
+  await api('/connect', { robotId: 'fr5-mock-a', observeOnly: true });
+  await api('/owner/claim', { who: 'kim' });
+  await api('/arm', { who: 'kim', confirm: '현장확인' });
 
   // 상한 — 초과는 자르지 않고 거부한다
   kim.send({ cmd: 'jog', joint: 0, deltaDeg: 10 });

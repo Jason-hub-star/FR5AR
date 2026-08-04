@@ -150,6 +150,40 @@ class FairinoAdapter(RobotAdapter):
         }
         return state
 
+    # ── 안전 설정 (D53) — 되읽기가 없는 항목이 절반이라 매번 다시 넣는다 ──
+    def apply_settings(self, settings):
+        s = settings or {}
+        with self._lock:
+            # 하중이 먼저다 — 매뉴얼: 하중·설치방향이 없으면 충돌 감지가 오작동한다
+            _code(_guard(self._r.SetLoadWeight, 0, float(s["payloadKg"])), "load-weight")
+            x, y, z = s["cogMm"]
+            _code(_guard(self._r.SetLoadCoord, float(x), float(y), float(z), 0), "load-cog")
+            _code(_guard(self._r.SetRobotInstallPos, int(s["installPos"])), "install-pos")
+            # config=1 — 설정 파일까지 갱신해 컨트롤러 재부팅 후에도 남긴다
+            _code(_guard(self._r.SetAnticollision, int(s["collisionMode"]),
+                         [float(v) for v in s["collisionLevel"]], 1), "anticollision")
+            _code(_guard(self._r.SetCollisionStrategy, int(s["collisionStrategy"])),
+                  "collision-strategy")
+
+    def read_settings(self):
+        """되읽을 수 있는 것만. 못 읽는 값은 None — 아는 척하지 않는다."""
+        out = {"payloadKg": None, "cogMm": None, "toolCoord": None, "jointSoftLimitDeg": None}
+        with self._lock:
+            rtn = _guard(self._r.GetTargetPayload)
+            if isinstance(rtn, (list, tuple)) and rtn[0] == 0:
+                out["payloadKg"] = float(rtn[1])
+            rtn = _guard(self._r.GetTargetPayloadCog)
+            if isinstance(rtn, (list, tuple)) and rtn[0] == 0:
+                out["cogMm"] = [float(v) for v in rtn[1]]
+            rtn = _guard(self._r.GetCurToolCoord)
+            if isinstance(rtn, (list, tuple)) and rtn[0] == 0:
+                out["toolCoord"] = [float(v) for v in rtn[1]]
+            # 함수명은 Deg 인데 주석 단위는 mm 라 모순이다 (STACK). 대조·기록만 하고 거부엔 안 쓴다
+            rtn = _guard(self._r.GetJointSoftLimitDeg)
+            if isinstance(rtn, (list, tuple)) and rtn[0] == 0:
+                out["jointSoftLimitDeg"] = [float(v) for v in rtn[1]]
+        return out
+
     # ── 명령 계열 — ARMED 승격 뒤에만 브리지가 부른다. 상한 검사는 브리지 몫 ──
     def reset_errors(self):
         with self._lock:

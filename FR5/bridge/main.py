@@ -1,5 +1,5 @@
 # fr5-bridge — FAIRINO FR5 의 유일한 관문 (API-CONTRACT.md 가 정본이다. 어긋나면 문서부터 고친다).
-# 실행: bash scripts/dev/fr5-dev.sh  (실기: FAIRINO_DLL=<libfairino.dll> 필요 — D41)
+# 실행: bash scripts/dev/fr5-dev.sh  (준비물 없음 — 순수 파이썬 SDK · D42)
 # P0: profile·observe-only preflight·상태 스트림 · P2: 조종권·arm·guarded jog/stop.
 # 배포: npm run build:fr5 뒤 이 서버가 FR5/dist 를 같은 주소에서 서빙한다 —
 # 주소를 여는 누구나 조작 후보다 (LAN·팀 신뢰). 보호는 조종권 1명·게이트·stop 상시가 맡는다.
@@ -34,6 +34,7 @@ session = {
     "armed": False,
     "lastState": None, "lastStateAt": 0.0,
     "badReads": 0,
+    "appliedSettings": None,   # 안전 설정 적용 기록 (D53 · 조건 26)
 }
 BAD_READS_LIMIT = 3     # 유니티 실측 정책 — 연속 3회 불량이면 연결 손실 판정 (API-CONTRACT §실기)
 
@@ -47,6 +48,31 @@ def _owner_lost(who):
     # 조종권 소실 = 즉시 disarm — 주인 없는 ARMED 를 남기지 않는다
     if session["armed"]:
         _disarm_hw(f"조종권 소실({who})")
+
+
+# 되읽기가 없는 항목 — SDK 에 Get 이 아예 없다 (STACK §로봇 안전 설정 API).
+# "확인했다" 고 적지 않고 "넣었다" 고만 적는다 (D53).
+UNVERIFIABLE_SETTINGS = ["collisionLevel", "collisionStrategy", "collisionMode",
+                         "installPos", "powerLimitW"]
+SETTING_TOL = {"payloadKg": 0.05, "cogMm": 1.0}     # 되읽기 허용 오차 (kg · mm)
+
+
+def _apply_settings(adapter, settings):
+    """설정을 넣고 되읽어 대조한다. 반환은 계약 §로봇 안전 설정의 appliedSettings 모양."""
+    if not settings:
+        raise ConnectionError("프로필에 settings 가 없다 — 안전 설정 없이 arm 하지 않는다")
+    adapter.apply_settings(settings)
+    back = adapter.read_settings() or {}
+    mismatch = []
+    got = back.get("payloadKg")
+    if got is None or abs(got - float(settings["payloadKg"])) > SETTING_TOL["payloadKg"]:
+        mismatch.append(f"payloadKg 기대 {settings['payloadKg']} · 실제 {got}")
+    got = back.get("cogMm")
+    if got is None or any(abs(g - float(w)) > SETTING_TOL["cogMm"]
+                          for g, w in zip(got, settings["cogMm"])):
+        mismatch.append(f"cogMm 기대 {settings['cogMm']} · 실제 {got}")
+    return {"appliedAt": time.time(), "sent": dict(settings), "readback": back,
+            "unverifiable": list(UNVERIFIABLE_SETTINGS), "mismatch": mismatch}
 
 
 def _disarm_hw(why):
@@ -79,7 +105,7 @@ def fail_closed(reason):
         except Exception:
             pass
     session.update(profile=None, adapter=None, phase="FAIL_CLOSED", failReason=reason,
-                   lastState=None)
+                   lastState=None, appliedSettings=None)
     log("FAIL_CLOSED", reason)
 
 
@@ -129,6 +155,7 @@ def snapshot():
         "gripper": {"opened": True, "pos": 0},
         "owner": owner.get(),
         "phase": session["phase"], "failReason": session["failReason"],
+        "appliedSettings": session["appliedSettings"],
     }
     if session["adapter"] is None:
         return base
@@ -222,7 +249,8 @@ async def disconnect(body: dict | None = None):
             pass
         log("DISCONNECTED", session["profile"]["robotId"])
     session.update(profile=None, adapter=None, phase="DISCONNECTED",
-                   failReason=None, version=None, armed=False, lastState=None, badReads=0)
+                   failReason=None, version=None, armed=False, lastState=None, badReads=0,
+                   appliedSettings=None)
     return {"ok": True, "phase": "DISCONNECTED", "reasons": []}
 
 
@@ -268,6 +296,17 @@ async def arm(body: dict):
             if not read_fresh_state().get("enabled"):
                 raise ConnectionError(
                     f"{e} · 펜던트에서 로봇 Enable(활성화) 후 다시 ARM 하면 이어갈 수 있다")
+        # 안전 설정은 서보를 올린 뒤·자동 모드 전에 넣는다 (계약 §로봇 안전 설정 · D53).
+        # 컨트롤러 충돌 감지는 기본으로 안 켜져 있고 기본 민감도는 사람 접촉에 반응하지 않는다.
+        applied = _apply_settings(a, session["profile"].get("settings"))
+        if applied["mismatch"]:
+            raise ConnectionError(
+                "안전 설정이 로봇에 안 먹었다 — " + " · ".join(applied["mismatch"]))
+        session["appliedSettings"] = applied
+        notes = preflight.compare_soft_limits(
+            (applied["readback"] or {}).get("jointSoftLimitDeg"), safety.JOINT_LIMITS_DEG)
+        if notes:      # 거부하지 않는다 — 값 신뢰도가 낮다 (STACK). 기록만 남긴다
+            log("soft-limit-diff", " · ".join(notes))
         a.set_sample_period(SAMPLE_MS)
         a.exit_drag_teach()
         a.set_mode(0)
@@ -309,7 +348,7 @@ def _do_motion(target_deg, speed_pct):
     """게이트 → MoveJ. 사유가 있으면 보내지 않는다. (스레드에서 실행)"""
     state = read_fresh_state()
     reasons = safety.check_motion(state, time.time() - session["lastStateAt"],
-                                  target_deg, speed_pct)
+                                  target_deg, speed_pct, session["appliedSettings"])
     if reasons:
         return reasons
     coord = state.get("coord") or {}

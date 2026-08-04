@@ -24,6 +24,25 @@ class RobotAdapter:
         missing(못 읽은 필드 이름 목록)을 함께 준다. t/robotId/owner/phase 는 브리지가 얹는다."""
         raise NotImplementedError
 
+    # ── 안전 설정 — 주인은 브리지다 (D53 · SAFETY-RULES §설정이 전제다) ────
+    def apply_settings(self, settings: dict) -> None:
+        """프로필의 settings 를 로봇에 넣는다. arm 시퀀스에서 서보 ON 직후에 부른다.
+
+        컨트롤러 충돌 감지는 기본으로 켜져 있지 않고, 말단 하중이 없으면 드래그·충돌감지가
+        오작동한다 (공식 매뉴얼). 그래서 **매번** 넣는다 — 펜던트에서 누가 바꿔도 되돌린다.
+        실패는 예외로 던진다. 조용히 넘어가면 게이트가 있는 척만 하게 된다.
+        """
+        raise NotImplementedError
+
+    def read_settings(self) -> dict:
+        """되읽을 수 있는 설정만 돌려준다. **못 읽는 값은 None** (base 규칙 그대로).
+
+        SDK 에 SetAnticollision·SetCollisionStrategy·SetRobotInstallPos·SetPowerLimit 의
+        Get 이 없다 (STACK §로봇 안전 설정 API). 그것들은 여기서 None 이고, 브리지가
+        appliedSettings.unverifiable 로 정직하게 노출한다.
+        """
+        raise NotImplementedError
+
     # ── 명령 계열 — ARMED 승격 뒤에만 브리지가 부른다 ──────────────────────
     def reset_errors(self) -> None:
         """잠복 fault 해제 (ResetAllError). arm 시퀀스 맨 앞에서만 부른다."""

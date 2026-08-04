@@ -1,5 +1,8 @@
 # fr5-bridge 설정 — 로봇 개체가 바뀌면 여기만 바뀐다 (코드에 IP 를 박지 않는다 · D39)
 # endpoint 는 서버 설정이다. 브라우저가 임의 IP 를 전달하지 않는다 (API-CONTRACT §프로필).
+#
+# settings 는 **브리지가 ARM 마다 로봇에 넣는 값**이다 (D53 · API-CONTRACT §로봇 안전 설정).
+# 컨트롤러 충돌 감지는 기본으로 켜져 있지 않고 기본 민감도는 사람 접촉에 반응하지 않는다.
 port: 5055
 sample_ms: 33               # 상태 폴링 목표 주기 — 실측 27Hz 남짓 (unity-bridge-protocol §5)
 robots:
@@ -8,16 +11,42 @@ robots:
     adapter: fairino        # 순수 파이썬 SDK (fairino_sdk/ · D42)
     endpoint: 192.168.57.2:8080   # 2026-07-31 실측값. 기본값이 아니라 증거값이다
     expectedModel: FR5-V1-002(V6.0)   # GetSoftwareVersion 실측 (2026-07-31) — 개체 정체성 검증값
+    settings:
+      payloadKg: 0.6        # 그리퍼 PGE A-100-40 실측 사양 (대환 사양서 · STACK §안전 설정 API)
+      cogMm: [0, 0, 60]     # 무게중심 근사 — 자동 인식(4단계)은 나중. 값이 없는 것보단 낫다
+      installPos: 0         # 0=바닥 1=측면 2=천장
+      collisionMode: 0      # 0=등급(1~10) 1=퍼센트
+      # 등급은 작을수록 민감하다. 5 는 **실측 전 보수적 출발점**이고 확정값이 아니다 —
+      # 실기에서 한 단계씩 낮추며 ①오탐 정지 없음 ②사람이 밀면 반응 지점을 찾는다 (GAP OPEN)
+      collisionLevel: [5, 5, 5, 5, 5, 5]
+      collisionStrategy: 2  # 2=에러 후 정지. 계속 실행(1)·리바운드(5)는 쓰지 않는다
+      toolCoordId: 0        # 0=툴 없음(플랜지 기준). 캘리브레이션 전까지 유지 — 화면 TCP 도 플랜지 기준
   - robotId: fr5-mock-a
     name: 목업 A
     adapter: mock
     endpoint: mock://a
     expectedModel: FR5
+    settings:
+      payloadKg: 0.6
+      cogMm: [0, 0, 60]
+      installPos: 0
+      collisionMode: 0
+      collisionLevel: [5, 5, 5, 5, 5, 5]
+      collisionStrategy: 2
+      toolCoordId: 0
   - robotId: fr5-mock-b
     name: 목업 B — 프로필 교체 시험용
     adapter: mock
     endpoint: mock://b
     expectedModel: FR5
+    settings:
+      payloadKg: 0.6
+      cogMm: [0, 0, 60]
+      installPos: 0
+      collisionMode: 0
+      collisionLevel: [5, 5, 5, 5, 5, 5]
+      collisionStrategy: 2
+      toolCoordId: 0
   - robotId: fr5-mock-broken
     name: 목업 — 잘못된 모델·누락 필드 (fail-closed 시험용)
     adapter: mock
@@ -26,3 +55,18 @@ robots:
     mock:
       model: FR3
       drop: [safetyStop]
+  - robotId: fr5-mock-setfail
+    name: 목업 — 안전 설정이 안 먹는 로봇 (조건 26 시험용)
+    adapter: mock
+    endpoint: mock://setfail
+    expectedModel: FR5
+    settings:
+      payloadKg: 0.6
+      cogMm: [0, 0, 60]
+      installPos: 0
+      collisionMode: 0
+      collisionLevel: [5, 5, 5, 5, 5, 5]
+      collisionStrategy: 2
+      toolCoordId: 0
+    mock:
+      settingsDrift: true   # 넣은 값과 다른 값을 되읽어 준다 → arm 이 거부돼야 한다

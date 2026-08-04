@@ -48,7 +48,7 @@ try {
 
   // 2. 불량 mock 프로필 연결 시도 → 사람이 읽는 거부 사유 (fail-closed 경로).
   //    실기 프로필은 시험에서 건드리지 않는다 — 로봇 유무에 따라 결과가 갈리고, 있으면 실기를 만진다
-  await p.waitFor(`document.querySelectorAll('.diag select option').length === 4`);
+  await p.waitFor(`document.querySelectorAll('.diag select option').length === 5`);
   const pickProfile = (id) => p.eval(`(() => {
     const sel = document.querySelector('.diag select');
     Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, ${JSON.stringify(id)});

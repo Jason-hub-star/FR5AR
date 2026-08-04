@@ -35,6 +35,7 @@ class MockFr5Adapter(RobotAdapter):
         self._speed_pct = 10.0
         self._last_tick = time.time()
         self._servo_target = [0.0] * 6
+        self._settings = None          # apply_settings 가 넣은 값 — 되읽기의 출처
 
     def connect(self):
         self._connected = True
@@ -50,6 +51,22 @@ class MockFr5Adapter(RobotAdapter):
         if "model" in self._fault:
             v["model"] = self._fault["model"]
         return v
+
+    # ── 안전 설정 (D53) — mock 은 넣은 값을 실제로 들고 있다가 되읽어 준다 ──
+    def apply_settings(self, settings):
+        self._settings = dict(settings or {})
+
+    def read_settings(self):
+        if self._settings is None:
+            return {"payloadKg": None, "cogMm": None, "toolCoord": None,
+                    "jointSoftLimitDeg": None}
+        drift = 1.0 if self._fault.get("settingsDrift") else 0.0   # 되읽기가 어긋나는 로봇
+        return {
+            "payloadKg": float(self._settings["payloadKg"]) + drift,
+            "cogMm": [float(v) for v in self._settings["cogMm"]],
+            "toolCoord": [0.0] * 6,
+            "jointSoftLimitDeg": None,     # mock 은 컨트롤러 리밋을 흉내 내지 않는다
+        }
 
     def reset_errors(self):
         self._require()
