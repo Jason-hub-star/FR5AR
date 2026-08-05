@@ -207,7 +207,14 @@ class FairinoAdapter(RobotAdapter):
             # config=1 — 설정 파일까지 갱신해 컨트롤러 재부팅 후에도 남긴다
             _code(_guard(self._r.SetAnticollision, int(s["collisionMode"]),
                          [float(v) for v in s["collisionLevel"]], 1), "anticollision")
-            _code(_guard(self._r.SetCollisionStrategy, int(s["collisionStrategy"])),
+            # 뒤 4개는 SDK 기본인자다. 안 넘기면 조용히 채워지는데 그 기본값 중 셋이
+            # **각 범위의 가장 느슨한 끝**이다 (safeVel 250=최댓값 · margin 10=최댓값).
+            # 안 적으면 우리가 고른 게 아니라 벤더가 고른 것이고, SDK 판올림이 우리
+            # 안전 범위를 diff 없이 옮긴다. 지금 값은 기본값과 같지만 **박아서 같은 것**이다.
+            _code(_guard(self._r.SetCollisionStrategy, int(s["collisionStrategy"]),
+                         int(s["collisionSafeTimeMs"]), int(s["collisionSafeDistanceMm"]),
+                         int(s["collisionSafeVelMmS"]),
+                         [int(v) for v in s["collisionSafetyMargin"]]),
                   "collision-strategy")
 
     def read_settings(self):
@@ -237,6 +244,14 @@ class FairinoAdapter(RobotAdapter):
     def enable(self, on):
         with self._lock:
             _code(_guard(self._r.RobotEnable, 1 if on else 0), "enable")
+
+    def forward_kin(self, joints_deg):
+        # GetForwardKin(joint_pos) → (0, [x,y,z,rx,ry,rz]) · 실패면 (err, None) — SDK Robot.py:3634
+        with self._lock:
+            rtn = _guard(self._r.GetForwardKin, [float(v) for v in joints_deg])
+        if isinstance(rtn, (list, tuple)) and rtn[0] == 0 and rtn[1]:
+            return [float(v) for v in rtn[1]]
+        return None
 
     def set_mode(self, mode):
         with self._lock:

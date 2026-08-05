@@ -99,6 +99,11 @@ try {
     `[...document.querySelectorAll('${scope} button')].find(b => b.textContent.includes(${JSON.stringify(text)}))?.click() ?? 'notfound'`);
 
   check('상시 STOP 버튼 존재', !!(await p.eval(`!!document.querySelector('[data-t="safetybar"] [data-t="estop"]')`)));
+  // 모드 토글도 상시다 — 잠긴 펜던트를 푸는 유일한 길이라 탭을 옮겨도 사라지면 안 된다 (D72)
+  check('모드 토글이 STOP 옆에 상시 존재',
+    !!(await p.eval(`!!document.querySelector('[data-t="safetybar"] [data-t="mode-toggle"]')`)));
+  check('조종권 없으면 모드 토글 비활성',
+    (await p.eval(`document.querySelector('[data-t="mode-toggle"]').disabled`)) === true);
   await setInput('header [data-t="who"] input', 'kim');
   await clickText('조종권 잡기');
   check('조종권 claim → 안전 바에 kim',
@@ -119,6 +124,17 @@ try {
   await clickText('ARM');
   check('ARM → phase ARMED + 서보 ON',
     !!(await p.waitFor(`document.querySelector('[data-t="safetybar"]').textContent.includes('ARMED') && document.querySelector('[data-t="safetybar"]').textContent.includes('서보 ON')`, { timeoutMs: 5000 })));
+  // ARMED 인 채로 수동 전환 — 드래그 티칭은 서보가 켜져 있어야 되므로 여기서 막히면 안 된다
+  check('ARMED 에서 모드 토글이 활성',
+    (await p.eval(`document.querySelector('[data-t="mode-toggle"]').disabled`)) === false);
+  await p.eval(`document.querySelector('[data-t="mode-toggle"]').click()`);
+  await p.screenshot(`${OUT}/fr5-mode-toggle.png`);   // 활성 상태의 토글 — 눈으로 볼 근거
+  check('수동으로 → 안전 바가 manual · 서보는 ON 유지',
+    !!(await p.waitFor(`document.querySelector('[data-t="safetybar"]').textContent.includes('manual') && document.querySelector('[data-t="safetybar"]').textContent.includes('서보 ON')`, { timeoutMs: 5000 })));
+  await p.eval(`document.querySelector('[data-t="mode-toggle"]').click()`);
+  check('자동으로 → 다시 auto (갇히지 않는다)',
+    !!(await p.waitFor(`document.querySelector('[data-t="safetybar"]').textContent.includes('auto')`, { timeoutMs: 5000 })));
+
   const j1Before = parseFloat(await p.eval(`document.querySelector('[data-t="joints"] td').textContent`));
   await p.eval(`[...document.querySelectorAll('[data-t="jogrow"]')][0].querySelectorAll('button')[1].click()`);
   const j1Target = (j1Before + 1).toFixed(2);

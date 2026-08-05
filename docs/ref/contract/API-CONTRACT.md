@@ -75,8 +75,17 @@ settings:
   collisionMode: 0        # 0=등급(1~10) 1=퍼센트
   collisionLevel: [5,5,5,5,5,5]   # 작을수록 민감 — **실기 실측으로 확정한다**
   collisionStrategy: 2    # 2=에러 후 정지
+  # 충돌 감지 **후** 어떻게 서느냐. SDK 기본값을 상속하지 않고 우리가 적는다 (아래)
+  collisionSafeTimeMs: 1000        # 1000~2000
+  collisionSafeDistanceMm: 100     # 1~150
+  collisionSafeVelMmS: 250         # 50~250
+  collisionSafetyMargin: [10,10,10,10,10,10]   # 1~10
   toolCoordId: 0          # 0=툴 없음(플랜지). 캘리브레이션 전까지 0 — 아래 주의
 ```
+
+⚠ `collisionSafe*` 4개는 SDK 기본인자라 **안 적으면 벤더가 고른다** — 그 기본값 중 셋이
+각 범위의 가장 느슨한 끝이다. 지금 값은 기본값과 같지만 **박아서 같다.** 범위·조일 후보·
+왜 아직 안 조였는지는 `SAFETY-RULES.md` §기본인자는 "안전한 기본" 이 아니다.
 
 `/state.appliedSettings` 모양:
 
@@ -85,7 +94,9 @@ settings:
   "appliedAt": 1785329668.42,   // 브리지가 넣은 시각
   "sent": { "payloadKg": 0.6, "collisionLevel": [5,5,5,5,5,5], … },   // 넣은 값 그대로
   "readback": { "payloadKg": 0.6, "cogMm": [0,0,60], "toolCoord": […] },  // 되읽은 값
-  "unverifiable": ["collisionLevel", "collisionStrategy", "installPos", "powerLimitW"],
+  "unverifiable": ["collisionLevel", "collisionStrategy", "collisionMode", "installPos",
+                   "powerLimitW", "collisionSafeTimeMs", "collisionSafeDistanceMm",
+                   "collisionSafeVelMmS", "collisionSafetyMargin"],
   "mismatch": []                 // 되읽기와 다른 항목 — 비어 있지 않으면 arm 거부
 }
 ```
@@ -95,11 +106,11 @@ settings:
 - **되읽기가 없는 항목은 `unverifiable` 로 정직하게 노출한다.** "확인했다"가 아니라
   "넣었다"이다. 화면도 그렇게 표시한다
 - `appliedSettings` 가 없으면 모션이 나가지 않는다 (조건 26)
-- ⚠ **`toolCoordId: 0` 은 매뉴얼상 "툴 없음(플랜지 기준)"** 이지만, **실기 실측(2026-08-04)에서
-  툴 0 에 이미 `[0,0,135,0,0,0]` 오프셋이 들어 있었다.** 즉 이 개체의 TCP 값은 플랜지가
-  아니라 그 오프셋이 적용된 값이다 — 누가 어떤 근거로 넣었는지 모르므로 **정확도는 미검증**
-  (GAP OPEN). 지금은 관절값 저장 + `MoveJ` 재생 조합이라 동작이 바뀌지 않는다. 좌표 기반
-  이동을 도입하기 전에 툴 좌표계 캘리브레이션이 선행돼야 한다 (별도 골)
+- ⚠ **`toolCoordId: 0` 은 매뉴얼상 "툴 없음(플랜지 기준)"** 이지만 툴 0 에 이미
+  `[0,0,135,0,0,0]` 이 들어 있다 (2026-08-04). 그 **135 는 실물 실측(플랜지→핑거 끝)과 일치**
+  한다 (2026-08-05 · `STACK.md` §안전 설정 API). 남은 건 정확도가 아니라 **기준점**이다 —
+  135 는 핑거 **끝**, 파지 지점은 ≈122.5mm. 지금은 관절값 + `MoveJ` 재생이라 동작은 안 바뀐다.
+  좌표 기반 이동을 도입하기 전에 어느 쪽을 TCP 로 둘지 정한다 (별도 골)
 
 `phase` 는 `DISCONNECTED → PREFLIGHT → OBSERVE_ONLY → OWNER_HELD → ARMED → EXECUTING`
 + `FAIL_CLOSED` 다 (2026-07-31, D40). 미연결이면 `robotId: null · connected: false ·
@@ -130,6 +141,35 @@ POST /disconnect
 - 모델·6축 배열·필수 안전 필드·허용 펌웨어가 맞지 않으면 연결은 보여주되 명령 상태로 승격하지 않는다.
 - 프로필에 비밀번호를 저장하지 않는다. 포트 라벨이 아니라 ARP/TCP와 SDK 응답으로 실제 경로를 확인한다.
 
+### 작업영역 — 조건 12 의 카테시안 절반 (2026-08-05 · D73)
+
+관절 한계만으로는 **손끝이 작업대를 뚫는 것을 못 막는다.** 컨트롤러의 위치 안전망은
+FR-HMI 전용 펜던트를 전제하므로 빌릴 수 없다 (`SAFETY-RULES.md` §FR-HMI) — 우리 소프트리밋이
+유일한 방어선이다. 값은 **로봇이 직접 짚어** 얻는다 (`runbook/WORKCELL-MEASURE.md`).
+
+프로필 **최상위**에 둔다. `settings` 는 *로봇에 넣는 값*이고(D53) 이것은 *우리 게이트가
+쓰는 값*이라 섞으면 `appliedSettings` 되읽기 대조에 끼어든다.
+
+```yaml
+workspace:
+  frame: {toolId: 1, userId: 1}   # 이 좌표계에서만 참이다
+  tableTopZmm: -345.8
+  tableXmm: [-16.1, 842.0]
+  tableYmm: [-798.2, -210.9]
+  tableMarginMm: 10
+  wallYmm: -1400.0
+  wallMarginMm: 100
+```
+
+- 판정은 **손끝**으로 한다. 목표 관절을 **로봇 자신의 `GetForwardKin`** 으로 바꾼다 —
+  DH 파라미터를 우리가 다시 적지 않고, 툴·사용자 좌표계가 저절로 맞는다
+- **상판은 평면이 아니라 사각 기둥이다** — `x·y` 가 상판 안일 때만 높이를 건다.
+  바깥에서는 더 내려가도 된다 (실제로 손끝이 상판 밖에서 346mm 아래에 있었다)
+- **`frame` 이 지금 좌표계와 다르면 거부한다.** 같은 숫자가 다른 자리를 가리킨다
+- 손끝을 못 구하면 **차단**한다 (제1원칙: 결측=차단)
+- **없으면 판정하지 않는다** — `/state.workspace` 가 `null` 로 노출돼 꺼진 것이 보인다
+- ⚠ **천장 — 손끝만 본다.** 팔꿈치·상완은 판정 밖이라 벽 여유를 크게 잡는다
+
 ## 명령 (클라이언트 → 서버)
 
 WebSocket 같은 연결로 올린다. **조종권을 가진 클라이언트의 명령만 실행한다.**
@@ -141,8 +181,20 @@ WebSocket 같은 연결로 올린다. **조종권을 가진 클라이언트의 �
 { "cmd": "moveJ",   "jointsDeg": [0,0,0,0,0,0], "speedPct": 10 }
 { "cmd": "gripper", "pct": 30 }         // 아래 §그리퍼. open:true/false 는 별칭
 { "cmd": "gripperActivate" }
+{ "cmd": "mode",    "manual": true }    // 아래 §모드 전환. 로봇을 움직이지 않는다
 { "cmd": "stop" }                       // 조종권·신원 없어도 항상 받는다
 ```
+
+### 모드 전환 — 펜던트에게 조작을 넘긴다 (D72)
+
+`ARM` 이 `SetMode(0)` 을 부르므로 한 번 ARM 하면 펜던트가 잠기고, `DISARM` 은 안 되돌린다.
+`mode` 가 그 되돌리기다. 왜 이 모양인지는 **D72** 에 있다.
+
+- 로봇을 움직이지 않는다 — 권한만 넘긴다. 조종권자만 · 모션 큐 0 · 신선도 게이트
+- **`ARMED` 에서도 받는다** — 드래그는 서보가 켜져 있어야 되므로 DISARM 을 선행으로
+  걸면 잠금을 못 푼다. 하드 룰 4 는 `check_motion` 의 `mode != 0` 이 지킨다
+- ⚠ **드래그 티칭은 웹에서 켜지 않는다** — 팔을 푸는 것은 펜던트의 3위치 인에이블
+  스위치다 (`SAFETY-RULES.md` §FR-HMI). `inDragTeach` 는 **읽기만** 한다
 
 ### 명령 승격 — ARMED (2026-07-31, D41)
 
@@ -162,7 +214,8 @@ POST /disarm  { "who": "kim", "token": "…" }                        → 서보
   **arm 시퀀스가 끝나는 순간에도 조종권을 다시 확인한다** — 시퀀스는 수 초가 걸려 그 사이
   자동 해제가 돌 수 있고, 그러면 주인 없는 ARMED 가 남는다 (2026-08-03 감사 P0, 수리됨)
 - jog/moveJ/gripper 는 `ARMED` 에서만, 매 명령마다 안전 게이트를 다시 통과해야 실행된다
-- **실기에 닿는 명령은 허용목록으로 고정한다** — `jog`·`moveJ`·`gripper`·`stop` 넷뿐이다.
+- **실기에 닿는 명령은 허용목록으로 고정한다** — `jog`·`moveJ`·`gripper`·`mode`·`stop` 다섯뿐이고,
+  그중 **로봇을 움직이는 것은 앞의 셋**이다 (`mode` 는 권한만 넘긴다 · `stop` 은 세운다).
   재생·시뮬·모방학습 재현은 이 목록에 새 이름을 더하지 않는 한 하드웨어에 닿을 수 없다.
   격리를 주석이 아니라 구조가 보증한다 (감사 P1)
 - `POST /disconnect { "who", "token" }` — 주인이 있으면 주인만 끊는다. 남의 실행을 아무나 중단시키는
@@ -286,92 +339,12 @@ FK 보간으로 계산한다. 역기구학은 쓰지 않는다 (`docs/ref/arch/S
 `depth.minZmm`(현재 해상도의 Min-Z)와 `depth.valid`(지금 사각지대 밖인가).
 **카메라가 무응답이거나 프레임이 낡으면 제안은 전부 거부된다** (fail-closed).
 
-## 제안 — `POST /proposal` (2026-08-04 · D61)
+## 제안 — 이 문서가 아니라 `VISION-CONTRACT.md` (2026-08-05 이관)
 
-**비전은 명령을 만들지 않는다. 제안을 만든다.** 비전값이 곧바로 명령이 되면 하드 룰 3
-(사람 확인 없이 큰 동작 금지)과 정면으로 부딪힌다.
+비전은 명령이 아니라 **제안**을 만든다 (D47·D61). `POST /proposal` 의 판정 3단·거부 사유·
+못 박는 것 5개·앵커 봉인은 [`VISION-CONTRACT.md`](VISION-CONTRACT.md) 에 있다.
 
-### 제안은 실기 명령이 아니다 — 승인되면 **번역**된다
-
-**§명령의 허용목록(`jog`·`moveJ`·`gripper`·`stop`)은 그대로다.** `proposal` 은 그 목록에
-새 이름을 더하지 않는다. 승인된 제안은 브리지가 `moveJ`·`gripper` 로 **번역**해서
-**같은 게이트를 처음부터 다시 태운다.** 비전 전용 실행 경로를 만들지 않는다 — 만드는 순간
-안전 게이트를 우회하는 두 번째 문이 생긴다 (감사 P1 원칙 유지).
-
-```text
-POST /proposal                       → { proposalId, verdict, reason, expiresAt }
-GET  /proposals                      → 대기 목록 (화면이 고스트로 그린다)
-POST /proposal/{id}/approve  { who, token }   → 여기서 moveJ·gripper 로 번역된다
-POST /proposal/{id}/reject   { who, token }
-```
-
-```jsonc
-// POST /proposal — 비전이 보내는 것
-{
-  "kind": "grasp",                    // grasp | align | retighten
-  "source": "vision",
-  "targetPose": { "tcpMmDeg": [412.5, -88.0, 210.3, 180, 0, 45] },   // mm · 도(°)
-
-  "measuredAt": 1785329668.31,        // 촬영 시각 (§카메라 규약)
-  "anchorPose": { "jointsDeg": [...], "tcpMmDeg": [...] },   // ★ 잴 때 로봇이 있던 자세
-  "validUntil": 1785329698.31,        // 이 시각 넘으면 무효
-
-  "depthValidAtMeasure": true,        // ★ 사각지대 밖에서 쟀나
-  "minZmmAtMeasure": 195,
-  "toolId": 0, "userId": 0,           // 잴 때의 좌표계
-  "confidence": 0.87
-}
-```
-
-```jsonc
-// 응답
-{ "proposalId": "p-7f3a",
-  "verdict": "needsHumanConfirm",     // auto | needsHumanConfirm | rejected
-  "reason": null,
-  "expiresAt": 1785329698.31 }
-```
-
-### 판정은 3단이다
-
-| verdict | 언제 | 그다음 |
-|---|---|---|
-| `auto` | 상한 안의 **작은 보정**만 | 바로 번역·실행 |
-| `needsHumanConfirm` | 그 밖의 정상 제안 | 화면에 고스트로 뜨고 **사람이 누른다** |
-| `rejected` | 사유와 함께 거부 | **아무 일도 안 일어난다** |
-
-⚠ **지금은 `auto` 를 열지 않는다.** 전부 `needsHumanConfirm` 이다. 자동 통과는 실기 데이터가
-쌓여 상한을 실측으로 정한 뒤에 연다. 여는 것은 나중에 쉽고, 닫는 것은 사고 뒤다.
-
-거부 사유(`reason`)는 최소 이만큼을 구분한다 — `expired` · `depthInvalid` · `staleAnchor` ·
-`outOfReach` · `overLimit` · `noOwner` · `notArmed` · `inDragTeach`(조건 25) ·
-`toolCalibrationUnverified` · `cameraStale`.
-
-**상한 값을 새로 만들지 않는다.** §안전 규칙과 `SAFETY-RULES.md` §상한을 그대로 쓴다.
-비전용 상한을 따로 두면 그게 우회로가 된다.
-
-### 못 박는 것 다섯
-
-1. **`/proposal` 은 로봇을 움직이지 않는다.** 접수하고 판정만 반환한다. 실행은 `approve` 다.
-   접수와 실행을 한 호출로 합치면 "제안"이라는 말이 거짓말이 된다
-2. **`validUntil` 은 두 번 검사한다** — 접수할 때, 그리고 **번역·실행 직전 한 번 더.**
-   승인 대기 중에 만료될 수 있다. 마지막 구간은 깊이가 없어(§카메라 · Min-Z) 이게 유일한
-   방어선이다
-3. **`anchorPose` 가 없으면 좌표가 틀린다.** hand-eye 가 손목 기준이라 실행 시점 자세가
-   잴 때와 다르면 변환이 달라진다. 허용 반경을 벗어나면 `staleAnchor` 로 거부한다
-4. **조종권은 접수가 아니라 승인에 건다.** 제안 접수는 토큰이 필요 없다(안전하니까).
-   **`approve`·`reject` 는 토큰 필수** — 거기가 제안이 움직임으로 바뀌는 지점이다 (D55)
-5. **제안·판정·승인·실행을 전부 기록한다.** 나중에 "왜 움직였나" 에 답해야 한다
-
-### ⛔ 선행 조건 — 툴 좌표계 캘리브레이션
-
-비전은 본질적으로 **TCP 좌표**(뚜껑이 어디 있나)로 목표를 낸다. 그런데 이 개체의 툴 0 에는
-근거를 모르는 `[0,0,135,0,0,0]` 오프셋이 이미 들어 있고 **정확도가 미검증이다**
-(위 §로봇 안전 설정 ⚠). 관절값 저장 + `MoveJ` 재생 조합은 이 미검증에 영향받지 않지만,
-**좌표 기반 이동은 받는다.**
-
-→ **툴 좌표계 캘리브레이션이 검증되기 전까지 `tcpMmDeg` 목표는 `rejected`**
-(`toolCalibrationUnverified`) 로 fail-closed 한다. 계약은 지금 적어 두되 **실행 경로는
-선행 골이 끝나야 열린다.** 이 순서를 뒤집으면 파지 실패가 아니라 충돌이 된다.
+**§명령의 허용목록은 그대로다** — `proposal` 은 그 목록에 이름을 더하지 않는다.
 
 ## 배치안·생산성 지표 — 별 문서로 이관 (2026-08-04)
 

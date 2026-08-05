@@ -23,11 +23,45 @@ robots:
       # 실기에서 한 단계씩 낮추며 ①오탐 정지 없음 ②사람이 밀면 반응 지점을 찾는다 (GAP OPEN)
       collisionLevel: [5, 5, 5, 5, 5, 5]
       collisionStrategy: 2  # 2=에러 후 정지. 계속 실행(1)·리바운드(5)는 쓰지 않는다
+      # 감지 **후** 어떻게 서느냐. SDK 기본인자라 안 적으면 벤더가 고른 값이 들어가고
+      # 그중 셋이 범위의 가장 느슨한 끝이다 — 그래서 같은 값이라도 박는다 (계약 §로봇 안전 설정).
+      # 조이는 건 실기 확인 뒤에 한다: 의미(정지 프로파일 vs 임계)를 벤더 문서가 안 준다
+      collisionSafeTimeMs: 1000                    # 1000~2000 (여기가 최솟값)
+      collisionSafeDistanceMm: 100                 # 1~150 · 조일 후보
+      collisionSafeVelMmS: 250                     # 50~250 (여기가 최댓값) · 조일 후보
+      collisionSafetyMargin: [10, 10, 10, 10, 10, 10]   # 1~10 (여기가 최댓값) · 조일 후보
       toolCoordId: 0        # 0=툴 없음(플랜지 기준). 캘리브레이션 전까지 유지 — 화면 TCP 도 플랜지 기준
+                            # ⚠ 브리지가 이 값을 로봇에 **넣지 않는다** (SetToolCoord 호출 없음).
+                            # 실기는 tool 1 을 쓰고 있었다 (2026-08-05 실측) — GAP OPEN
+    # 작업영역 — 조건 12 의 카테시안 절반. 손끝이 상판을 뚫거나 벽으로 가는 것을 막는다.
+    # 실측 근거: docs/evidence/2026-08-05/workcell-measure.md (로봇이 직접 짚은 5점)
+    # ⚠ **좌표계에 묶인 값이다.** 아래 frame 과 다르면 게이트가 거부한다 — 숫자가 거짓이 된다
+    workspace:
+      frame: {toolId: 1, userId: 1}
+      tableTopZmm: -345.8   # 세 점 퍼짐 1.9mm
+      tableXmm: [-16.1, 842.0]    # 긴 변 858 — 795 까지만 짚었고 나머지는 j1 한계로 못 갔다.
+                                  # **넓은 쪽으로 잡는다** — 못 가는 데를 막아도 손해가 없다
+      tableYmm: [-798.2, -210.9]  # 짧은 변 587.3 (자로 잰 580 대비 +7.3)
+      tableMarginMm: 10     # 평면 오차 2mm + 짚은 오차 7mm 를 덮는다
+      wallYmm: -1400.0      # 벽 두 점의 짧은변 성분 1193.1·1185.3 → 가까운 쪽 기준
+      wallMarginMm: 100     # 두 점이 수평 91mm 밖에 안 떨어져 **각도가 부정확하다**(±70mm).
+                            # 그래서 벽은 크게 띄운다 — 팔꿈치는 손끝보다 먼저 닿는다
   - robotId: fr5-mock-a
     name: 목업 A
     adapter: mock
     endpoint: mock://a
+    # 게이트 시험용 — mock 의 가짜 기구학(관절→손끝 선형)에 맞춘 값이다.
+    # 실기 값이 아니다. 여기 숫자를 근거로 실기를 판단하지 않는다
+    workspace:
+      # mock 시작 자세 JOINTS_BASE 의 가짜 손끝은 (-580.9, -1045.8, 969.2) 이다.
+      # 그 점을 영역 **안**에 두고, j3 −5°(z −50)·j2 −5°(y −50) 면 넘어가게 잡았다
+      frame: {toolId: 0, userId: 0}
+      tableTopZmm: 930.0
+      tableXmm: [-700.0, -400.0]
+      tableYmm: [-1080.0, -900.0]
+      tableMarginMm: 10
+      wallYmm: -1100.0
+      wallMarginMm: 10
     expectedModel: FR5
     settings:
       payloadKg: 0.6
@@ -36,6 +70,10 @@ robots:
       collisionMode: 0
       collisionLevel: [5, 5, 5, 5, 5, 5]
       collisionStrategy: 2
+      collisionSafeTimeMs: 1000
+      collisionSafeDistanceMm: 100
+      collisionSafeVelMmS: 250
+      collisionSafetyMargin: [10, 10, 10, 10, 10, 10]
       toolCoordId: 0
   - robotId: fr5-mock-b
     name: 목업 B — 프로필 교체 시험용
@@ -49,6 +87,10 @@ robots:
       collisionMode: 0
       collisionLevel: [5, 5, 5, 5, 5, 5]
       collisionStrategy: 2
+      collisionSafeTimeMs: 1000
+      collisionSafeDistanceMm: 100
+      collisionSafeVelMmS: 250
+      collisionSafetyMargin: [10, 10, 10, 10, 10, 10]
       toolCoordId: 0
   - robotId: fr5-mock-broken
     name: 목업 — 잘못된 모델·누락 필드 (fail-closed 시험용)
@@ -70,6 +112,10 @@ robots:
       collisionMode: 0
       collisionLevel: [5, 5, 5, 5, 5, 5]
       collisionStrategy: 2
+      collisionSafeTimeMs: 1000
+      collisionSafeDistanceMm: 100
+      collisionSafeVelMmS: 250
+      collisionSafetyMargin: [10, 10, 10, 10, 10, 10]
       toolCoordId: 0
     mock:
       settingsDrift: true   # 넣은 값과 다른 값을 되읽어 준다 → arm 이 거부돼야 한다

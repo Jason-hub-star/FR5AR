@@ -80,6 +80,14 @@ class MockFr5Adapter(RobotAdapter):
         if not on:
             self._target = None
 
+    def forward_kin(self, joints_deg):
+        """**진짜 기구학이 아니다.** 관절을 움직이면 손끝도 움직인다는 것만 흉내 내
+        작업영역 게이트를 시험할 수 있게 한다 (mock 은 게이트 논리용이다).
+        `ponytail:` 실기 판정은 로봇의 `GetForwardKin` 이 한다 — 여기 숫자를 근거로 쓰지 않는다."""
+        j = list(joints_deg) + [0.0] * 6
+        return [TCP_BASE[0] + j[0] * 10.0, TCP_BASE[1] + j[1] * 10.0, TCP_BASE[2] + j[2] * 10.0,
+                TCP_BASE[3], TCP_BASE[4], TCP_BASE[5]]
+
     def set_mode(self, mode):
         self._require()
         self._mode = int(mode)
@@ -151,7 +159,7 @@ class MockFr5Adapter(RobotAdapter):
             "enabled": self._enabled,
             "mode": self._mode,
             "jointsDeg": [round(j, 4) for j in joints],
-            "tcpMmDeg": list(TCP_BASE),
+            "tcpMmDeg": self.forward_kin(joints),
             "motionQueueLength": 1 if self._target is not None else 0,
             "safety": {
                 "code": 0,

@@ -57,8 +57,9 @@ bash scripts/deploy/fr5-ubuntu.sh    # 맥 빌드 → rsync → 서비스 재시
 | 설정 파일을 우분투에 넣을 때 | **답변의 코드블록을 복사해 붙이지 않는다.** 들여쓰기 공백이 NBSP(`cat -A` 에서 `M-BM-`)로 바뀌어 YAML 이 조용히 무효가 된다. `scp` 로 파일을 통째로 보낸다 (2026-08-04 실측) |
 | `/robots` 무응답 | 서비스가 죽었다 → `systemctl --user restart fr5-bridge` · 로그 `journalctl --user -u fr5-bridge -n 50` |
 | connect 가 **모델 불일치**로 거부 | 다른 개체가 배정됐다. `config.yaml` 의 `expectedModel` 과 실측을 대조 — **추측으로 고치지 않는다** |
-| connect 가 xmlrpc 실패 | 컨트롤러가 이전 세션을 쥐고 있을 수 있다 → 컨트롤러 재부팅. 20003 은 **연결 하나뿐**이라 브리지 밖에서 붙지 않는다 |
-| ARM 이 `-4` | 펜던트에서 서보 Enable · 자동 모드 · 전역 속도 0% 아닌지 확인 |
+| connect 가 xmlrpc 실패 (`GetSoftwareVersion=-4`) | **순서를 지킨다 — 로봇 재부팅은 맨 마지막이다** (2026-08-05 실측). ①**브리지를 재시작**한다 — 배포가 랜 링크 흔들림에 걸리면 `20003`·`20004` 에 **죽은 소켓**이 남아 링크가 돌아와도 계속 `-4` 를 낸다 (`ss -tnp \| grep 2000` 에 `SYN-SENT` 가 보인다). 오늘은 이 한 번으로 붙었다 ②`ping` 과 `ss` 로 로봇이 실제로 조용한지 본다 — **`20003` 이 TCP 는 받는데 응답만 없으면 세션이 남의 손에 있다** ③컨트롤러 재부팅. 20003 은 **연결 하나뿐**이라 브리지 밖에서 붙지 않는다 |
+| 랜 속도가 바뀌었다 (`ethtool`) | **선이 옮겨졌다는 신호다.** 컨트롤러 1번 포트는 1Gbps, 비상정지 박스 쪽 단자는 **100Mbps** (2026-08-05 실측). 주소도 같이 바뀌었을 수 있다 (D63) |
+| ARM 이 `-4` | `-4` 는 **컨트롤러가 거부한 것**이다 — 통신은 갔다. 펜던트에서 ①**제어권이 `Local` 이면 `Remote` 로 바꾼다** (외부 명령을 아예 안 받는다 · 강사 자료 Ch10 3-6-6 · 2026-08-05) ②서보 Enable ③자동 모드 ④전역 속도 0% 아닌지 — 이 순서로 본다 |
 | 조그가 안 먹는다 | 1° 는 손끝에서 약 16mm 라 눈에 잘 안 보인다. `/state` 의 관절값 변화로 판정한다 |
 
 ## 말단 LED 색으로 상태 읽기 (공식 설치 매뉴얼)
@@ -86,5 +87,12 @@ bash scripts/deploy/fr5-ubuntu.sh    # 맥 빌드 → rsync → 서비스 재시
 
 ## 그리퍼
 
-실물은 **PGE A-100-40**(대환), 펜던트 설정은 제조업체 DAHUAN · 유형 PGI-140 · 말단 1번.
-브리지 구현은 아직 없다 — 사다리 1칸(`docs/goals/GOAL-live-gripper.md`)에서 붙인다.
+실물은 **PGE A-100-40**(대환), 말단 1번 포트. 브리지 구현은 붙어 있다 (`/gripper/activate`·`/gripper/move`).
+
+⚠ **펜던트 설정 경로가 두 갈래인데 우리 기록은 한쪽뿐이다** (2026-08-05 · 미해결) —
+우리는 `Adapted Device: DAHUAN · PGI-140 · D1.0` 로 적어 뒀는데, 강사 자료(Ch9)는 같은 로봇을
+`Peripheral → Gripper → **Custom protocol** → End_DaHuan_V1.0` + Modbus RTU 115200-8-N-1 ·
+Device ID 1 로 잡는다. 그쪽 화면에선 기능코드가 **Initialization·Position 만** 켜져 있다
+(Speed·Torque 는 꺼짐) — 사실이면 `MoveGripper` 의 `vel`·`force` 가 Modbus 로 안 나갈 수 있다.
+**펜던트에서 실제로 어느 경로가 켜져 있는지 눈으로 확인할 것.** `SetGripperConfig` 를 쓰지
+않기로 한 D65 판단은 어느 쪽이든 유지한다.

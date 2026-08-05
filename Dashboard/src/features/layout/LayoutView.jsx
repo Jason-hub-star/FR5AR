@@ -620,12 +620,6 @@ export function LayoutView({
   // 경로 편집 — **고른 AMR 의 점만 그린다.** 평소엔 선을 안 그린다(주인님 결정 · 2026-08-04).
   const amrPicked = pathing && picked?.kind === 'amr'
     ? (layout.amrs ?? []).find((a) => a.id === picked.id) : null;
-  useEffect(() => {
-    const pg = viewRef.current?.pathGizmo;
-    if (!pg) return;
-    pg.show(Boolean(amrPicked));
-    if (amrPicked) pg.setPoints(amrPicked.waypointsMm ?? []);
-  }, [amrPicked, layout]);
 
   // ② 내용물 — 배치안이 바뀔 때만. **시점은 안 건드린다.**
   useEffect(() => {
@@ -722,6 +716,17 @@ export function LayoutView({
     if (framedRef.current !== layout.id) { stage.frame(view.contents); framedRef.current = layout.id; }
     cbRef.current.onReport?.(view.report());
   }, [layout]);
+
+  // **무대가 다시 만들어진 뒤에 그린다.** 이 이펙트가 ② 앞에 있던 동안, 점을 하나 추가하면
+  // 배치안이 바뀌며 ② 가 무대를 새로 만들었고 — **새 기즈모는 비어 있어 점이 화면에서
+  // 사라졌다.** 데이터는 맞는데 화면만 빈 상태라 "추가가 안 된다" 로 보였다 (2026-08-04).
+  // React 는 선언 순서대로 이펙트를 돌리므로 **② 뒤에 두는 것**이 곧 수정이다.
+  useEffect(() => {
+    const pg = viewRef.current?.pathGizmo;
+    if (!pg) return;
+    pg.show(Boolean(amrPicked));
+    if (amrPicked) pg.setPoints(amrPicked.waypointsMm ?? []);
+  }, [amrPicked, layout]);
 
   return (
     <div className="view3d">
@@ -891,6 +896,45 @@ export function LayoutView({
             ))}
             <span className="end" style={{ left: '100%' }}>{cycleSec}</span>
           </div>
+
+          {/* ── AMR 띠. **언제 어디로 가는지 한눈에** — 전에는 마커를 하나씩 우클릭해야
+              알 수 있었다 (주인님 지적 · 2026-08-04).
+
+              구간은 `timeline.js` §amrAt 규약을 그대로 읽는다: **사건 시각이 도착 시각**이라
+              앞 사건(없으면 0초)부터 그 사건까지가 이동 구간이다. 사건이 없는 AMR 은
+              줄 자체가 안 뜬다 — 안 움직이는 로봇에 빈 줄을 그으면 그것도 거짓말이다. */}
+          {(layout.amrs ?? []).map((a) => {
+            const mine = series
+              .filter((e) => e.amr === a.id && e.amrAt)
+              .sort((x, y) => x.tSec - y.tSec);
+            if (!mine.length || !cycleSec) return null;
+            let prev = 0;
+            const legs = mine.map((e) => {
+              const leg = { from: prev, to: e.tSec, at: e.amrAt };
+              prev = e.tSec;
+              return leg;
+            }).filter((l) => l.to > l.from);
+            return (
+              <div className="tl-amr" key={a.id} data-t={`tl-amr-${a.id}`}>
+                <span className="tl-amr-name">{a.id}</span>
+                <span className="tl-amr-rail">
+                  {legs.map((l) => (
+                    <i
+                      key={`${l.from}-${l.to}`}
+                      style={{
+                        left: `${(l.from / cycleSec) * 100}%`,
+                        width: `${((l.to - l.from) / cycleSec) * 100}%`,
+                      }}
+                      data-t={`tl-leg-${a.id}`}
+                      title={`${l.from}~${l.to}초 · ${l.at} 로`}
+                    >
+                      {(layout.stations ?? []).find((x) => x.id === l.at)?.name ?? l.at}
+                    </i>
+                  ))}
+                </span>
+              </div>
+            );
+          })}
 
           <div
             className="tl-track" ref={trackRef}
@@ -1096,6 +1140,33 @@ export function LayoutView({
               {(layout.stations ?? []).map((x) => <option key={x.id} value={x.id}>{x.name ?? x.id}</option>)}
             </select>
           </label>
+          {/* **AMR 은 둘이 짝이다** — 어느 대가, 어느 자리로. 하나만 적으면 재생기가
+              그 AMR 을 못 찾거나 목적지를 모른다 (`validateScenario` 가 거부한다).
+              이 칸이 없어서 **화면만으로는 터틀봇을 움직일 방법이 아예 없었다** (2026-08-04). */}
+          <label>
+            AMR
+            <select value={series[evMenu.i].amr ?? ''}
+              onChange={(ev) => onSetEvent?.(evMenu.i, ev.target.value
+                ? { amr: ev.target.value, amrAt: series[evMenu.i].amrAt ?? layout.stations?.[0]?.id }
+                : { amr: '', amrAt: '' })}
+              data-t="ev-amr"
+            >
+              <option value="">— (안 움직인다)</option>
+              {(layout.amrs ?? []).map((a) => <option key={a.id} value={a.id}>{a.id}</option>)}
+            </select>
+          </label>
+          {series[evMenu.i].amr && (
+            <label>
+              AMR 목적지
+              <select value={series[evMenu.i].amrAt ?? ''}
+                onChange={(ev) => onSetEvent?.(evMenu.i, { amrAt: ev.target.value })}
+                data-t="ev-amrat"
+              >
+                <option value="">—</option>
+                {(layout.stations ?? []).map((x) => <option key={x.id} value={x.id}>{x.name ?? x.id}</option>)}
+              </select>
+            </label>
+          )}
           <label>
             탄두 단계
             <select value={series[evMenu.i].stage ?? ''}

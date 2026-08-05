@@ -28,6 +28,9 @@ PROFILES = {r["robotId"]: r for r in CONFIG["robots"]}
 SAMPLE_MS = CONFIG.get("sample_ms", 33)
 # 그리퍼 속도·힘은 화면이 못 정한다 — 보수적 기본값을 서버가 박는다 (GOAL-live-gripper §3).
 # 파지 실험으로 힘을 올리려면 여기 한 곳만 고친다. 천장: 물체별 힘 프로필은 이 골 밖이다.
+# 기구학과 상태 스트림이 같은 좌표계인지 대조할 때의 허용 오차. 같은 로봇의 같은 관절이라
+# 원래 0 이어야 하고, 5mm 는 반올림·표본 시차만 덮는 값이다 (계약 §작업영역)
+FK_FRAME_TOL_MM = 5.0
 GRIPPER_VEL_PCT = 30.0
 GRIPPER_FORCE_PCT = 30.0
 
@@ -186,6 +189,20 @@ async def arm(body: dict):
         a.set_sample_period(SAMPLE_MS)
         a.exit_drag_teach()
         a.set_mode(0)
+        # 작업영역은 **기구학이 스트림과 같은 좌표계일 때만** 참이다. 그 가정을 여기서
+        # 실제로 대조한다 — 같은 관절을 FK 에 넣어 스트림의 손끝과 맞는지 본다.
+        # 어긋나면 등재된 숫자가 다른 자리를 가리키므로 arm 을 거부한다 (D64 계열).
+        if session.workspace:
+            st = session.read_fresh_state() or {}
+            fk = a.forward_kin(st.get("jointsDeg") or [])
+            tcp = st.get("tcpMmDeg") or []
+            if not fk or len(tcp) < 3:
+                return ["작업영역 게이트를 켤 수 없다 — 기구학을 못 구했다 (제1원칙)"]
+            gap = max(abs(fk[i] - tcp[i]) for i in range(3))
+            log("작업영역", f"기구학↔스트림 최대차 {gap:.1f}mm · fk={[round(v,1) for v in fk[:3]]}")
+            if gap > FK_FRAME_TOL_MM:
+                return [f"기구학과 상태 스트림의 좌표계가 다르다 — 최대차 {gap:.1f}mm "
+                        f"(> {FK_FRAME_TOL_MM}mm). 작업영역 값이 거짓이 된다"]
         return []
 
     try:
@@ -228,6 +245,15 @@ def _do_motion(target_deg, speed_pct):
     if reasons:
         return reasons
     coord = state.get("coord") or {}
+    # 조건 12 의 카테시안 절반 — 관절 한계만으로는 손끝이 상판을 뚫는 것을 못 막는다.
+    # 목표 관절을 **로봇 자신의 기구학**으로 손끝 위치로 바꿔 판정한다 (계약 §작업영역)
+    ws = session.workspace
+    if ws:
+        tcp = session.adapter.forward_kin(target_deg)
+        reasons = safety.check_workspace(tcp, ws, coord)
+        if reasons:
+            log("작업영역-거부", " · ".join(reasons))
+            return reasons
     session.adapter.move_j(target_deg, speed_pct,
                            coord.get("toolId", 0), coord.get("userId", 0))
     log("moveJ", f"target={[round(v, 3) for v in target_deg]} speed={speed_pct}")
@@ -275,6 +301,19 @@ def _do_gripper_activate():
     return []
 
 
+def _do_mode(manual):
+    """모드 전환 — **로봇을 움직이지 않는다.** 수동으로 바꾸면 펜던트가 조작·드래그
+    티칭을 할 수 있고, 자동으로 되돌리면 우리 jog/moveJ 가 가능해진다 (계약 §모드 전환)."""
+    state = session.read_fresh_state()
+    reasons = safety.check_mode(state, time.time() - session.lastStateAt, manual)
+    if reasons:
+        log("mode-거부", " · ".join(reasons))
+        return reasons
+    session.adapter.set_mode(1 if manual else 0)
+    log("mode", f"{'수동 — 펜던트가 조작한다' if manual else '자동 — 우리가 조작한다'}")
+    return []
+
+
 async def handle_cmd(msg, who, token):
     cmd = msg.get("cmd")
     if cmd == "stop":                            # 제3원칙 — 조종권·신원·phase 무관 항상 실행
@@ -291,7 +330,14 @@ async def handle_cmd(msg, who, token):
         return {"ok": False, "reason": "hello 로 신원을 먼저 묶는다 (stop 은 예외)"}
     if not owner.is_owner(who, token):
         return {"ok": False, "reason": f"조종권이 없다 — 보유자 {owner.get() or '없음'}"}
-    if session.adapter is None or not session.armed:
+    if session.adapter is None:
+        return {"ok": False, "reason": "로봇에 연결돼 있지 않다"}
+    # mode 는 ARMED 전·후 어디서나 받는다 — 드래그 티칭은 서보가 켜져 있어야 되므로
+    # ARM 을 풀게 만들면 잠긴 상태를 못 푼다 (계약 §모드 전환)
+    if cmd == "mode":
+        reasons = await asyncio.to_thread(_do_mode, msg.get("manual"))
+        return {"ok": True} if not reasons else {"ok": False, "reason": " · ".join(reasons)}
+    if not session.armed:
         return {"ok": False,
                 "reason": f"ARMED 가 아니다 — phase={session.current_phase(owner.get())}"}
 

@@ -15,7 +15,16 @@ for i in $(seq 1 20); do
   sleep 1
   [ "$i" = 20 ] && { echo "브리지가 안 뜬다 — ssh $HOST 'journalctl --user -u fr5-bridge -n 30'"; exit 1; }
 done
-curl -sf -m 5 -X POST "http://$IP:5055/connect" -H 'Content-Type: application/json' \
-  -d '{"robotId":"fr5-lab-a","observeOnly":true}' || echo "(로봇 재연결 실패 — 랜선·전원 확인. 웹은 살아 있다)"
+# 거부되면 **사유를 그대로 보여준다.** 원인을 추측해 적으면 사람이 엉뚱한 데를 본다 —
+# 2026-08-05 에 "랜선·전원 확인" 이 그래서 오판을 만들었다 (진짜 원인은 죽은 소켓이었다).
+RESP=$(curl -s -m 8 -X POST "http://$IP:5055/connect" -H 'Content-Type: application/json' \
+  -d '{"robotId":"fr5-lab-a","observeOnly":true}' || true)
+case "$RESP" in
+  *'"ok":true'*) echo "로봇 재연결 OK (OBSERVE_ONLY)" ;;
+  *) echo "(로봇 재연결 실패 — 웹은 살아 있다)"
+     echo "  브리지 응답: $RESP"
+     echo "  ① 브리지 재시작 후 한 번 더: ssh $HOST 'export XDG_RUNTIME_DIR=/run/user/\$(id -u); systemctl --user restart fr5-bridge'"
+     echo "  ② 그래도 안 되면 선·전원: ssh $HOST 'ping -c 2 192.168.58.2; ip -brief addr show enp3s0'" ;;
+esac
 echo
 echo "배포 OK — http://$IP:5055"

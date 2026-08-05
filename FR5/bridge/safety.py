@@ -142,4 +142,65 @@ def check_arm(state, state_age_s):
         reasons.append(f"컨트롤러 오류 {safety.get('mainErrorCode')}/{safety.get('subErrorCode')}")
     if safety.get("collisionDetected"):
         reasons.append("충돌 감지 상태")
+    # ARM 은 마지막에 ExitDragTeach + SetMode(0) 을 부른다 — 사람이 팔을 잡고 있는 동안
+    # 부르면 손 안에서 팔이 굳는다 (조건 25). 사람이 손을 떼고 펜던트에서 끄면 풀린다.
+    if safety.get("inDragTeach"):
+        reasons.append("드래그 티칭 중 — 사람이 팔을 잡고 있다 (조건 25)")
+    return reasons
+
+
+def check_workspace(tcp_mm, ws, coord=None):
+    """작업영역 게이트 — **조건 12 의 카테시안 절반**. 관절 한계만으로는 손끝이 작업대를
+    뚫는 것을 못 막는다 (`SAFETY-RULES.md` §FR-HMI — 위치 방어선은 우리 소프트리밋뿐이다).
+
+    실측 근거는 `evidence/2026-08-05/workcell-measure.md` — 로봇이 직접 짚은 5점이다.
+    **ws 가 없으면 판정하지 않는다** (mock·미측정 프로필). 그 사실은 `/state.workspace`
+    가 노출하므로 조용히 사라지지는 않는다.
+
+    **천장** — 손끝만 본다. 팔꿈치·상완은 판정 밖이라 벽 여유를 크게 잡았다."""
+    if not ws:
+        return []
+    if not isinstance(tcp_mm, (list, tuple)) or len(tcp_mm) < 3 or not all(
+            isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+            for v in tcp_mm[:3]):
+        return ["손끝 위치를 못 구했다 — 작업영역을 판정할 수 없다 (제1원칙: 결측=차단)"]
+    reasons = []
+    # 값은 잰 좌표계에서만 참이다. 툴·사용자가 바뀌면 같은 숫자가 다른 자리를 가리킨다
+    want = ws.get("frame") or {}
+    have = coord or {}
+    if want and have and (want.get("toolId") != have.get("toolId")
+                          or want.get("userId") != have.get("userId")):
+        reasons.append(
+            f"좌표계가 잴 때와 다르다 — 잰 것 tool{want.get('toolId')}/user{want.get('userId')}, "
+            f"지금 tool{have.get('toolId')}/user{have.get('userId')} (작업영역 값이 거짓이 된다)")
+    x, y, z = float(tcp_mm[0]), float(tcp_mm[1]), float(tcp_mm[2])
+    tx, ty = ws["tableXmm"], ws["tableYmm"]
+    floor = ws["tableTopZmm"] + ws["tableMarginMm"]
+    if tx[0] <= x <= tx[1] and ty[0] <= y <= ty[1] and z < floor:
+        reasons.append(f"작업대 상판을 뚫는다 — 손끝 z {z:.1f} < {floor:.1f} (조건 12)")
+    wall = ws["wallYmm"] + ws["wallMarginMm"]
+    if y < wall:
+        reasons.append(f"벽에 너무 가깝다 — 손끝 y {y:.1f} < {wall:.1f} (조건 12)")
+    return reasons
+
+
+def check_mode(state, state_age_s, manual):
+    """모드 전환 게이트 (계약 §모드 전환). **로봇을 움직이지 않는다** — 권한만 넘긴다.
+    그래서 안전 설정 적용 기록(조건 26)·충돌 감지는 걸지 않는다. 움직임의 전제가 아니다.
+
+    **ARMED 에서도 허용한다.** 드래그 티칭은 서보가 켜져 있어야 되므로, ARM 을 풀게
+    만들면 잠긴 상태를 풀 수 없다 (2026-08-05). 하드 룰 4 는 이 전환을 막아서가 아니라
+    `check_motion` 의 `mode != 0` 이 우리 조그·moveJ 를 거부해서 지켜진다."""
+    reasons = []
+    if not isinstance(manual, bool):
+        reasons.append(f"manual 이 true/false 가 아니다 — {manual}")
+    if state is None:
+        return reasons + ["상태를 읽지 못했다 — fail-closed (조건 17)"]
+    if state_age_s > STATE_FRESH_S:
+        reasons.append(f"상태가 낡았다 — {state_age_s:.2f}s > {STATE_FRESH_S}s (조건 10)")
+    safety = state.get("safety") or {}
+    if safety.get("emergencyStop"):
+        reasons.append("비상정지 작동 중 (조건 1)")
+    if state.get("motionQueueLength", 1) != 0:
+        reasons.append(f"모션 큐가 비어있지 않다 — {state.get('motionQueueLength')} (조건 6)")
     return reasons

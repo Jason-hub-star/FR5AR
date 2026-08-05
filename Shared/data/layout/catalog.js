@@ -17,6 +17,7 @@ export const CATEGORIES = [
   { id: 'bench',  label: '작업대·보관' },
   { id: 'equip',  label: '장비' },
   { id: 'work',   label: '작업물' },
+  { id: 'robot',  label: '로봇', note: '놓고 클릭하면 경로·자세를 켤 수 있어요' },
   { id: 'spot',   label: '작업 지점', note: '끌어다 바닥에 놓으세요. ①→⑥ 순서가 라인입니다' },
 ];
 
@@ -91,6 +92,10 @@ export const CATALOG = [
  */
 Object.assign(CATALOG, {});
 CATALOG.push(
+  // **AMR 을 팔레트에서 놓을 수 있어야 한다.** 전에는 프리셋에만 있어서 빈 방에서
+  // 시작하면 터틀봇을 **추가할 방법이 아예 없었다** (주인님 지적 · 2026-08-04).
+  { id: 'amr', kind: 'amr', category: 'robot', label: '터틀봇 (AMR)',
+    hint: '놓고 클릭하면 [경로] 로 다닐 길을 그린다', reachMm: 380 },
   // **번호가 곧 순서다** — 어디에 놓을지 몰라 헤매던 것이 이 목록의 첫 결함이었다
   // (주인님 지적 · 2026-08-04). `hint` 는 **무엇을 하나가 아니라 어디에 놓나**를 말한다.
   { id: 'pile', kind: 'station', category: 'spot', label: '① 탄체 더미',

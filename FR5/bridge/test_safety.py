@@ -157,6 +157,100 @@ class ArmGate(unittest.TestCase):
         # arm 이 서보를 켜는 동작이다 — 여기서 서보 ON 을 요구하면 영원히 arm 할 수 없다
         self.assertEqual(safety.check_arm(state(enabled=False), 0.0), [])
 
+    def test_드래그_티칭_중에는_arm_거부(self):
+        # arm 은 마지막에 ExitDragTeach 를 부른다 — 사람 손 안에서 팔이 굳는다 (조건 25)
+        self.assertTrue(blocked(safety.check_arm(state(safety={"inDragTeach": True}), 0.0),
+                                "드래그 티칭"))
+
+
+WS = {"frame": {"toolId": 1, "userId": 1},
+      "tableTopZmm": -345.8, "tableXmm": [-16.1, 842.0], "tableYmm": [-798.2, -210.9],
+      "tableMarginMm": 10, "wallYmm": -1400.0, "wallMarginMm": 100}
+FRAME = {"toolId": 1, "userId": 1}
+
+
+class WorkspaceGate(unittest.TestCase):
+    """조건 12 의 카테시안 절반 — 관절 한계만으로는 손끝이 상판을 뚫는 것을 못 막는다.
+    실측 근거는 `evidence/2026-08-05/workcell-measure.md`."""
+
+    def test_상판_위는_통과한다(self):
+        self.assertEqual(safety.check_workspace([400, -400, -100], WS, FRAME), [])
+
+    def test_상판_아래로_가면_거부(self):
+        # 상판 z -345.8 + 여유 10 = -335.8 보다 낮고, x·y 가 상판 안이면 뚫는 것이다
+        self.assertTrue(blocked(safety.check_workspace([400, -400, -340], WS, FRAME), "상판을 뚫는다"))
+
+    def test_상판_밖에서는_같은_높이도_통과한다(self):
+        # 상판 바깥은 더 내려가도 된다 — 높이 하나로 판정하면 이게 막힌다
+        self.assertEqual(safety.check_workspace([1500, -400, -340], WS, FRAME), [])
+        self.assertEqual(safety.check_workspace([400, -100, -340], WS, FRAME), [])
+
+    def test_벽에_가까우면_거부(self):
+        self.assertTrue(blocked(safety.check_workspace([400, -1350, 0], WS, FRAME), "벽에 너무 가깝다"))
+
+    def test_벽_여유_안쪽은_통과(self):
+        self.assertEqual(safety.check_workspace([400, -1290, 0], WS, FRAME), [])
+
+    def test_좌표계가_다르면_거부(self):
+        # 같은 숫자가 다른 자리를 가리킨다 — 값이 거짓이 된다
+        self.assertTrue(blocked(
+            safety.check_workspace([400, -400, -100], WS, {"toolId": 0, "userId": 0}), "좌표계가"))
+
+    def test_손끝을_못_구하면_차단(self):
+        for bad in (None, [], [1, 2], [1, 2, float("nan")], ["a", "b", "c"], [True, 2, 3]):
+            self.assertTrue(blocked(safety.check_workspace(bad, WS, FRAME), "결측=차단"), bad)
+
+    def test_작업영역이_없으면_판정하지_않는다(self):
+        # mock·미측정 프로필 — 없는 값을 지어내 막지 않는다 (사실은 /state.workspace 가 노출)
+        self.assertEqual(safety.check_workspace([0, 0, -9999], None, FRAME), [])
+
+
+class ModeGate(unittest.TestCase):
+    """모드 전환은 **로봇을 움직이지 않는다** — 움직임의 전제(설정 기록·충돌 감지)를 걸지 않는다."""
+
+    def test_기준_상태에서_수동_전환_통과(self):
+        self.assertEqual(safety.check_mode(state(), 0.0, True), [])
+
+    def test_기준_상태에서_자동_복귀_통과(self):
+        self.assertEqual(safety.check_mode(state(mode=1), 0.0, False), [])
+
+    def test_서보가_켜져_있어도_통과한다(self):
+        # 드래그 티칭은 서보가 켜져 있어야 된다 — ARMED 를 막으면 잠긴 상태를 못 푼다
+        self.assertEqual(safety.check_mode(state(enabled=True), 0.0, True), [])
+
+    def test_서보가_꺼져_있어도_통과한다(self):
+        self.assertEqual(safety.check_mode(state(enabled=False), 0.0, True), [])
+
+    def test_manual_이_불리언이_아니면_거부(self):
+        self.assertTrue(blocked(safety.check_mode(state(), 0.0, "manual"), "true/false"))
+        self.assertTrue(blocked(safety.check_mode(state(), 0.0, None), "true/false"))
+
+    def test_상태_None_은_차단(self):
+        self.assertTrue(blocked(safety.check_mode(None, 0.0, True), "fail-closed"))
+
+    def test_낡은_상태로는_바꾸지_않는다(self):
+        self.assertTrue(blocked(
+            safety.check_mode(state(), safety.STATE_FRESH_S + 0.01, True), "낡았다"))
+
+    def test_비상정지_중_거부(self):
+        self.assertTrue(blocked(
+            safety.check_mode(state(safety={"emergencyStop": True}), 0.0, True), "비상정지"))
+
+    def test_모션_큐가_차_있으면_거부(self):
+        self.assertTrue(blocked(safety.check_mode(state(motionQueueLength=2), 0.0, True),
+                                "모션 큐"))
+
+    def test_안전_설정_기록이_없어도_통과한다(self):
+        # 조건 26 은 **움직임**의 전제다. 권한만 넘기는 전환에 걸면 영원히 못 바꾼다
+        self.assertEqual(safety.check_mode(state(), 0.0, True), [])
+
+    def test_수동_모드에서는_조그가_막힌다(self):
+        # 하드 룰 4 를 지키는 것은 전환 금지가 아니라 **이 게이트**다 — 여기가 뚫리면
+        # 사람이 팔을 잡고 있는데 웹에서 움직일 수 있게 된다
+        self.assertTrue(blocked(
+            safety.check_motion(state(mode=1), 0.0, [0.0] * 6, safety.SPEED_CAP_PCT, OK_SETTINGS),
+            "auto 모드가 아니다"))
+
 
 class GripperGate(unittest.TestCase):
     """그리퍼는 **관절이 아니다.** 관절 게이트를 복붙하면 통과할 수 없거나 엉뚱하게 막는다."""

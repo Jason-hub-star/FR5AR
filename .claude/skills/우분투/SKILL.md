@@ -38,6 +38,9 @@ ssh ej@192.168.30.240 'cat /sys/class/net/enp3s0/carrier; ip -brief addr show en
 ```
 
 - `carrier: 0` → **랜선이다.** 컨트롤러에 꽂아 달라고 한다 (원격으로 못 고친다)
+- `carrier: 1` 이고 `192.168.58.10` 도 있다 → **우리 쪽은 정상이다.** `ip neigh show dev enp3s0`
+  가 `INCOMPLETE` 면 상대가 조용한 것이다 — `journalctl -k | grep enp3s0` 로 **링크가 최근에
+  끊겼다 붙었는지** 본다. 흔들리는 중이면 몇 분 뒤 저절로 돌아온다 (2026-08-05 실측)
 - `carrier: 1` 인데 `192.168.58.10` 이 없다 → 유선 프로필이 안 올라왔다. 부탁한다 (sudo 필요):
 
 ```
@@ -71,8 +74,13 @@ rtk proxy curl -s -X POST http://192.168.30.240:5055/connect \
   -H 'Content-Type: application/json' -d '{"robotId":"fr5-lab-a","observeOnly":true}'
 ```
 
-`{"ok":true,"phase":"OBSERVE_ONLY"}` 가 정답. 거부되면 **사유를 그대로 옮기고 멈춘다** —
+`{"ok":true,"phase":"OBSERVE_ONLY"}` 가 정답. 거부되면 **사유를 그대로 옮긴다** —
 모델 불일치·xmlrpc 실패는 원인이 다르다 (`FR5-BRINGUP.md` §안 될 때).
+
+**`xmlrpc 검증 실패 — GetSoftwareVersion=-4` 면 브리지를 한 번 재시작하고 다시 시도한다.**
+배포가 랜 링크 흔들림에 걸리면 `20003`·`20004` 에 **죽은 소켓**이 남아 링크가 돌아와도
+계속 `-4` 를 낸다 (2026-08-05 실측 — 이 한 번으로 붙었다). **재시도는 여기까지다** —
+두 번째도 실패하면 멈추고 보고한다. 로봇을 껐다 켜라고 하지 않는다.
 
 ### 4. 값이 흐르나
 

@@ -25,6 +25,7 @@
 | `idea-deck-superseded-2026-07-29.html` | 첫 아이디어 덱(9장 슬라이드) | 글이 많다는 지적으로 `research/ideas.html`로 다시 만듦 | 2026-07-29 |
 | `V3-PORT-CONVERGE-LOOP-legacy-2026-08-05.md` | v3 이식 계획 수렴 루프 | 이식이 끝났다. 결론은 D17·D21~D23 에 있다 | 2026-08-05 |
 | `MIGRATION-CONVERGE-LOOP-legacy-2026-08-05.md` | 이관 계획 수렴 루프 | 이관이 끝났다. 결론은 D17·D23·D24 에 있다 | 2026-08-05 |
+| `NEXT-REFACTOR-superseded-2026-08-05.md` | 구조 개편 선택지 판단 (2026-07-30) | 문서 자신이 "결론이 났다 · 이 문서를 근거로 코드를 짜지 마라" 고 적었다. 확정본은 D17 · `BUILD-VITE.md` · `CONSOLE-REACT.md` | 2026-08-05 |
 
 ## 보관하지 않고 **지운 것**
 

@@ -18,6 +18,7 @@
 | `docs/ref/arch/AR-MARKER.md` | AR 마커 방식·번호·인쇄 규격·검출 실측(대비>크기) | SSOT | 마커를 인쇄하거나 검출이 안 될 때 |
 | `docs/ref/contract/API-CONTRACT.md` | REST/WS 계약. 상태·명령·조종권·이동지점·**배치안·지표 요구 모양** | SSOT | 서버·프론트·AR가 맞출 때 |
 | `docs/ref/contract/LAYOUT-METRICS-CONTRACT.md` | 배치안·생산성 지표 계약 — 관제화면이 편집하고 AR이 읽는다 | SSOT | 배치안 데이터·지표 모양을 맞출 때 |
+| `docs/ref/contract/VISION-CONTRACT.md` | 비전 제안 계약 — `/proposal` 판정 3단·거부 사유·앵커 봉인 | SSOT | 비전이 로봇에 무엇을 제안할 수 있는지 정할 때 |
 | `docs/ref/contract/TB-CONTRACT.md` | **터틀봇 관제 계약** — 상태·teleop·슬롯·맵·기록·미래 접점 5 | SSOT | 터틀봇 브리지·웹을 짤 때 |
 | `docs/ref/arch/CODING-CONVENTIONS.md` | 단위·좌표계·안전·네이밍 규칙 | SSOT | 코드를 쓰기 전에 |
 | `docs/ref/contract/SAFETY-RULES.md` | 안전 판정 조건 19개와 SDK 필드 매핑, fail-closed 원칙 | SSOT | **로봇에 명령 보내는 코드 쓰기 전** |
@@ -25,6 +26,7 @@
 | `docs/ref/plan/FR5-IMPLEMENTATION-PLAN.md` | **FR5 상세 계획** — 5패널·실기 게이트·슬롯·기록·수천 회 시뮬레이션 | SSOT | FR5 구현·범위·순서를 정할 때 |
 | `docs/ref/runbook/FR5-BRINGUP.md` | **FR5 브링업 절차** — 우분투 호스트에서 로봇 붙이는 5분 순서·증상별 조치 | SSOT | **로봇을 켜고 붙일 때 제일 먼저** |
 | `docs/ref/runbook/AR-DEBUG.md` | AR 디버깅 — 화면 진단판 읽는 법 · 증상별 원인 · 자동화 한계 | SSOT | **AR이 안 될 때 제일 먼저** |
+| `docs/ref/runbook/WORKCELL-MEASURE.md` | 작업셀 재기 — 상판·벽을 로봇 좌표계로 옮기는 일회성 실측 절차 | SSOT | 작업영역 게이트(조건 12)를 채울 때 · 작업대를 옮긴 뒤 |
 | `docs/ref/arch/BUILD-VITE.md` | 앱(`AR`/`Dashboard`/`FR5`/`TurtleBot`)·`Shared` 경계 · 파일 귀속 · 게이트 경로 | SSOT | **폴더·빌드·의존성을 건드릴 때** |
 | `docs/ref/contract/SHARED-CORE.md` | 배치안 모델 · 단위 · 설정 · datasource — **두 폴더의 합의점** | SSOT | **데이터 모양을 건드릴 때 제일 먼저** |
 | `docs/ref/arch/CONSOLE-REACT.md` | 관제화면(React) 규약 — R3F 금지 · 목업 우선 · 상태 규약 | SSOT | React 화면을 짤 때 |
@@ -49,7 +51,6 @@
 | `docs/ref/unity/unity-bridge-protocol.md` | **유니티가 실기에서 검증한 값** — IP·포트·타임아웃·브링업 순서·함정 8개 | 참고 | **브리지 서버를 짤 때** |
 | `docs/evidence/2026-07-30/ar-baseline.md` | **AR 이관 기준값 7개** — 뜯기 전 배포본에서 뽑았다 | 증거 | **이관 후 대조할 때** |
 | `docs/ref/plan/SLICE-AR-DEMO.md` | AR 실증 슬라이스 계획 — 5단계·정합 오차 실측 | 조사 | AR 슬라이스 착수 시 |
-| `docs/ref/rnd/NEXT-REFACTOR-2026-07-30.md` | 구조 개편 선택지 — 프레임워크·폴더·이름 | 조사 | **다음 세션 착수 시** |
 | `docs/ref/rnd/AMR-TWIN-DIRECTION-2026-07-30.md` | **AMR 2대·트윈·ROI 방향 판단** — 실기↔AR 방향 · 마커 재고 · 에셋 · 관제 통합 | 조사 | **새 방향 착수 전** |
 | `README.md` | 깃허브 첫 화면. 팀원용 진입 문서 | SSOT | 저장소를 처음 볼 때 |
 | `docs/research/README.md` | 조사 산출물 3건과 승격된 곳 | 조사 | 조사 원본을 볼 때 |
@@ -128,6 +129,6 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 
 ## 자가검증
 
-- INDEX.md에 등재된 문서 행 개수 = 59/59
+- INDEX.md에 등재된 문서 행 개수 = 60/60
 - PROJECT-STATUS.md의 "다음 한 걸음" 항목 개수 = 5/5
 - PROJECT-STATUS.md의 "블로커" 항목 개수 = 3/3

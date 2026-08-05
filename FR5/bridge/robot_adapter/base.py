@@ -52,6 +52,12 @@ class RobotAdapter:
         """서보 on/off."""
         raise NotImplementedError
 
+    def forward_kin(self, joints_deg):
+        """관절 목표 → 손끝 위치 `[x,y,z,rx,ry,rz]`. 못 구하면 `None` (호출자가 fail-closed).
+        **직접 계산하지 않는다** — 로봇 자신의 기구학을 쓴다. 툴·사용자 좌표계가
+        자동으로 맞아떨어지고, 우리가 DH 파라미터를 다시 적을 이유가 없다 (조건 12)."""
+        return None
+
     def set_mode(self, mode: int) -> None:
         """0=auto 1=manual."""
         raise NotImplementedError

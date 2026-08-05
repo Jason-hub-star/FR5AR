@@ -102,5 +102,6 @@ export const datasource = {
   jog: (joint, deltaDeg) => sendCmd({ cmd: 'jog', joint, deltaDeg }),
   gripper: (pct) => sendCmd({ cmd: 'gripper', pct }),
   gripperActivate: () => sendCmd({ cmd: 'gripperActivate' }),
+  setMode: (manual) => sendCmd({ cmd: 'mode', manual }),
   stop: () => sendCmd({ cmd: 'stop' }),          // 신원·조종권 없어도 항상 통과 (계약)
 };

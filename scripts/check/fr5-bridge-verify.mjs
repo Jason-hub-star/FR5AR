@@ -254,6 +254,57 @@ try {
   check('조종권 없는 사람의 그리퍼 명령 거부',
     lee.refusals.some((r) => r.includes('조종권')));
 
+  // 작업영역 (조건 12 카테시안) — mock 의 가짜 기구학으로 게이트 논리만 시험한다.
+  // j1→x · j2→y · j3→z 로 10mm/° 씩 움직인다 (mock.forward_kin)
+  const wsState = await getState();
+  check('/state 가 작업영역을 노출한다 (꺼져 있으면 보여야 한다)',
+    !!wsState.workspace && wsState.workspace.tableTopZmm === 930);
+  kim.refusals.length = 0;
+  kim.send({ cmd: 'jog', joint: 2, deltaDeg: -5 });      // z 56.7 → 6.7 < 바닥 50
+  await sleep(300);
+  check('상판을 뚫는 목표 거부 (관절 한계 안인데도)',
+    kim.refusals.some((r) => r.includes('상판을 뚫는다')));
+  kim.refusals.length = 0;
+  kim.send({ cmd: 'jog', joint: 1, deltaDeg: -5 });      // y -62.3 → -112.3 < 벽 -100
+  await sleep(300);
+  check('벽으로 가는 목표 거부',
+    kim.refusals.some((r) => r.includes('벽에 너무 가깝다')));
+  kim.refusals.length = 0;
+  const wsBefore = (await getState()).jointsDeg[0];
+  kim.send({ cmd: 'jog', joint: 0, deltaDeg: 1 });       // x 만 변한다 — 영역 안
+  await sleep(600);
+  check('작업영역 안의 조그는 그대로 통과한다 (새 게이트가 정상 동작을 막지 않는다)',
+    Math.abs((await getState()).jointsDeg[0] - (wsBefore + 1)) < 0.2 && kim.refusals.length === 0);
+
+  // 모드 전환 — ARM 이 SetMode(0) 으로 펜던트를 잠그므로 되돌릴 길이 있어야 한다 (D72).
+  // 드래그 티칭은 서보가 켜져 있어야 되므로 **ARMED 인 채로** 넘길 수 있어야 한다.
+  kim.refusals.length = 0;
+  kim.send({ cmd: 'mode', manual: true });
+  await sleep(300);
+  const manualOn = await getState();
+  check('ARMED 인 채로 수동 전환 → mode 1 · 서보는 켜진 채 (드래그 전제)',
+    manualOn.mode === 1 && manualOn.enabled === true);
+
+  kim.send({ cmd: 'jog', joint: 0, deltaDeg: 1 });
+  await sleep(200);
+  check('수동 모드에서 조그는 거부된다 — 하드 룰 4 를 지키는 것은 이 게이트다',
+    kim.refusals.some((r) => r.includes('auto 모드가 아니다')));
+
+  kim.refusals.length = 0;
+  kim.send({ cmd: 'mode', manual: 'yes' });
+  await sleep(200);
+  check('manual 이 불리언이 아니면 거부', kim.refusals.some((r) => r.includes('true/false')));
+
+  kim.send({ cmd: 'mode', manual: false });
+  await sleep(300);
+  check('자동으로 되돌아온다', (await getState()).mode === 0);
+
+  lee.refusals.length = 0;
+  lee.send({ cmd: 'mode', manual: true });
+  await sleep(200);
+  check('조종권 없는 사람의 모드 전환 거부',
+    lee.refusals.some((r) => r.includes('조종권')));
+
   // 조종권 반납 → 자동 disarm (주인 없는 ARMED 를 남기지 않는다)
   check('옛 토큰으로는 반납도 안 된다',
     (await api('/owner/release', { who: 'kim', token: T })).status === 409);

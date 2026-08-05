@@ -150,6 +150,7 @@ export function LivePanel({ state, who }) {
                   DISARM — 서보 OFF
                 </button>
               )}
+              {/* 모드 토글은 헤더 안전 바에 있다 (main.jsx) — 어느 탭에서도 사라지지 않는다 */}
               {armed && mine && (
                 <div className="jog">
                   {JOINT_LABELS.map((name, i) => (

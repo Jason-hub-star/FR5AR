@@ -18,7 +18,9 @@ BAD_READS_LIMIT = 3     # 유니티 실측 정책 — 연속 3회 불량이면 �
 # 되읽기가 없는 항목 — SDK 에 Get 이 아예 없다 (STACK §로봇 안전 설정 API).
 # "확인했다" 고 적지 않고 "넣었다" 고만 적는다 (D53).
 UNVERIFIABLE_SETTINGS = ["collisionLevel", "collisionStrategy", "collisionMode",
-                         "installPos", "powerLimitW"]
+                         "installPos", "powerLimitW",
+                         "collisionSafeTimeMs", "collisionSafeDistanceMm",
+                         "collisionSafeVelMmS", "collisionSafetyMargin"]
 SETTING_TOL = {"payloadKg": 0.05, "cogMm": 1.0}     # 되읽기 허용 오차 (kg · mm)
 
 
@@ -41,12 +43,16 @@ class RobotSession:
         self.lastStateAt = 0.0
         self.badReads = 0
         self.appliedSettings = None
+        self.workspace = None
 
     def open(self, profile, adapter, version, state):
         """preflight 를 통과한 연결을 세션에 앉힌다."""
         now = time.time()
         self.profile = profile
         self.adapter = adapter
+        # settings 는 **로봇에 넣는 값**이고(D53) 작업영역은 **우리 게이트가 쓰는 값**이라
+        # 프로필 최상위에 둔다 — 섞으면 appliedSettings 되읽기 대조에 끼어든다
+        self.workspace = profile.get("workspace")
         self.phase = "OBSERVE_ONLY"
         self.failReason = None
         self.version = version
@@ -101,6 +107,8 @@ class RobotSession:
             "owner": owner_who,
             "phase": self.phase, "failReason": self.failReason,
             "appliedSettings": self.appliedSettings,
+            # 작업영역이 없으면 손끝 판정이 꺼진 것이다 — 조용히 사라지지 않게 노출한다
+            "workspace": self.workspace,
         }
         if self.adapter is None:
             return base

@@ -250,6 +250,19 @@ function Editor({ initial }) {
         };
         return { ...s, stations: [...(s.stations ?? []), item] };
       }
+      // **AMR 은 경로를 갖고 태어난다.** 점이 없으면 `[경로]` 를 켜도 끌 것이 없고,
+      // 사람은 "경로 기능이 고장났다" 로 읽는다. 놓은 자리에서 1m 앞까지 두 점을 준다.
+      if (kind === 'amr') {
+        const at = atMm ?? [Math.round(s.floor.widthMm / 2), Math.round(s.floor.depthMm / 2)];
+        const x0 = clamp(at[0], s.floor.widthMm);
+        const y0 = clamp(at[1], s.floor.depthMm);
+        const y1 = clamp(y0 + 1000, s.floor.depthMm);
+        const item = {
+          id: freshId(s, 'amr'), model: 'TurtleBot', reachMm: card.reachMm ?? 380,
+          dockPosMm: [x0, y0], waypointsMm: [[x0, y0], [x0, y1]],
+        };
+        return { ...s, amrs: [...(s.amrs ?? []), item] };
+      }
       if (kind === 'prop') {
         const item = {
           id: freshId(s, card.id), type: card.id,
@@ -259,6 +272,13 @@ function Editor({ initial }) {
           rotDeg: 0, ...(card.opts ? { opts: card.opts } : {}),
         };
         return { ...s, props: [...(s.props ?? []), item] };
+      }
+      // **모르는 종류는 조용히 만들지 않는다.** 전에는 마지막 분기로 흘러가 치수 없는
+      // 창을 만들었고, three 가 `Computed radius is NaN` 을 쏟았다 — 화면은 안 죽고
+      // 보이지 않는 깨진 물건만 남는다 (2026-08-04 · 결함 주입 중에 드러났다).
+      if (kind !== 'door' && kind !== 'window') {
+        setPlaceMsg(`'${card.label ?? card.id}' 은(는) 아직 놓을 수 없어요`);
+        return s;
       }
       // 문·창은 벽에 구멍을 뚫는 것이라 좌표가 아니라 **벽 + 벽 위 위치**다
       const key = kind === 'door' ? 'doors' : 'windows';

@@ -144,7 +144,7 @@ main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column
 /* ── 타임라인 ──────────────────────────────────────────────────────────────
  * **아래에 붙인다.** 3D 위에 겹치면 방을 가리고, 왼쪽에 두면 폭이 모자라 마커가 겹친다.
  * 49초에 사건 13개 → 전폭이라야 마커 사이가 손가락 목표(44px)에 가까워진다. */
-.timeline { position: absolute; left: 0; right: 0; bottom: 0; height: 84px;
+.timeline { position: absolute; left: 0; right: 0; bottom: 0; height: 102px;
             display: flex; flex-direction: column; gap: 3px; padding: 6px 12px 8px;
             background: var(--c-overlay); border-top: 1px solid var(--c-line);
             font-size: 12px; }
@@ -186,6 +186,17 @@ main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column
                  gap: var(--s-2); padding: 2px 0; font-size: 11px; color: var(--c-fg-mute); }
 .ev-menu label input, .ev-menu label select { width: 96px; font-size: 11px; }
 .ev-menu hr { margin: 4px 0; border: 0; border-top: 1px solid var(--c-line); }
+/* AMR 띠 — 마커 줄 위에 얇게. **안 움직이는 AMR 은 줄이 없다** */
+.tl-amr { display: grid; grid-template-columns: 42px 1fr; align-items: center;
+          gap: var(--s-2); height: 15px; font-size: 10px; }
+.tl-amr-name { color: var(--c-fg-mute); font-variant-numeric: tabular-nums; }
+.tl-amr-rail { position: relative; height: 13px; }
+.tl-amr-rail i { position: absolute; top: 0; height: 13px; min-width: 3px;
+                 display: flex; align-items: center; justify-content: center;
+                 padding: 0 3px; overflow: hidden; white-space: nowrap;
+                 background: var(--c-info, #2f6f8f); color: #fff; opacity: .82;
+                 border-radius: 3px; font-style: normal; font-size: 9px; }
+
 .ev-menu { width: 210px; }
 .ev-menu label input[type="text"] { width: 96px; }
 /* 자세는 **두 벌**이다 — 구간 시작과 끝. 한 줄에 나란히 둔다 */

@@ -13,6 +13,31 @@
 import * as THREE from 'three';
 
 const HANDLE_MM = 90;      // 점 손잡이 반지름 — 손가락으로 잡을 만큼
+const LABEL_MM = 320;      // 번호 라벨 크기 (월드) — 점보다 커야 읽힌다
+const ARROW_MM = 260;      // 진행 화살표 길이
+
+/**
+ * 번호 라벨 — **캔버스에 그려 스프라이트로 띄운다.**
+ *
+ * 왜 스프라이트인가 — 카메라를 돌려도 숫자가 뒤집히면 안 된다. 3D 텍스트를 쓰면
+ * 폰트 파일이 필요하고(에셋 0 규약), 평면 메시를 쓰면 궤도를 돌 때 옆에서 사라진다.
+ */
+function labelSprite(n, color) {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = color;
+  g.beginPath(); g.arc(32, 32, 30, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#fff';
+  g.font = 'bold 38px system-ui, sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(String(n), 32, 34);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+  m.userData.tex = tex;
+  return m;
+}
 
 /**
  * @param {object} o
@@ -32,13 +57,21 @@ export function createPathGizmo({ mm, Z, color = 0x2f6f8f }) {
 
   let line = null;
   let dots = [];
+  let extras = [];         // 번호 라벨 · 화살표 — 잡는 대상이 아니다
   let pts = [];
   let hot = -1;
 
   function clear() {
     if (line) { line.geometry.dispose(); line.removeFromParent(); line = null; }
     for (const d of dots) d.removeFromParent();
+    for (const e of extras) {
+      e.removeFromParent();
+      e.userData.tex?.dispose();
+      e.material?.dispose?.();
+      if (e.geometry && e.geometry !== geo) e.geometry.dispose();
+    }
     dots = [];
+    extras = [];
     hot = -1;
   }
 
@@ -55,6 +88,28 @@ export function createPathGizmo({ mm, Z, color = 0x2f6f8f }) {
     line.renderOrder = 998;
     line.raycast = () => {};                 // **잡는 것은 점뿐이다** — 선을 잡으면 무엇이 움직이나 모른다
     root.add(line);
+    // **진행 화살표** — 선만 있으면 어느 쪽이 출발인지 모른다 (주인님 지적 · 2026-08-04).
+    // 선분 가운데에 진행 방향으로 삼각뿔을 세운다. 점 순서를 뒤집으면 같이 뒤집힌다.
+    for (let i = 1; i < pts.length; i += 1) {
+      const [ax, ay] = pts[i - 1]; const [bx, by] = pts[i];
+      const len = Math.hypot(bx - ax, by - ay);
+      if (len < 1) continue;
+      const cone = new THREE.Mesh(
+        new THREE.ConeGeometry(mm(ARROW_MM) * 0.42, mm(ARROW_MM), 10),
+        dotMat,
+      );
+      cone.position.set(mm((ax + bx) / 2), mm(60), Z(mm((ay + by) / 2)));
+      // 원뿔은 +y 를 보고 태어난다 — 진행 방향(평면도)으로 눕힌다
+      cone.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        new THREE.Vector3((bx - ax) / len, 0, -(by - ay) / len),
+      );
+      cone.renderOrder = 998;
+      cone.raycast = () => {};
+      root.add(cone);
+      extras.push(cone);
+    }
+
     pts.forEach(([x, y], i) => {
       const d = new THREE.Mesh(geo, dotMat);
       d.position.set(mm(x), mm(30), Z(mm(y)));
@@ -62,7 +117,19 @@ export function createPathGizmo({ mm, Z, color = 0x2f6f8f }) {
       d.userData.pointIndex = i;
       root.add(d);
       dots.push(d);
+
+      // **번호** — 어느 점이 몇 번인지 화면이 말한다. 출발점(1번)만 색이 다르다
+      const lab = labelSprite(i + 1, i === 0 ? '#2e8b57' : '#2f6f8f');
+      lab.position.set(mm(x), mm(HANDLE_MM * 2.6), Z(mm(y)));
+      lab.scale.setScalar(mm(LABEL_MM));
+      lab.renderOrder = 1000;
+      lab.userData.labelIndex = i;
+      root.add(lab);
+      extras.push(lab);
     });
+
+    // **출발점은 크게.** 색만 다르면 흰 모형 위에서 잘 안 읽힌다
+    if (dots[0]) dots[0].scale.setScalar(1.45);
   }
 
   function show(on) { root.visible = Boolean(on); }

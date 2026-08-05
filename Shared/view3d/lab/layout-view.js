@@ -678,6 +678,11 @@ export function createLayoutView(layout, { mountArm } = {}) {
     /** 화면 옆에 띄울 판정값. 3D 와 같은 데이터에서 나온다. */
     report: () => ({ reach: reachCheck(layout), crossings: crossings(layout) }),
     dispose() {
+      // **경로 기즈모를 먼저 지운다.** 번호 라벨은 `CanvasTexture` 라 아래 `traverse` 의
+      // 지오메트리 정리로는 안 없어진다 — 배치안을 고칠 때마다 이 뷰가 새로 만들어지므로
+      // 안 지우면 **점을 한 번 끌 때마다 텍스처가 점 개수만큼 GPU 에 쌓인다**
+      // (실측: 10번 끌자 10→50 · 2026-08-04).
+      pathGiz.dispose();
       for (const g of disposables) g.dispose();
       root.traverse((o) => { if (o.isMesh || o.isLine) o.geometry?.dispose?.(); });
       root.removeFromParent();

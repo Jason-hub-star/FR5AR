@@ -18,7 +18,10 @@ const EMPTY = { connected: false, phase: 'DISCONNECTED', enabled: false, mode: 1
   safety: { emergencyStop: false, collisionDetected: false }, owner: null, robotId: null };
 
 // 상시 안전 바 — 어느 패널에서도 사라지지 않는다 (계획 §화면). STOP 은 항상 여기 있다.
-function SafetyBar({ s }) {
+function SafetyBar({ s, who }) {
+  // 조종권은 이름이 아니라 토큰이 증명한다 (D55) — 이름만 보면 새로고침 뒤 갇힌다
+  const mine = !!who && s.owner === who && datasource.hasOwnerToken();
+  const manual = s.mode === 1;
   const items = [
     ['연결', s.connected ? s.robotId : '없음', s.connected ? 'ok' : 'off'],
     ['phase', s.phase,
@@ -27,7 +30,8 @@ function SafetyBar({ s }) {
           : s.phase === 'OBSERVE_ONLY' || s.phase === 'OWNER_HELD' ? 'ok' : 'off'],
     ['조종권', s.owner ?? '—', s.owner ? 'warn' : 'off'],
     ['서보', s.enabled ? 'ON' : 'OFF', s.enabled ? 'warn' : 'off'],
-    ['모드', s.mode === 0 ? 'auto' : 'manual', 'off'],
+    // 수동은 경고색이다 — 그 동안 우리 조그·moveJ 가 전부 거부된다
+    ['모드', manual ? 'manual' : 'auto', manual ? 'warn' : 'off'],
     ['비상정지', s.safety.emergencyStop ? '작동' : '정상', s.safety.emergencyStop ? 'danger' : 'ok'],
     ['충돌', s.safety.collisionDetected ? '감지' : '정상', s.safety.collisionDetected ? 'danger' : 'ok'],
     ['기록', '—', 'off'],          // P6 에서 산다
@@ -39,6 +43,13 @@ function SafetyBar({ s }) {
           <b>{label}</b> {value}
         </span>
       ))}
+      {/* ARM 이 SetMode(0) 을 부르므로 한 번 ARM 하면 펜던트가 잠긴다 (D72).
+          드래그 티칭은 서보가 켜져 있어야 되므로 ARMED 에서도 넘길 수 있어야 한다 */}
+      <button type="button" className="modetoggle" data-t="mode-toggle" disabled={!mine}
+        title={mine ? '' : '조종권을 잡아야 바꿀 수 있다'}
+        onClick={() => datasource.setMode(!manual)}>
+        {manual ? '자동으로' : '수동으로'}
+      </button>
       {/* 제3원칙 — stop 은 항상 통과한다. 어느 화면에서든 한 번에 누른다 */}
       <button type="button" className="estop" data-t="estop" onClick={() => datasource.stop()}>STOP</button>
     </div>
@@ -71,7 +82,7 @@ function App() {
           {state.connected ? state.robotId : '미연결'}
         </span>
       </header>
-      <SafetyBar s={state} />
+      <SafetyBar s={state} who={who} />
       <nav>
         {PANELS.map(([id, label, Comp]) => (
           <button key={id} type="button" aria-selected={tab === id} disabled={!Comp}

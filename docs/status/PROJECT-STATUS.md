@@ -35,6 +35,11 @@ Vite 관문 · 주제 확정(D16·D17) · 문서 무게 게이트(D18).
 상세·실기 게이트는 `evidence/2026-07-31/fr5-first-motion.md` · `evidence/2026-08-03/fr5-field-gates.md`,
 다음 순서는 `docs/ref/plan/FR5-IMPLEMENTATION-PLAN.md` 와 골사다리 6칸이 정본이다.
 
+**08-05 실기 3건** — ①**주소가 `58.2` 로 옮겨갔다**(D68) ②**ARM 이 펜던트를 잠그고 있었다**
+— `mode` 명령 + 헤더 토글로 되돌린다(D72) ③**작업영역 게이트**(D73) — 로봇이 상판 3점·벽
+2점을 직접 짚어 등재했고, 손끝이 상판을 뚫거나 벽으로 가는 목표를 거부한다.
+근거는 `evidence/2026-08-05/{workcell-measure,pendant-mode}.md`.
+
 ## 미착수
 
 - FR5 P3~(Teach·Program·Optimize·History 패널) · 그리퍼 시그니처·손가락 개폐 · URDF 확장
@@ -91,8 +96,8 @@ mock 실행 `bash scripts/dev/tb-dev.sh`. real 브리지는 우분투(`ej@192.16
 | | FR5 브리지 | 배치 편집기 | **비전·카메라** (신규) |
 |---|---|---|---|
 | **시작 지점** | `docs/goals/GOAL-teach-points.md` | `Dashboard/src/features/layout/LayoutEditor.jsx` | `docs/ref/arch/DEPTH-CAM.md` |
-| **먼저 읽을 것** | **D65** → `evidence/2026-08-04/fr5-bridge-hardening.md` §3·4부 | **D56~D58** → `evidence/2026-08-04/editor-ux.md` | **D70·D71** → `evidence/2026-08-05/cam-fov.md` |
-| **막힌 것** | `~/fr5-data/` 를 배포가 안 만든다 · 물건 파지 미실험(힘 30% 고정) · 래치된 컨트롤러 오류를 화면에서 못 푼다 | **손으로 안 눌러 봤다** — 전부 합성 이벤트라 손맛·폰이 통째로 미검증. 폰엔 Shift·우클릭이 없어 다중선택·메뉴에 길이 없다 | **툴 좌표계 미검증** — 좌표 기반 제안이 전부 `toolCalibrationUnverified` 로 거부된다. **저울이 없어 말단 하중을 못 넣어** 드래그 티칭이 막혀 있다 |
+| **먼저 읽을 것** | **D73·D72** → `evidence/2026-08-05/workcell-measure.md` | **D56~D58** → `evidence/2026-08-04/editor-ux.md` | **D70·D71** → `evidence/2026-08-05/cam-fov.md` |
+| **막힌 것** | `~/fr5-data/` 를 배포가 안 만든다(사다리 2 첫 줄) · 물건 파지 미실험(힘 30% 고정) · **작업영역이 실기에서 거부하는 것을 못 봤다** · 래치 오류·`j1` 한계 밖은 펜던트로만 풀린다 | **손으로 안 눌러 봤다** — 전부 합성 이벤트라 손맛·폰이 통째로 미검증. 폰엔 Shift·우클릭이 없어 다중선택·메뉴에 길이 없다 | **툴 좌표계 미검증** — 좌표 기반 제안이 전부 `toolCalibrationUnverified` 로 거부된다. **저울이 없어 말단 하중을 못 넣어** 드래그 티칭이 막혀 있다 |
 | **첫 명령** | `bash scripts/check/all.sh` → `/우분투` | `bash scripts/check/all.sh` → `npm run dev:dash` | `bash scripts/check/all.sh` → 툴 좌표계 캘리브레이션 |
 
 **이번 세션(08-05) — 카메라 조사를 실측으로 닫았다.** 손목 D435 를 그리퍼에 얹고 잰 것:

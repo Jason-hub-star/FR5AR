@@ -863,12 +863,205 @@ try {
   await new Promise((r) => setTimeout(r, 500));
   const wp1 = await wpOf();
   check('점을 끌면 경로가 바뀐다', wp1 !== wp0, `${wp0} → ${wp1}`);
+
+  // **고친 뒤에도 화면에 남아야 한다.** 경로 기즈모 갱신이 무대 재생성보다 **먼저** 돌던
+  // 동안, 점을 하나 고치면 새로 만들어진 빈 기즈모가 화면을 대신해 **점이 사라졌다** —
+  // 데이터는 맞는데 화면만 빈 상태라 "추가가 안 된다" 로 보였다 (2026-08-04).
+  check('경로를 고쳐도 점이 화면에 남는다', (await dotsOf()).length === 4,
+    `고친 뒤 점 ${(await dotsOf()).length}개`);
+
+  // ── P2·P3. **번호와 방향** — 선만 있으면 어느 점이 몇 번이고 어디가 출발인지 모른다
+  const gizInfo = () => p.eval(`(() => {
+    const G = window.__stage.scene.getObjectByName('pathGizmo');
+    if (!G) return null;
+    const V = Object.getPrototypeOf(window.__stage.camera.position).constructor;
+    const dots = G.children.filter((o) => o.userData?.pointIndex !== undefined);
+    return {
+      dots: dots.length,
+      labels: G.children.filter((o) => o.userData?.labelIndex !== undefined).length,
+      startScale: dots[0]?.scale.x ?? null,
+      arrows: G.children.filter((o) => o.isMesh && o.geometry?.type === 'ConeGeometry')
+        .map((c) => { const d = new V(0, 1, 0).applyQuaternion(c.quaternion);
+          return [Math.round(d.x * 100) / 100, Math.round(-d.z * 100) / 100]; }),
+    };
+  })()`);
+  const gi = await gizInfo();
+  const wpNow = JSON.parse(await wpOf());
+  check('점마다 번호가 뜬다', gi.dots === gi.labels && gi.labels === wpNow.length,
+    `점 ${gi.dots} · 번호 ${gi.labels} · 경로 점 ${wpNow.length}`);
+  check('출발점이 다른 크기다', gi.startScale > 1.2, `1번 점 크기 ${gi.startScale}`);
+  // **화살표는 선분 벡터를 따른다** — 부호가 뒤집히거나 짝이 어긋나면 여기서 갈린다
+  const wantDir = [];
+  for (let i = 1; i < wpNow.length; i += 1) {
+    const dxv = wpNow[i][0] - wpNow[i - 1][0]; const dyv = wpNow[i][1] - wpNow[i - 1][1];
+    const L3 = Math.hypot(dxv, dyv) || 1;
+    wantDir.push([Math.round((dxv / L3) * 100) / 100, Math.round((dyv / L3) * 100) / 100]);
+  }
+  const dirOk = gi.arrows.length === wantDir.length
+    && gi.arrows.every((a2, i) => Math.abs(a2[0] - wantDir[i][0]) < 0.03
+      && Math.abs(a2[1] - wantDir[i][1]) < 0.03);
+  check('화살표가 진행 방향을 가리킨다', dirOk,
+    `화살표 ${JSON.stringify(gi.arrows)} · 기대 ${JSON.stringify(wantDir)}`);
+
   check('점이 100mm 격자에 붙는다',
     JSON.parse(wp1).every((q) => q[0] % 100 === 0 && q[1] % 100 === 0), wp1);
 
   await p.eval(`dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true })); 'ok'`);
   await new Promise((r) => setTimeout(r, 400));
   check('⌘Z 가 경로 편집도 되돌린다', (await wpOf()) === wp0, `${wp1} →(⌘Z) ${await wpOf()}`);
+
+  // **번호 라벨이 GPU 에 쌓이지 않는다.** 라벨은 `CanvasTexture` 라 지오메트리 정리로는
+  // 안 없어진다 — 배치안을 고칠 때마다 뷰가 새로 만들어지므로, 안 지우면 **점을 한 번 끌
+  // 때마다 텍스처가 점 개수만큼 쌓인다** (고치기 전 실측: 10번 끌자 10→50 · 2026-08-04).
+  const texOf = () => p.eval(`window.__stage.renderer.info.memory.textures`);
+  const tex0 = await texOf();
+  for (let n = 0; n < 6; n += 1) {
+    const dd = await p.eval(`(() => {
+      const G = window.__stage.scene.getObjectByName('pathGizmo');
+      const b2 = document.querySelector('canvas').getBoundingClientRect();
+      const o = G.children.find((x) => x.userData?.pointIndex === 1);
+      const V = Object.getPrototypeOf(window.__stage.camera.position).constructor;
+      const v = o.getWorldPosition(new V()); v.project(window.__stage.camera);
+      return [Math.round(b2.left + (v.x + 1) / 2 * b2.width), Math.round(b2.top + (1 - v.y) / 2 * b2.height)];
+    })()`);
+    await p.eval(`(() => { const h = document.querySelector('.view3d-host');
+      h.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: ${dd[0]}, clientY: ${dd[1]}, pointerId: 1, button: 0 }));
+      h.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: ${dd[0] + 12}, clientY: ${dd[1]}, pointerId: 1 }));
+      h.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: ${dd[0] + 12}, clientY: ${dd[1]}, pointerId: 1 }));
+      return 'ok'; })()`);
+    await new Promise((r) => setTimeout(r, 160));
+  }
+  const tex1 = await texOf();
+  check('경로를 여러 번 고쳐도 텍스처가 안 쌓인다', tex1 <= tex0 + 2,
+    `6번 끌기 · 텍스처 ${tex0} → ${tex1}`);
+
+  // ── 21. 사건에 AMR 을 붙인다 ─────────────────────────────────────────
+  //
+  // 이 칸이 없어서 **화면만으로는 터틀봇을 움직일 방법이 아예 없었다.** 경로는 그릴 수
+  // 있는데 그 경로를 언제 타는지 말할 데가 없었다 (2026-08-04 · 주인님 지적).
+  await p.eval(`document.querySelector('[data-t=path-toggle]')?.click(); 'ok'`);
+  await new Promise((r) => setTimeout(r, 300));
+  if (!(await p.eval(`!!document.querySelector('[data-t=timeline]')`))) {
+    await p.eval(`document.querySelector('[data-t=tl-toggle]').click(); 'ok'`);
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  await p.eval(`document.querySelector('[data-t=tl-mark][data-i="9"]')
+    .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 500, clientY: 400 })); 'ok'`);
+  await p.waitFor(`!!document.querySelector('[data-t=ev-amr]')`);
+  const fields = await p.eval(`[...document.querySelectorAll('.ev-menu label')]
+    .map((l) => l.childNodes[0].textContent.trim()).join(',')`);
+  check('사건 메뉴에 AMR 칸이 있다', fields.includes('AMR'), fields);
+
+  const pickSel = (t, v) => p.eval(`(() => { const s = document.querySelector('[data-t=${t}]');
+    Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set.call(s, '${v}');
+    s.dispatchEvent(new Event('change', { bubbles: true })); return 'ok'; })()`);
+  const ev9 = () => p.eval(`(() => {
+    const S = JSON.parse(localStorage.getItem('fr5.scenarios'));
+    const e = Object.values(S.items)[0].events[9];
+    return JSON.stringify({ amr: e.amr ?? null, amrAt: e.amrAt ?? null });
+  })()`);
+  await pickSel('ev-amr', 'amr2');
+  await new Promise((r) => setTimeout(r, 400));
+  // **둘이 짝이다** — 하나만 적으면 재생기가 목적지를 모른다. 고르면 자리도 같이 채운다
+  const paired = JSON.parse(await ev9());
+  check('AMR 을 고르면 목적지도 같이 채워진다', paired.amr === 'amr2' && Boolean(paired.amrAt),
+    await ev9());
+  await pickSel('ev-amrat', 'ship');
+  await new Promise((r) => setTimeout(r, 400));
+  check('AMR 목적지를 바꿀 수 있다', JSON.parse(await ev9()).amrAt === 'ship', await ev9());
+
+  // ── 22. 빈 방에 AMR 을 놓는다 (P1) ──────────────────────────────────
+  //
+  // 전에는 프리셋에만 AMR 이 있어서 **빈 방에서 시작하면 터틀봇을 추가할 방법이 아예
+  // 없었다** (주인님 지적 · 2026-08-04). 경로 기능이 다 돌아도 놓을 수가 없으면 못 쓴다.
+  await p.eval(`localStorage.clear(); 'ok'`);
+  await p.navigate(URL);
+  await p.waitFor(`${edit}?.scenes >= 1`);
+  await new Promise((r) => setTimeout(r, 1400));
+  check('빈 방에는 AMR 이 없다', (await p.eval(`${edit}.wp.length`)) === 0, `${await p.eval(`${edit}.wp.length`)}대`);
+  const hasCard = await p.eval(`[...document.querySelectorAll('.part-card')].some((c) => c.textContent.includes('터틀봇'))`);
+  check('팔레트에 터틀봇 카드가 있다', hasCard);
+  await p.eval(`(() => { const c = [...document.querySelectorAll('.part-card')]
+    .find((x) => x.textContent.includes('터틀봇')); c?.click(); return 'ok'; })()`);
+  await p.waitFor(`${edit}.wp.length === 1`);
+  const wpNew = JSON.parse(await p.eval(`JSON.stringify(${edit}.wp)`));
+  // **경로를 갖고 태어난다** — 점이 없으면 `[경로]` 를 켜도 끌 것이 없다
+  check('놓은 AMR 이 경로를 갖고 태어난다', (wpNew[0]?.[1] ?? []).length >= 2,
+    JSON.stringify(wpNew));
+  await p.navigate(`${URL}?scene=${await p.eval(`${edit}.current`)}`);
+  await p.waitFor(`${edit}?.scenes >= 1`);
+  await new Promise((r) => setTimeout(r, 1000));
+  check('놓은 AMR 이 새로고침 뒤에도 남는다',
+    (await p.eval(`${edit}.wp.length`)) === 1, await p.eval(`JSON.stringify(${edit}.wp)`));
+
+  // ── 23. 타임라인 AMR 띠 (P4) ────────────────────────────────────────
+  //
+  // 전에는 **마커를 하나씩 우클릭해야** AMR 이 언제 어디로 가는지 알 수 있었다
+  // (주인님 지적 · 2026-08-04). 구간은 `timeline.js` §amrAt 규약대로 **사건 시각이 도착
+  // 시각**이라 앞 사건(없으면 0초)부터 그 사건까지가 이동 구간이다.
+  await p.eval(`localStorage.clear(); 'ok'`);
+  await p.navigate(URL);
+  await p.waitFor(`${edit}?.scenes >= 1`);
+  await p.eval(`(() => {
+    const s = document.querySelector('.scene-pick');
+    Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set.call(s, 'new:cell');
+    s.dispatchEvent(new Event('change', { bubbles: true }));
+    return 'ok';
+  })()`);
+  await p.waitFor(`${edit}.props === 18`);
+  await new Promise((r) => setTimeout(r, 1200));
+  await p.eval(`document.querySelector('[data-t=tl-toggle]').click(); 'ok'`);
+  await p.waitFor(`!!document.querySelector('[data-t=timeline]')`);
+  await new Promise((r) => setTimeout(r, 400));
+
+  const bandOf = () => p.eval(`(() => [...document.querySelectorAll('[data-t^=tl-amr-]')]
+    .map((r) => ({ id: r.dataset.t.replace('tl-amr-', ''),
+      legs: [...r.querySelectorAll('i')].map((i) => ({ text: i.textContent, tip: i.title,
+        left: i.style.left, width: i.style.width })) })))()`);
+  const band0 = await bandOf();
+  // **안 움직이는 AMR 은 줄이 없다** — 빈 줄을 그으면 그것도 거짓말이다
+  check('사건이 있는 AMR 만 띠가 뜬다', band0.length === 1 && band0[0].id === 'amr1',
+    JSON.stringify(band0.map((b2) => b2.id)));
+  check('띠가 목적지 이름을 보여준다', band0[0]?.legs?.[0]?.text === '탄체 팔레트',
+    band0[0]?.legs?.[0]?.text ?? '(없음)');
+  // 0~4초 = 사이클 49초의 8.16% — 자리와 폭이 시각을 그대로 따른다
+  check('띠가 사건 시각을 그대로 따른다',
+    band0[0]?.legs?.[0]?.left === '0%'
+      && Math.abs(parseFloat(band0[0]?.legs?.[0]?.width) - (4 / 49) * 100) < 0.1,
+    `${band0[0]?.legs?.[0]?.tip} · left ${band0[0]?.legs?.[0]?.left} width ${band0[0]?.legs?.[0]?.width}`);
+
+  // 사건에 AMR 을 붙이면 **줄이 생긴다**
+  await p.eval(`document.querySelector('[data-t=tl-mark][data-i="9"]')
+    .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 500, clientY: 400 })); 'ok'`);
+  await p.waitFor(`!!document.querySelector('[data-t=ev-amr]')`);
+  const pick2 = (t, v) => p.eval(`(() => { const s = document.querySelector('[data-t=${t}]');
+    Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set.call(s, '${v}');
+    s.dispatchEvent(new Event('change', { bubbles: true })); return 'ok'; })()`);
+  await pick2('ev-amr', 'amr2');
+  await new Promise((r) => setTimeout(r, 400));
+  await pick2('ev-amrat', 'ship');
+  await new Promise((r) => setTimeout(r, 600));
+  const band1 = await bandOf();
+  check('AMR 을 사건에 붙이면 띠가 생긴다',
+    band1.length === 2 && band1.some((b2) => b2.id === 'amr2' && b2.legs[0]?.text === '배출 시작'),
+    JSON.stringify(band1.map((b2) => `${b2.id}:${b2.legs[0]?.text}`)));
+
+  // **구간이 둘일 때가 진짜 판정이다.** 하나뿐이면 시작이 늘 0 이라, 앞 사건을 무시해도
+  // 검사가 통과한다 — 실제로 주입해 보고 98/98 이 그대로 나왔다 (2026-08-04).
+  // 두 번째 다리는 **앞 사건 시각**에서 시작해야 한다.
+  await p.eval(`document.querySelector('[data-t=tl-mark][data-i="12"]')
+    .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 500, clientY: 400 })); 'ok'`);
+  await p.waitFor(`!!document.querySelector('[data-t=ev-amr]')`);
+  await pick2('ev-amr', 'amr2');
+  await new Promise((r) => setTimeout(r, 400));
+  await pick2('ev-amrat', 'exit');
+  await new Promise((r) => setTimeout(r, 600));
+  const band2 = (await bandOf()).find((b2) => b2.id === 'amr2');
+  const leg2 = band2?.legs?.[1];
+  // 사건 9 = 36초 · 사건 12 = 49초 → 두 번째 다리는 36초에서 시작한다 (73.47%)
+  check('두 번째 다리가 앞 사건 시각에서 시작한다',
+    band2?.legs?.length === 2 && Math.abs(parseFloat(leg2?.left) - (36 / 49) * 100) < 0.1,
+    `다리 ${band2?.legs?.length ?? 0}개 · 두 번째 ${leg2?.tip ?? '(없음)'} left ${leg2?.left ?? '?'}`);
 
   check('콘솔 오류 0건', p.consoleErrors.length === 0, p.consoleErrors.join(' | '));
 } catch (e) {
