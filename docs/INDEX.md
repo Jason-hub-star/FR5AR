@@ -60,7 +60,7 @@
 | `docs/goals/GOAL-live-gripper.md` | FR5 사다리 1/6 — 화면에서 그리퍼 개폐 | 계약 | **P3 착수 첫 칸** |
 | `docs/goals/GOAL-teach-points.md` | FR5 사다리 2/6 — 자세를 지점으로 캡처·재로드 | 계약 | Teach 패널을 만들 때 |
 | `docs/goals/GOAL-program-slots.md` | FR5 사다리 3/6 — 슬롯 승인·실행·복귀 | 계약 | Program 패널을 만들 때 |
-| `docs/goals/GOAL-optimize-history.md` | FR5 사다리 4/6 — 비교·기록 (경계만 확정) | 계약 | P5·P6 착수 전 확장 |
+| `docs/goals/GOAL-run-history.md` | FR5 사다리 4/6 — 실행 기록·되짚기 (경계만 확정) | 계약 | 착수 전 확장 · 비교는 관제화면 (D74) |
 | `docs/goals/GOAL-servo-stream.md` | FR5 사다리 5/6 — 서보 스트리밍 (모방학습 선행) | 계약 | 정책·원격조종을 붙이기 전 |
 | `docs/goals/GOAL-imitation-demo.md` | FR5 사다리 6/6 — 시연 학습·수행 (경계만 확정) | 계약 | 모방학습 착수 전 확장 |
 | `docs/ref/README.md` | **ref 카테고리 표** — 새 SSOT 문서를 어느 폴더에 넣나 | SSOT | 문서를 새로 만들 때 |

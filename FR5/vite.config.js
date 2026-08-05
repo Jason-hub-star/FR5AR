@@ -7,8 +7,10 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 // 계약 경로는 /api 접두어가 없다 (API-CONTRACT). dev 는 경로별로 브리지에 넘긴다.
 const BRIDGE = `http://localhost:${process.env.FR5_PORT ?? 5055}`;
+// ⚠ 이 목록은 계약을 **손으로 미러링**한다 — 라우트를 늘리고 여기를 안 고치면 dev 에서만
+// 조용히 404 가 난다 (2026-08-05 `/trajectories` 로 실제로 겪었다. 브리지는 200 인데 화면만 거부).
 const API_PATHS = ['/robots', '/connect', '/version', '/disconnect', '/state', '/owner',
-  '/arm', '/disarm', '/points', '/preview'];
+  '/arm', '/disarm', '/points', '/trajectories', '/preview'];
 
 export default defineConfig({
   // 정적 자산은 Shared/assets 하나뿐이다. 복사하지 않는다 (AR 규칙 미러).

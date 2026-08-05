@@ -1,13 +1,14 @@
 # fr5-bridge — FAIRINO FR5 의 유일한 관문 (API-CONTRACT.md 가 정본이다. 어긋나면 문서부터 고친다).
 # 실행: bash scripts/dev/fr5-dev.sh  (준비물 없음 — 순수 파이썬 SDK · D42)
-# P0: profile·observe-only preflight·상태 스트림 · P2: 조종권·arm·guarded jog/stop.
 # 배포: npm run build:fr5 뒤 이 서버가 FR5/dist 를 같은 주소에서 서빙한다 —
 # 주소를 여는 누구나 조작 후보다 (LAN·팀 신뢰). 보호는 조종권 1명·게이트·stop 상시가 맡는다.
 #
-# **여기는 조립과 라우트만 둔다** (D54 · tb-bridge 와 같은 모양). 상태와 I/O 는 도메인
-# 모듈이 소유한다 — RobotSession(session.py) · Owner(owner.py) · 어댑터(robot_adapter/).
+# **여기는 조립과 라우트만 둔다** (D54 · tb-bridge 와 같은 모양 — 라우터를 안 쓴다).
+# 상태와 I/O 는 도메인 모듈이 소유한다 — RobotSession(session) · Owner(owner) ·
+# Commands(commands) · TeachService(teach) · 어댑터(robot_adapter/).
 import asyncio
 import json
+import os
 import time
 from pathlib import Path
 
@@ -18,32 +19,37 @@ from fastapi.staticfiles import StaticFiles
 
 import preflight
 import safety
+from commands import GRIPPER_FORCE_PCT, Commands
 from owner import Owner
 from robot_adapter import make_adapter
 from session import RobotSession
+from teach import TeachService, frame_mismatch, run_recording
 
 HERE = Path(__file__).parent
 CONFIG = yaml.safe_load((HERE / "config.yaml").read_text())
 PROFILES = {r["robotId"]: r for r in CONFIG["robots"]}
 SAMPLE_MS = CONFIG.get("sample_ms", 33)
-# 그리퍼 속도·힘은 화면이 못 정한다 — 보수적 기본값을 서버가 박는다 (GOAL-live-gripper §3).
-# 파지 실험으로 힘을 올리려면 여기 한 곳만 고친다. 천장: 물체별 힘 프로필은 이 골 밖이다.
-# 기구학과 상태 스트림이 같은 좌표계인지 대조할 때의 허용 오차. 같은 로봇의 같은 관절이라
-# 원래 0 이어야 하고, 5mm 는 반올림·표본 시차만 덮는 값이다 (계약 §작업영역)
-FK_FRAME_TOL_MM = 5.0
-GRIPPER_VEL_PCT = 30.0
-GRIPPER_FORCE_PCT = 30.0
+# 검증이 사람의 진짜 데이터에 쓰지 않게 env 로 갈아 끼운다 (`FR5_DATA_DIR`).
+# 운영에서는 안 쓴다 — 정본은 config.yaml 이다.
+DATA_DIR = Path(os.environ.get("FR5_DATA_DIR") or CONFIG.get("data_dir", "~/fr5-data")).expanduser()
+# 녹화 주기는 **폴링 주기의 절반**이다 (33ms 폴링 → 15fps). 같은 속도로 적으면 결손이
+# 필연이다 — 상태 스트림 실측이 27Hz 남짓이라 30fps 격자에는 빈 칸이 생기고(검증에서 3칸),
+# 그러면 `measure` 궤적이 전부 비교에서 빠진다. 표본보다 성기게 적어야 `fps` 가 참이 된다.
+REC_FPS = max(1, round(1000 / SAMPLE_MS / 2))
 
 app = FastAPI(title="fr5-bridge")
 
 
 def log(event, detail=""):
-    # 재연결·fail-closed·명령 기록 — P0~P2 는 stdout. 영속 기록은 P6(History)에서 승격한다
+    # 재연결·fail-closed·명령 기록 — stdout. 영속 기록은 사다리 4(History)에서 승격한다
     print(f"[fr5-bridge] {time.strftime('%H:%M:%S')} {event} {detail}", flush=True)
 
 
 # 연결은 한 번에 하나 — 명령 주인이 한 명이듯 관문의 로봇도 하나다 (하드룰 4)
 session = RobotSession(SAMPLE_MS, log)
+cmds = Commands(session, log)
+teach = TeachService(DATA_DIR, REC_FPS, log)
+recordTask = None
 
 
 def _owner_lost(who):
@@ -64,6 +70,14 @@ def refuse(reasons, status=409):
 
 def snapshot():
     return session.snapshot(owner.get())
+
+
+def owner_gate(body):
+    """조종권 확인. 통과하면 None, 아니면 거부 응답. **쓰기만 조종권** — 읽기는 누구나 (D44)."""
+    b = body or {}
+    if not owner.is_owner(b.get("who"), b.get("token")):
+        return refuse([f"조종권이 없다 — 보유자 {owner.get() or '없음'}"], 403)
+    return None
 
 
 # ── 프로필·연결 (API-CONTRACT §로봇 프로필과 읽기 전용 사전검증) ─────────────
@@ -135,6 +149,7 @@ async def disconnect(body: dict | None = None):
     b = body or {}
     if holder and not owner.is_owner(b.get("who"), b.get("token")):
         return refuse([f"조종권이 {holder} 에게 있다 — 먼저 STOP 하거나 주인이 끊는다"], 403)
+    await stop_recording("disconnect")     # 안 닫으면 프레임을 다 적고도 파일이 안 남는다
     await asyncio.to_thread(session.close)
     return {"ok": True, "phase": "DISCONNECTED", "reasons": []}
 
@@ -167,46 +182,8 @@ async def arm(body: dict):
     if session.armed:
         return {"ok": True, "phase": session.current_phase(owner.get()), "reasons": []}
 
-    def _arm_seq():
-        state = session.read_fresh_state()
-        reasons = safety.check_arm(state, time.time() - session.lastStateAt)
-        if reasons:
-            return reasons
-        a = session.adapter
-        # 순서는 계약 §2단계 — 서보를 먼저 올린다 (서보 OFF 에선 auto 교정 거부, 유니티 실측)
-        a.reset_errors()          # 잠복 fault 해제 — 사람이 현장확인한 arm 안에서만
-        try:
-            a.enable(True)
-        except Exception as e:
-            # 실측(2026-07-31): FW Web-3.9.3 이 SDK V1.2.4 의 RobotEnable 만 -4 로 거부한다.
-            # 사람이 펜던트에서 서보를 올렸다면 그걸 인정한다 — 실제 상태가 판정한다 (fail-closed 유지)
-            if not session.read_fresh_state().get("enabled"):
-                raise ConnectionError(
-                    f"{e} · 펜던트에서 로봇 Enable(활성화) 후 다시 ARM 하면 이어갈 수 있다")
-        # 안전 설정은 서보를 올린 뒤·자동 모드 전에 넣는다 (계약 §로봇 안전 설정 · D53).
-        # 컨트롤러 충돌 감지는 기본으로 안 켜져 있고 기본 민감도는 사람 접촉에 반응하지 않는다.
-        session.apply_settings()
-        a.set_sample_period(SAMPLE_MS)
-        a.exit_drag_teach()
-        a.set_mode(0)
-        # 작업영역은 **기구학이 스트림과 같은 좌표계일 때만** 참이다. 그 가정을 여기서
-        # 실제로 대조한다 — 같은 관절을 FK 에 넣어 스트림의 손끝과 맞는지 본다.
-        # 어긋나면 등재된 숫자가 다른 자리를 가리키므로 arm 을 거부한다 (D64 계열).
-        if session.workspace:
-            st = session.read_fresh_state() or {}
-            fk = a.forward_kin(st.get("jointsDeg") or [])
-            tcp = st.get("tcpMmDeg") or []
-            if not fk or len(tcp) < 3:
-                return ["작업영역 게이트를 켤 수 없다 — 기구학을 못 구했다 (제1원칙)"]
-            gap = max(abs(fk[i] - tcp[i]) for i in range(3))
-            log("작업영역", f"기구학↔스트림 최대차 {gap:.1f}mm · fk={[round(v,1) for v in fk[:3]]}")
-            if gap > FK_FRAME_TOL_MM:
-                return [f"기구학과 상태 스트림의 좌표계가 다르다 — 최대차 {gap:.1f}mm "
-                        f"(> {FK_FRAME_TOL_MM}mm). 작업영역 값이 거짓이 된다"]
-        return []
-
     try:
-        reasons = await asyncio.to_thread(_arm_seq)
+        reasons = await asyncio.to_thread(cmds.arm_sequence, SAMPLE_MS)
     except Exception as e:
         await asyncio.to_thread(session.disarm_hw, f"arm 실패 — {e}")
         return refuse([f"arm 시퀀스 실패 — {e}"])
@@ -236,84 +213,123 @@ async def state():
     return await asyncio.to_thread(snapshot)
 
 
-# ── 명령 실행 ────────────────────────────────────────────────────────────────
-def _do_motion(target_deg, speed_pct):
-    """게이트 → MoveJ. 사유가 있으면 보내지 않는다. (스레드에서 실행)"""
-    state = session.read_fresh_state()
-    reasons = safety.check_motion(state, time.time() - session.lastStateAt,
-                                  target_deg, speed_pct, session.appliedSettings)
+# ── Teach — 지점과 궤적 (API-CONTRACT §이동 지점 · §궤적 녹화 · D74) ──────────
+@app.get("/points")
+async def points_list():
+    return await asyncio.to_thread(teach.points.list)
+
+
+@app.post("/points")
+async def points_capture(body: dict):
+    if (bad := owner_gate(body)) is not None:
+        return bad
+    state, reasons = await asyncio.to_thread(session.fresh_state)
     if reasons:
-        return reasons
-    coord = state.get("coord") or {}
-    # 조건 12 의 카테시안 절반 — 관절 한계만으로는 손끝이 상판을 뚫는 것을 못 막는다.
-    # 목표 관절을 **로봇 자신의 기구학**으로 손끝 위치로 바꿔 판정한다 (계약 §작업영역)
-    ws = session.workspace
-    if ws:
-        tcp = session.adapter.forward_kin(target_deg)
-        reasons = safety.check_workspace(tcp, ws, coord)
-        if reasons:
-            log("작업영역-거부", " · ".join(reasons))
-            return reasons
-    session.adapter.move_j(target_deg, speed_pct,
-                           coord.get("toolId", 0), coord.get("userId", 0))
-    log("moveJ", f"target={[round(v, 3) for v in target_deg]} speed={speed_pct}")
-    time.sleep(0.25)                     # 컨트롤러가 지령을 등록했는지 — 실기 진단 (2026-07-31)
-    after = session.read_fresh_state()
-    log("moveJ-after", f"queue={after.get('motionQueueLength')} "
-        f"servoTarget={[round(v, 2) for v in (after.get('lastServoTargetDeg') or [])]} "
-        f"robotState={after.get('robotState')} programState={after.get('programState')} "
-        f"motionDone={after.get('motionDone')}")
-    return []
-
-
-def _do_gripper(pct):
-    """게이트 → MoveGripper. 관절 게이트가 아니라 그리퍼 전용을 탄다 (계약 §그리퍼)."""
-    state = session.read_fresh_state()
-    reasons = safety.check_gripper(state, time.time() - session.lastStateAt,
-                                   pct, session.appliedSettings)
+        return refuse(reasons)
+    point, reasons = await asyncio.to_thread(
+        teach.points.capture, body.get("name"), state, (session.profile or {}).get("robotId"))
     if reasons:
-        log("gripper-거부", " · ".join(reasons))   # 거부를 조용히 버리면 원인을 못 찾는다
-        return reasons
-    session.adapter.gripper_move(float(pct), GRIPPER_VEL_PCT, GRIPPER_FORCE_PCT)
-    # 되던 모양으로 되돌렸다 (2026-08-04) — 명령 뒤 8초짜리 조밀 폴링을 걷어낸다.
-    # 그 폴링은 read_state 마다 IsInDragTeach(xmlrpc) 를 태워 **이동 중에** 단일 연결을
-    # 50번 두드렸다. 20003 은 연결이 하나뿐이고 행에 약하다 (fairino.py _guard 주석).
-    # 정착값은 다음 상태 스트림이 어차피 싣는다 — 명령 경로에서 캐낼 이유가 없다.
-    log("gripper", f"지령={pct} vel={GRIPPER_VEL_PCT} force={GRIPPER_FORCE_PCT}")
-    return []
+        return refuse(reasons)
+    log("point-capture", f"{point['name']} joints={[round(v, 2) for v in point['jointsDeg']]}")
+    return {"ok": True, "point": point, "reasons": []}
 
 
-def _do_gripper_activate():
-    """활성화 — 손가락이 실제로 움직인다. 이동 게이트와 같은 안전 확인을 지나되
-    pct 판정은 없다 (아직 지령이 없다)."""
-    state = session.read_fresh_state()
-    reasons = safety.check_gripper(state, time.time() - session.lastStateAt,
-                                   0, session.appliedSettings)
-    # 활성화 자체가 active 를 만드는 것이므로 '활성화 안 됨' 은 사유에서 뺀다
-    reasons = [r for r in reasons if "활성화되지 않았다" not in r]
+@app.delete("/points/{name}")
+async def points_delete(name: str, body: dict | None = None):
+    if (bad := owner_gate(body)) is not None:
+        return bad
+    # 참조 슬롯 조회 자리 — 슬롯은 사다리 3 이라 지금은 항상 빈 목록이다.
+    # 훅을 미리 둔 이유: 슬롯이 생긴 뒤 여기를 못 찾으면 참조 검사가 통째로 빠진다
+    ok, blocked = await asyncio.to_thread(teach.points.delete, name, ())
+    if blocked:
+        return refuse([f"참조하는 슬롯이 있다 — {', '.join(blocked)}"], 409)
+    if not ok:
+        return refuse([f"없는 지점 — {name}"], 404)
+    log("point-delete", name)
+    return {"ok": True, "reasons": []}
+
+
+@app.post("/points/{name}/goto")
+async def points_goto(name: str, body: dict):
+    """지점으로 이동. **`moveJ` 로 번역해 같은 게이트를 처음부터 다시 태운다** —
+    실기 명령 허용목록에 새 이름을 더하지 않는다 (VISION-CONTRACT 의 제안과 같은 규약)."""
+    if (bad := owner_gate(body)) is not None:
+        return bad
+    if not session.armed:
+        return refuse([f"ARMED 가 아니다 — phase={session.current_phase(owner.get())}"])
+    point = await asyncio.to_thread(teach.points.get, name)
+    if not point:
+        return refuse([f"없는 지점 — {name}"], 404)
+    here = (session.profile or {}).get("robotId")
+    if point.get("capturedRobotId") != here:
+        return refuse([f"다른 개체에서 잰 지점이다 — {point.get('capturedRobotId')} · 지금 {here}"])
+    reasons = frame_mismatch(point, (session.lastState or {}).get("coord"))
     if reasons:
-        return reasons
-    diag = session.adapter.gripper_activate()
-    time.sleep(0.5)                      # 활성화는 원점을 잡는 물리 동작 — 비트가 서기까지 한 번만 본다
-    after = (session.read_fresh_state() or {}).get("gripper") or {}
-    log("gripper-activate", f"config={diag} → activeRaw={after.get('activeRaw')} "
-        f"faultRaw={after.get('faultRaw')} pctRaw={after.get('pctRaw')}")
-    return []
-
-
-def _do_mode(manual):
-    """모드 전환 — **로봇을 움직이지 않는다.** 수동으로 바꾸면 펜던트가 조작·드래그
-    티칭을 할 수 있고, 자동으로 되돌리면 우리 jog/moveJ 가 가능해진다 (계약 §모드 전환)."""
-    state = session.read_fresh_state()
-    reasons = safety.check_mode(state, time.time() - session.lastStateAt, manual)
+        return refuse(reasons)
+    # **경로를 먼저 훑는다** (D75) — 조그용 5° 상한을 빼는 대신 가는 길을 검사한다
+    reasons = await asyncio.to_thread(cmds.motion, point["jointsDeg"], safety.SPEED_CAP_PCT, True)
     if reasons:
-        log("mode-거부", " · ".join(reasons))
-        return reasons
-    session.adapter.set_mode(1 if manual else 0)
-    log("mode", f"{'수동 — 펜던트가 조작한다' if manual else '자동 — 우리가 조작한다'}")
-    return []
+        return refuse(reasons)
+    return {"ok": True, "phase": session.current_phase(owner.get()), "reasons": []}
 
 
+@app.get("/trajectories")
+async def traj_list():
+    return await asyncio.to_thread(teach.trajectories.list)
+
+
+@app.get("/trajectories/{name}")
+async def traj_get(name: str):
+    traj = await asyncio.to_thread(teach.trajectories.get, name)
+    return traj if traj else refuse([f"없는 궤적 — {name}"], 404)
+
+
+def _read_for_record():
+    """녹화 루프가 쓰는 읽기. **미연결이면 None** — 루프가 그걸로 끝을 판정한다."""
+    return session.read_fresh_state() if session.adapter is not None else None
+
+
+async def stop_recording(reason):
+    """녹화를 닫는다. 중이 아니면 None — 두 번 불려도 안전하다."""
+    global recordTask
+    if recordTask:
+        recordTask.cancel()
+        recordTask = None
+    return await asyncio.to_thread(teach.finish, reason)
+
+
+@app.post("/trajectories/start")
+async def traj_start(body: dict):
+    global recordTask
+    if (bad := owner_gate(body)) is not None:
+        return bad
+    st, reasons = await asyncio.to_thread(session.fresh_state)
+    if reasons:
+        return refuse(reasons)
+    started, reasons = await asyncio.to_thread(
+        teach.start, body.get("name"), body.get("purpose"), body.get("source"), session.stamp(GRIPPER_FORCE_PCT), st)
+    if reasons:
+        return refuse(reasons)
+    recordTask = asyncio.create_task(
+        run_recording(teach, _read_for_record, 1.0 / REC_FPS))
+    return {"ok": True, **started, "reasons": []}
+
+
+@app.post("/trajectories/stop")
+async def traj_stop(body: dict):
+    if (bad := owner_gate(body)) is not None:
+        return bad
+    name = teach.recording
+    if not name:
+        return refuse(["녹화 중이 아니다"])
+    # 루프가 먼저 닫았을 수도 있다(상한·비상정지) — 그때는 저장된 것을 읽어 돌려준다
+    traj = await stop_recording("done") or await asyncio.to_thread(teach.trajectories.get, name)
+    if not traj:
+        return refuse(["녹화를 저장하지 못했다"])
+    return {"ok": True, "trajectory": TeachService.summary(traj), "reasons": []}
+
+
+# ── 명령 (API-CONTRACT §명령) — 실기에 닿는 이름은 다섯뿐이다 ────────────────
 async def handle_cmd(msg, who, token):
     cmd = msg.get("cmd")
     if cmd == "stop":                            # 제3원칙 — 조종권·신원·phase 무관 항상 실행
@@ -335,35 +351,24 @@ async def handle_cmd(msg, who, token):
     # mode 는 ARMED 전·후 어디서나 받는다 — 드래그 티칭은 서보가 켜져 있어야 되므로
     # ARM 을 풀게 만들면 잠긴 상태를 못 푼다 (계약 §모드 전환)
     if cmd == "mode":
-        reasons = await asyncio.to_thread(_do_mode, msg.get("manual"))
+        reasons = await asyncio.to_thread(cmds.mode, msg.get("manual"))
         return {"ok": True} if not reasons else {"ok": False, "reason": " · ".join(reasons)}
     if not session.armed:
         return {"ok": False,
                 "reason": f"ARMED 가 아니다 — phase={session.current_phase(owner.get())}"}
 
     if cmd == "jog":
-        joint = msg.get("joint")
-        delta = msg.get("deltaDeg")
-        if not isinstance(joint, int) or not 0 <= joint <= 5:
-            return {"ok": False, "reason": "joint 는 0~5"}
-        if not isinstance(delta, (int, float)) or delta != delta:
-            return {"ok": False, "reason": "deltaDeg 가 숫자가 아니다"}
-        joints = (session.lastState or {}).get("jointsDeg")
-        if not joints:
-            return {"ok": False, "reason": "현재 관절값이 없다 — fail-closed"}
-        target = list(joints)
-        target[joint] += float(delta)
-        reasons = await asyncio.to_thread(_do_motion, target, safety.SPEED_CAP_PCT)
+        reasons = await asyncio.to_thread(cmds.jog, msg.get("joint"), msg.get("deltaDeg"))
     elif cmd == "moveJ":
         reasons = await asyncio.to_thread(
-            _do_motion, msg.get("jointsDeg"), msg.get("speedPct", safety.SPEED_CAP_PCT))
+            cmds.motion, msg.get("jointsDeg"), msg.get("speedPct", safety.SPEED_CAP_PCT))
     elif cmd == "gripper":
         pct = msg.get("pct")
         if pct is None and isinstance(msg.get("open"), bool):
             pct = 100.0 if msg["open"] else 0.0     # open 은 pct 의 별칭 (계약 §그리퍼)
-        reasons = await asyncio.to_thread(_do_gripper, pct)
+        reasons = await asyncio.to_thread(cmds.gripper, pct)
     elif cmd == "gripperActivate":
-        reasons = await asyncio.to_thread(_do_gripper_activate)
+        reasons = await asyncio.to_thread(cmds.gripper_activate)
     else:
         return {"ok": False, "reason": f"모르는 cmd — {cmd}"}
     return {"ok": True} if not reasons else {"ok": False, "reason": " · ".join(reasons)}
@@ -415,6 +420,7 @@ async def ws_state(ws: WebSocket):
 async def _shutdown():
     # 브리지가 죽을 때 CloseRPC 없이 나가면 컨트롤러가 세션을 쥔 채 남아
     # 펜던트 로그인까지 막을 수 있다 (2026-07-31 실측 추정) — 반드시 정리하고 나간다
+    await stop_recording("disconnect")
     if session.adapter:
         session.close()
         log("shutdown-disconnect", "세션 정리")

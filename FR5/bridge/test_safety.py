@@ -321,3 +321,81 @@ class GripperGate(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PathSamples(unittest.TestCase):
+    """지점 이동의 경로 표본 (D75) — `MoveJ` 가 실제로 가는 길을 5°씩 끊는다."""
+
+    def test_끝점을_포함하고_시작점은_뺀다(self):
+        poses = safety.path_samples([0] * 6, [10, 0, 0, 0, 0, 0])
+        self.assertEqual(len(poses), 2)                      # 10° / 5° = 2칸
+        self.assertEqual([round(v, 6) for v in poses[0]], [5, 0, 0, 0, 0, 0])
+        self.assertEqual([round(v, 6) for v in poses[-1]], [10, 0, 0, 0, 0, 0])
+
+    def test_가장_큰_축이_간격을_정한다(self):
+        # j1 은 1° 인데 j3 가 20° — 20/5 = 4칸이 나와야 한다
+        poses = safety.path_samples([0] * 6, [1, 0, 20, 0, 0, 0])
+        self.assertEqual(len(poses), 4)
+        self.assertAlmostEqual(poses[-1][2], 20.0)
+
+    def test_모든_축이_동시에_비례로_움직인다(self):
+        poses = safety.path_samples([0] * 6, [10, -10, 0, 0, 0, 0])
+        self.assertAlmostEqual(poses[0][0], 5.0)
+        self.assertAlmostEqual(poses[0][1], -5.0)
+
+    def test_5도_이하면_한_칸_그리고_그게_목표다(self):
+        poses = safety.path_samples([0] * 6, [2, 0, 0, 0, 0, 0])
+        self.assertEqual(len(poses), 1)
+        self.assertAlmostEqual(poses[0][0], 2.0)
+
+    def test_제자리면_한_칸(self):
+        poses = safety.path_samples([1] * 6, [1] * 6)
+        self.assertEqual(len(poses), 1)
+
+    def test_결측이면_None_이지_빈_목록이_아니다(self):
+        # 빈 목록을 주면 "검사할 게 없다 = 통과" 로 읽힌다 — 결측은 차단이어야 한다
+        self.assertIsNone(safety.path_samples([0] * 5, [0] * 6))
+        self.assertIsNone(safety.path_samples([0] * 6, [0, 0, 0, 0, 0, float("nan")]))
+        self.assertIsNone(safety.path_samples([], []))
+
+    def test_먼_이동도_표본이_유한하다(self):
+        # j1 은 ±175 라 최대 350° — 70칸. 무한 루프·FK 폭주가 안 나는지
+        poses = safety.path_samples([-175, 0, 0, 0, 0, 0], [175, 0, 0, 0, 0, 0])
+        self.assertEqual(len(poses), 70)
+
+
+class LargeMoveGate(unittest.TestCase):
+    """`delta_cap=None` 은 **경로를 대신 검사했을 때만** 쓴다 (D75)."""
+
+    def _state(self):
+        return {"jointsDeg": [0] * 6, "tcpMmDeg": [0] * 6, "enabled": True, "mode": 0,
+                "motionQueueLength": 0, "gripper": {"fault": False},
+                "safety": {"emergencyStop": False, "safetyStop": False,
+                           "collisionDetected": False, "inDragTeach": False,
+                           "mainErrorCode": 0, "subErrorCode": 0}}
+
+    def test_기본은_여전히_5도에서_거부한다(self):
+        reasons = safety.check_motion(self._state(), 0.0, [30, 0, 0, 0, 0, 0], 10,
+                                      OK_SETTINGS)
+        self.assertTrue(any("관절 변화" in r for r in reasons), reasons)
+
+    def test_경로를_검사했으면_큰_이동이_통과한다(self):
+        reasons = safety.check_motion(self._state(), 0.0, [30, 0, 0, 0, 0, 0], 10,
+                                      OK_SETTINGS, delta_cap=None)
+        self.assertEqual(reasons, [], reasons)
+
+    def test_상한을_빼도_URDF_한계는_그대로다(self):
+        reasons = safety.check_motion(self._state(), 0.0, [200, 0, 0, 0, 0, 0], 10,
+                                      OK_SETTINGS, delta_cap=None)
+        self.assertTrue(any("URDF 한계" in r for r in reasons), reasons)
+
+    def test_상한을_빼도_속도_10퍼센트는_그대로다(self):
+        reasons = safety.check_motion(self._state(), 0.0, [30, 0, 0, 0, 0, 0], 50,
+                                      OK_SETTINGS, delta_cap=None)
+        self.assertTrue(any("속도 상한" in r for r in reasons), reasons)
+
+    def test_상한을_빼도_서보_OFF_는_거부다(self):
+        st = self._state() | {"enabled": False}
+        reasons = safety.check_motion(st, 0.0, [30, 0, 0, 0, 0, 0], 10, OK_SETTINGS,
+                                      delta_cap=None)
+        self.assertTrue(any("서보 OFF" in r for r in reasons), reasons)

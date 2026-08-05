@@ -61,6 +61,14 @@ def _guard(fn, *args, **kwargs):
     if t.is_alive():
         raise ConnectionError(f"SDK 응답 없음 {CMD_TIMEOUT_S:.0f}s — 컨트롤러·네트워크 확인")
     if "e" in box:
+        # 상한을 넘겨 버린 스레드는 **연결을 요청 보낸 채로** 쥐고 있다. 그 뒤 호출은 전부
+        # http.client 의 `CannotSendRequest`(Request-sent)로 죽는데, 그 이름만 보면
+        # 네트워크가 끊긴 것처럼 읽힌다 — 실제로는 우리가 버린 호출이 원인이다.
+        # 사람이 읽는 사유로 바꿔 준다. 되살릴 방법은 재연결뿐이다 (2026-08-05 실기).
+        if type(box["e"]).__name__ in ("CannotSendRequest", "ResponseNotReady"):
+            raise ConnectionError(
+                "앞선 xmlrpc 호출이 상한 안에 안 끝나 연결이 오염됐다 — 재연결해야 한다 "
+                f"(원인 {type(box['e']).__name__})") from box["e"]
         raise box["e"]
     return box["v"]
 
@@ -267,9 +275,16 @@ class FairinoAdapter(RobotAdapter):
         return
 
     def move_j(self, joints_deg, speed_pct, tool, user):
+        # **`blendT=0` — 논블로킹이다.** 벤더 기본 `-1.0` 은 "운동 완료까지 阻塞(블로킹)"
+        # 이라 이동이 끝날 때까지 xmlrpc 호출이 안 돌아온다 (`Robot.py:1090` 원문).
+        # 그러면 `_guard` 의 3초 상한이 **정상 이동을 행으로 오인해** 스레드를 버리고,
+        # 버려진 스레드가 연결을 요청 보낸 채로 쥐어 이후 전부 `Request-sent` 가 된다
+        # (2026-08-05 실기 · 33° 이동에서 재현). 5° 상한이 그동안 이걸 가리고 있었다.
+        # 완료 판정은 20004 스트림의 `motionQueueLength`·`motionDone` 이 이미 하고 있고,
+        # 조건 6(큐 0)이 다음 명령을 막으므로 겹쳐 쏘는 경로도 없다.
         with self._lock:
             _code(_guard(self._r.MoveJ, list(joints_deg), int(tool), int(user),
-                         vel=float(speed_pct)), "moveJ")
+                         vel=float(speed_pct), blendT=0.0), "moveJ")
 
     def stop(self):
         # SAFETY-RULES 제3원칙 — 정지를 막는 조건은 만들지 않는다. 잠금도 조건이다:

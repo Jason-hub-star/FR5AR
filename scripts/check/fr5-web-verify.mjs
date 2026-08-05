@@ -2,6 +2,8 @@
 // 3D 쌍둥이 로딩·관절값 스트림·연결 진단·fail-closed 사유 표시를 실제 브라우저로 본다.
 // 실행: node scripts/check/fr5-web-verify.mjs
 import { spawn } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { openPage, pixelChanged } from '/Users/family/jason/FR5Web/.claude/skills/검증/references/cdp-harness.mjs';
@@ -15,10 +17,14 @@ const check = (name, ok, detail = '') => {
   results.push([ok ? 'PASS' : 'FAIL', name, detail]);
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
 };
+// 지점·궤적은 파일에 남는다 — **사람의 진짜 ~/fr5-data 에 쓰지 않는다**
+const DATA = mkdtempSync(join(tmpdir(), 'fr5-web-verify-'));
 const env = { ...process.env, FR5_PORT: String(BRIDGE_PORT) };
 
 const spawnBridge = () => spawn('uv', ['run', '--with', 'fastapi', '--with', 'uvicorn[standard]', '--with', 'pyyaml',
-  'uvicorn', 'main:app', '--port', String(BRIDGE_PORT)], { cwd: join(ROOT, 'FR5/bridge'), stdio: 'ignore' });
+  'uvicorn', 'main:app', '--port', String(BRIDGE_PORT)],
+  { cwd: join(ROOT, 'FR5/bridge'), stdio: 'ignore',
+    env: { ...process.env, FR5_DATA_DIR: DATA } });
 let bridge = spawnBridge();
 const web = spawn('npm', ['run', 'dev:fr5'], { cwd: ROOT, env, stdio: 'ignore' });
 const waitUp = async (url) => {
@@ -36,11 +42,14 @@ try {
 
   p = await openPage(URL, { port: 9343, windowSize: '1280,900' });
 
-  // 1. 뼈대 — 패널 5개(Live 만 활성) + 상시 안전 바
-  await p.waitFor(`document.querySelectorAll('nav button').length === 5`);
-  check('패널 탭 5개', true);
-  check('Live 외 4개는 비활성 (P3~P6 예정)',
-    (await p.eval(`document.querySelectorAll('nav button:disabled').length`)) === 4);
+  // 1. 뼈대 — 패널 4개(Live 만 활성) + 상시 안전 바. **Optimize 는 없다** (D74)
+  await p.waitFor(`document.querySelectorAll('nav button').length === 4`);
+  check('패널 탭 4개', true);
+  check('Optimize 탭이 없다 (D74)',
+    !(await p.eval(`[...document.querySelectorAll('nav button')].some(b => /optimize/i.test(b.textContent))`)));
+  check('Teach 는 열려 있고 Program·History 는 아직 비활성 (사다리 3~4 예정)',
+    (await p.eval(`document.querySelectorAll('nav button:disabled').length`)) === 2
+    && (await p.eval(`[...document.querySelectorAll('nav button')].find(b => b.textContent === 'Teach')?.disabled`)) === false);
   check('상시 안전 바 8항목',
     (await p.eval(`document.querySelectorAll('[data-t="safeitem"]').length`)) === 8);
   check('미연결 phase 표시 DISCONNECTED',
@@ -154,6 +163,57 @@ try {
     !!(await p.waitFor(`document.querySelector('[data-t="gripper-raw"]')?.textContent === '0%'`, { timeoutMs: 5000 })),
     '지령 0 → 읽기 0% (같은 방향)');
 
+  // 8. Teach — 지점(점)과 궤적(선). **여기는 승인하지 않는다** (D74)
+  await p.eval(`[...document.querySelectorAll('nav button')].find(b => b.textContent === 'Teach').click()`);
+  check('Teach 탭 → 패널이 뜬다',
+    !!(await p.waitFor(`!!document.querySelector('[data-t="teach"]')`, { timeoutMs: 5000 })));
+  check('탭을 옮겨도 STOP·모드 토글은 그대로다 (상시 안전 바)',
+    !!(await p.eval(`!!document.querySelector('[data-t="safetybar"] [data-t="estop"]')
+      && !!document.querySelector('[data-t="safetybar"] [data-t="mode-toggle"]')`)));
+  check('지점이 없을 때 화면이 그렇게 말한다',
+    !!(await p.eval(`!!document.querySelector('[data-t="points-empty"]')`)));
+  check('3D 가 "실물 자세" 라고 말한다 (미리보기 아님)',
+    (await p.eval(`document.querySelector('[data-t="twin-note"]')?.dataset.live`)) === 'true');
+  await setInput('[data-t="point-name"]', 'trayPick');
+  await p.eval(`document.querySelector('[data-t="point-capture"]').click()`);
+  check('캡처 → 목록에 지점이 생긴다',
+    !!(await p.waitFor(`document.querySelector('[data-t="point-row"]')?.dataset.name === 'trayPick'`, { timeoutMs: 6000 })));
+  // 미리보기는 **로봇에 아무것도 안 보낸다** — 이동 전에 어디로 가는지 화면에서 먼저 본다
+  const jBeforePv = await p.eval(`document.querySelector('[data-t="joints"] td')?.textContent`);
+  await p.eval(`document.querySelector('[data-t="point-preview"]').click()`);
+  check('미리보기 → 3D 가 "실물이 아니다" 를 말한다',
+    !!(await p.waitFor(`document.querySelector('[data-t="twin-note"]')?.dataset.live === 'false'
+      && document.querySelector('[data-t="twin-note"]').textContent.includes('아직 안 보냈다')`, { timeoutMs: 5000 })));
+  await new Promise((r) => setTimeout(r, 600));
+  check('미리보기 중에도 실물은 안 움직였다 (읽기 전용)',
+    (await p.eval(`document.querySelector('[data-t="teach-refusal"]')`)) === null, `실물 j1 ${jBeforePv}`);
+  await p.eval(`document.querySelector('[data-t="point-preview"]').click()`);
+
+  // 궤적 — 녹화는 읽기만 한다
+  await setInput('[data-t="traj-name"]', 'demo-01');
+  await p.eval(`document.querySelector('[data-t="traj-start"]').click()`);
+  const recOn = await p.waitFor(`!!document.querySelector('[data-t="traj-live"]')`, { timeoutMs: 6000 }).catch(() => false);
+  check('녹화 시작 → 화면이 녹화 중이라고 말한다', !!recOn,
+    recOn ? '' : String(await p.eval(`document.querySelector('[data-t="teach-refusal"]')?.textContent ?? '사유 없음'`)));
+  if (!recOn) throw new Error('녹화가 시작되지 않았다');
+  await new Promise((r) => setTimeout(r, 1500));
+  await p.eval(`document.querySelector('[data-t="traj-stop"]').click()`);
+  check('녹화 정지 → 목록에 궤적이 생긴다',
+    !!(await p.waitFor(`document.querySelector('[data-t="traj-row"]')?.dataset.name === 'demo-01'`, { timeoutMs: 8000 })));
+  check('조건이 맞는 measure 궤적은 비교에 쓸 수 있다고 표시된다',
+    (await p.eval(`document.querySelector('[data-t="traj-row"]')?.dataset.usable`)) === 'true');
+  check('비교 가능 개수를 화면이 말한다',
+    !!(await p.eval(`document.querySelector('[data-t="traj-usable"]')?.textContent.includes('1 / 1')`)));
+  await p.eval(`document.querySelector('[data-t="traj-play"]').click()`);
+  check('되감기 → 3D 가 "실물은 안 움직인다" 를 말한다',
+    !!(await p.waitFor(`document.querySelector('[data-t="twin-note"]')?.textContent.includes('되감기')
+      && document.querySelector('[data-t="twin-note"]').dataset.live === 'false'`, { timeoutMs: 8000 })));
+  check('되감기 스크럽이 있다',
+    !!(await p.eval(`!!document.querySelector('[data-t="play-scrub"]')`)));
+  await p.screenshot(`${OUT}/fr5-teach.png`);
+  await p.eval(`[...document.querySelectorAll('nav button')].find(b => b.textContent === 'Live').click()`);
+  await p.waitFor(`!!document.querySelector('[data-t="gripper"]')`, { timeoutMs: 5000 });
+
   await p.eval(`document.querySelector('[data-t="safetybar"] [data-t="estop"]').click()`);
   await clickText('DISARM');
   check('DISARM → 서보 OFF 복귀',
@@ -188,6 +248,7 @@ try {
   try { await p?.close?.(); } catch {}
   bridge.kill();
   web.kill();
+  rmSync(DATA, { recursive: true, force: true });
 }
 
 const fails = results.filter((r) => r[0] === 'FAIL');

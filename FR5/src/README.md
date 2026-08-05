@@ -7,7 +7,7 @@ FR5 앱으로 가는 연결만 남기고 로봇 명령을 두지 않는다.
 
 ```text
 src/
-├── screens/           엔트리 — 상시 안전 바 + 패널 5탭 (Live 만 활성, 나머지는 P3~P6)
+├── screens/           엔트리 — 상시 안전 바 + 패널 4탭 (Live 만 활성, 나머지는 사다리 2~4)
 ├── features/live/     Live 패널 — 3D 쌍둥이·6축/TCP 값·연결 진단
 └── data/datasource/   mock ↔ FR5 bridge ↔ Database 교체 경계 (http.js 만 fetch 를 안다)
 ```

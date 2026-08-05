@@ -1,17 +1,18 @@
 // FR5 조작 엔트리. **탭이면 된다 — 라우터를 넣지 않는다** (TB·Dashboard 규칙 미러).
-// 패널 5개 + 상시 안전 바 (FR5-IMPLEMENTATION-PLAN §화면). P1 Live · P2 조종권/jog 까지 산다.
+// 패널 4개 + 상시 안전 바 (FR5-IMPLEMENTATION-PLAN §화면). P1 Live · P2 조종권/jog 까지 산다.
 import './main.css';
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { datasource } from '../data/datasource/index.js';
 import { LivePanel } from '../features/live/LivePanel.jsx';
+import { TeachPanel } from '../features/teach/TeachPanel.jsx';
 
+// **Optimize 는 없다** (D74) — 후보 비교는 PRD 범위 밖이고 생산성 비교의 주인은 관제화면이다.
 const PANELS = [
   ['live', 'Live', LivePanel],
-  ['teach', 'Teach', null],       // P3
-  ['program', 'Program', null],   // P4
-  ['optimize', 'Optimize', null], // P5
-  ['history', 'History', null],   // P6
+  ['teach', 'Teach', TeachPanel],   // 사다리 2 — 지점(점)과 궤적(선)
+  ['program', 'Program', null],     // 사다리 3
+  ['history', 'History', null],     // 사다리 4
 ];
 
 const EMPTY = { connected: false, phase: 'DISCONNECTED', enabled: false, mode: 1,
@@ -86,12 +87,15 @@ function App() {
       <nav>
         {PANELS.map(([id, label, Comp]) => (
           <button key={id} type="button" aria-selected={tab === id} disabled={!Comp}
-            title={Comp ? undefined : '예정 (P3~P6)'} onClick={() => Comp && setTab(id)}>
+            title={Comp ? undefined : '예정 (골사다리 2~4)'} onClick={() => Comp && setTab(id)}>
             {label}
           </button>
         ))}
       </nav>
-      <main><LivePanel state={state} who={who} /></main>
+      <main>{(() => {
+        const Panel = PANELS.find(([id]) => id === tab)?.[2] ?? LivePanel;
+        return <Panel state={state} who={who} />;
+      })()}</main>
     </>
   );
 }

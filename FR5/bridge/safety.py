@@ -54,8 +54,31 @@ def _common_safety(state, state_age_s, applied_settings):
     return reasons
 
 
-def check_motion(state, state_age_s, target_deg, speed_pct, applied_settings=None):
-    """jog/moveJ 게이트 (SAFETY-RULES §명령별 최소 조건). 반환: 사유 목록, 비면 허용."""
+def path_samples(from_deg, to_deg, step_deg=JOINT_DELTA_CAP_DEG):
+    """현재→목표를 관절 공간에서 선형 보간한 표본 목록 (끝점 포함, 시작점 제외).
+
+    **`MoveJ` 가 실제로 가는 길이 이것이다** — 관절을 동시에 비례로 움직인다.
+    간격을 조그 상한과 같은 값으로 두는 이유: 사람이 반응할 수 있는 크기라는 근거가 같다.
+    두 끝이 URDF 한계 안이면 사이도 전부 안이다(볼록) — 그래서 여기서 한계를 다시 안 본다.
+    """
+    if len(from_deg) != 6 or len(to_deg) != 6:
+        return None
+    if not all(isinstance(v, (int, float)) and math.isfinite(v)
+               for v in list(from_deg) + list(to_deg)):
+        return None
+    span = max(abs(t - c) for t, c in zip(to_deg, from_deg))
+    n = max(1, math.ceil(span / float(step_deg)))
+    return [[c + (t - c) * (i / n) for c, t in zip(from_deg, to_deg)]
+            for i in range(1, n + 1)]
+
+
+def check_motion(state, state_age_s, target_deg, speed_pct, applied_settings=None,
+                 delta_cap=JOINT_DELTA_CAP_DEG):
+    """jog/moveJ 게이트 (SAFETY-RULES §명령별 최소 조건). 반환: 사유 목록, 비면 허용.
+
+    `delta_cap=None` 은 **경로를 대신 검사했을 때만** 쓴다 (지점 이동 · 계약 §경로 검사).
+    5° 상한의 근거가 "경로가 안 보인다" 이므로, 경로를 보면 그 근거가 사라진다.
+    """
     reasons = _common_safety(state, state_age_s, applied_settings)
     if state is None:
         return reasons
@@ -85,10 +108,10 @@ def check_motion(state, state_age_s, target_deg, speed_pct, applied_settings=Non
             or not all(isinstance(v, (int, float)) and v == v for v in target_deg):
         reasons.append("목표 관절이 6축 숫자가 아니다")
     else:
-        if len(joints) == 6:
+        if len(joints) == 6 and delta_cap is not None:
             delta = max(abs(t - c) for t, c in zip(target_deg, joints))
-            if delta > JOINT_DELTA_CAP_DEG:
-                reasons.append(f"관절 변화 {delta:.2f}° > 상한 {JOINT_DELTA_CAP_DEG}° — 거부")
+            if delta > delta_cap:
+                reasons.append(f"관절 변화 {delta:.2f}° > 상한 {delta_cap}° — 거부")
         for i, (t, (lo, hi)) in enumerate(zip(target_deg, JOINT_LIMITS_DEG)):
             if not (lo <= t <= hi):
                 reasons.append(f"j{i + 1} 목표 {t:.2f}° 가 URDF 한계 [{lo}, {hi}] 밖 (조건 12)")

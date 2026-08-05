@@ -99,6 +99,22 @@ export const datasource = {
   arm: (w) => api('POST', '/arm', { who: w, token: ownerToken, confirm: '현장확인' }),
   disarm: (w) => api('POST', '/disarm', { who: w, token: ownerToken }),
 
+  // Teach — 지점(점)과 궤적(선). **좌표를 올리지 않는다** — 캡처의 정본은 서버가 읽은 상태다.
+  // 읽기는 누구나, 쓰기는 조종권자만 (D44). goto 는 서버가 moveJ 로 번역해 같은 게이트를 탄다.
+  getPoints: () => api('GET', '/points'),
+  capturePoint: (w, name) => api('POST', '/points', { who: w, token: ownerToken, name }),
+  deletePoint: (w, name) =>
+    api('DELETE', `/points/${encodeURIComponent(name)}`, { who: w, token: ownerToken }),
+  gotoPoint: (w, name) =>
+    api('POST', `/points/${encodeURIComponent(name)}/goto`, { who: w, token: ownerToken }),
+
+  getTrajectories: () => api('GET', '/trajectories'),
+  getTrajectory: (name) => api('GET', `/trajectories/${encodeURIComponent(name)}`),
+  // purpose — measure(조건 차단) / collect(일부러 랜덤화). 섞이면 둘 다 못 쓴다 (D74)
+  startRecording: (w, name, purpose = 'measure', source = 'demo') =>
+    api('POST', '/trajectories/start', { who: w, token: ownerToken, name, purpose, source }),
+  stopRecording: (w) => api('POST', '/trajectories/stop', { who: w, token: ownerToken }),
+
   jog: (joint, deltaDeg) => sendCmd({ cmd: 'jog', joint, deltaDeg }),
   gripper: (pct) => sendCmd({ cmd: 'gripper', pct }),
   gripperActivate: () => sendCmd({ cmd: 'gripperActivate' }),

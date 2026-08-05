@@ -1,6 +1,6 @@
 # GOAL-servo-stream — 목표를 끊김 없이 흘려보낸다
 
-FR5 사다리 5/6. 앞: [GOAL-optimize-history.md](GOAL-optimize-history.md) ·
+FR5 사다리 5/6. 앞: [GOAL-run-history.md](GOAL-run-history.md) ·
 다음: [GOAL-imitation-demo.md](GOAL-imitation-demo.md).
 **모방학습의 선행 조건**이다 (D47) — `MoveJ` 로는 정책의 초당 수십 프레임을 못 받는다.
 

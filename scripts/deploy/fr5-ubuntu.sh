@@ -9,6 +9,11 @@ IP=${HOST#*@}
 
 npm run build:fr5
 rsync -az --delete --exclude node_modules --exclude .claude ./ "$HOST":~/FR5Web/
+# 데이터는 배포 트리 **밖**에 산다 (D45) — 그 밖을 아무도 안 만들면 배포는 성공하고
+# **저장만 조용히 실패**한다. rsync 대상이 ~/FR5Web/ 이라 --delete 가 여기 못 닿는다.
+# 지점은 **파일 하나**라 폴더가 없다 (`~/fr5-data/points.json` · 브리지가 스스로 만든다).
+# 빈 폴더를 만들어 두면 다음 사람이 거기를 뒤진다 — 대시보드를 한 달 묶어 둔 게 그 빈 폴더였다.
+ssh "$HOST" 'mkdir -p ~/fr5-data/trajectories ~/fr5-data/slots ~/fr5-data/history'
 ssh "$HOST" 'export XDG_RUNTIME_DIR=/run/user/$(id -u); systemctl --user restart fr5-bridge'
 for i in $(seq 1 20); do
   curl -sf -m 2 "http://$IP:5055/robots" >/dev/null && break

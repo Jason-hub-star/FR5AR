@@ -318,6 +318,13 @@ Unity `LiveFairinoClient.cs` 원본 대조**다 (evidence/2026-07-31/fr5-live-re
 | `MoveJ(JointPos, tool, user, vel(f), acc(f), 100f, ExaxisPos, 0f, (byte)0, DescPose)` | 11인자 — `fairino.JointPos/ExaxisPos/DescPose` 생성도 리플렉션 | 조그(작은 delta)·이동 |
 | `StopMotion()` | | 정지 |
 
+⚠ **파이썬 `MoveJ` 의 `blendT` 기본값 `-1.0` 은 "운동 완료까지 阻塞(블로킹)" 이다**
+(`Robot.py:1090` 원문). 이동이 끝날 때까지 xmlrpc 호출이 안 돌아오므로 **우리 `_guard` 의
+3초 상한이 정상 이동을 행으로 오인**해 스레드를 버리고, 버려진 스레드가 연결을 요청 보낸 채
+쥐어 이후 전부 `CannotSendRequest`(Request-sent)가 된다. 5° 조그는 3초 안에 끝나 안 보였고,
+**33° 이동에서 실기로 재현됐다** (2026-08-05). 그래서 `blendT=0.0`(논블로킹)으로 보낸다 —
+완료 판정은 20004 스트림의 `motionQueueLength`·`motionDone` 이 이미 하고 있다.
+
 **실측 추가 (2026-07-31 실기 전수 덤프)** —
 - `ROBOT_STATE_PKG` 는 **78필드**. `cmdPointError`·`strangePosFlag`·드래그티칭 필드는 **없다**
   → 드리프트는 `lastServoTarget` 자체 계산(#9 대안), 드래그티칭은 `IsInDragTeach(ref byte)` 메서드

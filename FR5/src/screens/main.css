@@ -118,6 +118,40 @@ table.joints, table.tcp { width: 100%; border-collapse: collapse; font-size: 13p
 .card th { text-align: left; font-weight: 500; color: var(--c-fg-mute); padding: 3px 0; }
 .card td { text-align: right; font-family: ui-monospace, monospace; padding: 3px 0; }
 
+/* Teach — 지점(점)과 궤적(선). 색은 D38 그대로: 안전 상태만 색을 쓰고 나머지는 중립 흑백 */
+.teach { height: 100%; overflow-y: auto; padding: var(--s-3);
+         display: flex; flex-direction: column; gap: var(--s-3); }
+.teach h3 { font-size: 13px; margin: 0 0 var(--s-2); color: var(--c-fg-dim); }
+.teach .twinbox { border: 1px solid var(--c-line); border-radius: var(--r-card); overflow: hidden; }
+.teach .twinbox .twin { height: 34dvh; }
+.teach .twinnote { margin: 0; padding: 6px var(--s-2); font-size: 12px;
+                   border-top: 1px solid var(--c-line); color: var(--c-fg-dim); }
+/* 실물이 아닐 때는 화면이 그렇게 말한다 — 미리보기를 실물로 오인하면 위치를 오판한다 */
+.teach .twinnote[data-live="false"] { background: var(--c-sunken); color: var(--c-fg); font-weight: 600; }
+.teach input[type="range"] { width: 100%; }
+.teach .row { display: flex; gap: var(--s-1); align-items: center; margin-bottom: var(--s-2); }
+.teach .row input[type="text"], .teach .row input:not([type]), .teach .row select {
+  flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--c-input);
+  border-radius: var(--r-ctl); background: var(--c-sunken); color: var(--c-fg); font: inherit; }
+.teach .row button, .teach .rowbtns button {
+  padding: 6px 12px; border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
+  background: var(--c-btn); color: var(--c-btn-fg); font-size: 12px; cursor: pointer; }
+.teach button:disabled { opacity: 0.45; cursor: default; }
+.teach table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.teach th { text-align: left; font-weight: 500; color: var(--c-fg-mute);
+            padding: 4px 6px; border-bottom: 1px solid var(--c-line); }
+.teach td { padding: 4px 6px; border-bottom: 1px solid var(--c-line); }
+.teach td.mono { font-family: ui-monospace, monospace; color: var(--c-fg-dim); }
+.teach tr[aria-selected="true"] { background: var(--c-sunken); }
+/* 조건이 어긋난 측정본 — 비교에서 빠진다 (D74). 위험색이 아니라 흐리게: 안전 문제가 아니다 */
+.teach tr[data-usable="false"] td { opacity: 0.55; }
+.teach .rowbtns { text-align: right; white-space: nowrap; }
+.teach .rowbtns button { margin-left: 4px; }
+.teach .empty, .teach .mm { font-size: 12px; color: var(--c-fg-mute); margin: var(--s-1) 0; }
+.teach .refusal { margin: var(--s-2) 0 0; padding: var(--s-2); font-size: 12px;
+                  background: var(--c-danger-soft); color: var(--c-danger);
+                  border-radius: var(--r-ctl); }
+
 @media (max-width: 760px) {   /* 폰 — 3D 위 / 값 아래 */
   .live { flex-direction: column; }
   .twin { min-height: 45dvh; }

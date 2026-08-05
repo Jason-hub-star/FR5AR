@@ -91,6 +91,34 @@ class RobotSession:
         self.lastStateAt = time.time()
         return state
 
+    def fresh_state(self):
+        """지금 읽고 **신선도까지** 본다 → `(state, reasons)`. 캐시된 마지막 값을 신선한
+        자세로 굳히지 않는다 (감사 P2). 실패는 fail-closed 로 넘긴다."""
+        if self.adapter is None:
+            return None, ["미연결 — 읽을 상태가 없다"]
+        try:
+            state = self.read_fresh_state()
+        except Exception as e:
+            self.fail_closed(f"상태 읽기 실패 — {e}")
+            return None, [f"상태 읽기 실패 — {e}"]
+        age = time.time() - self.lastStateAt
+        if age > safety.STATE_FRESH_S:
+            return None, [f"상태가 낡았다 — {age:.2f}s (상한 {safety.STATE_FRESH_S}s · 조건 10)"]
+        return state, []
+
+    def stamp(self, gripper_force_pct):
+        """**잰 조건.** 이게 없으면 속도 상한 10%로 잰 것과 30%로 잰 것을 나란히 놓게
+        되고 "A 가 B 보다 몇 % 빠르다" 가 거짓말이 된다 (D74 · 계약 §궤적 녹화)."""
+        v = self.version or {}
+        ws = self.workspace or {}
+        coord = (self.lastState or {}).get("coord") or {}
+        return {"robotId": (self.profile or {}).get("robotId"),
+                "toolId": coord.get("toolId", 0), "userId": coord.get("userId", 0),
+                "firmware": v.get("controller"),
+                "speedCapPct": safety.SPEED_CAP_PCT,
+                "gripperForcePct": gripper_force_pct,
+                "workspaceRev": ws.get("rev") or ("측정됨" if ws else None)}
+
     def snapshot(self, owner_who):
         """미연결에도 같은 스키마 — 클라이언트가 빈 응답을 따로 처리하지 않는다 (D40)."""
         base = {

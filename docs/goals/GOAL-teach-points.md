@@ -20,7 +20,8 @@ details in docs/goals/GOAL-teach-points.md
 3. 목록에서 고르면 **그 자세로 이동**한다 (기존 moveJ 게이트 그대로)
 4. **삭제는 참조가 없을 때만** — 참조 슬롯이 있으면 409 와 참조 목록을 돌려준다
 5. 좌표계·개체가 캡처 때와 다르면 **이동 전에 막고 사유를 보여준다**
-6. 데이터는 `~/fr5-data/points/` 에 남아 **배포·재부팅을 견딘다** (D45)
+6. 데이터는 `~/fr5-data/points.json` · `~/fr5-data/trajectories/` 에 남아
+   **배포·재부팅을 견딘다** (D45). 지점은 **파일 하나**다 (§5 천장)
 
 ## 2. Verification surface
 

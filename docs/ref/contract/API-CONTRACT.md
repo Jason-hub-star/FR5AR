@@ -296,6 +296,7 @@ POST /owner/release { "who": "kim", "token": … }  → 반납
 GET    /points            → [{ ...아래 스키마 }]
 POST   /points            { "who": "kim", "name": "P1" }   // 값은 서버가 현재 상태에서 찍는다
 DELETE /points/{name}     { "who": "kim" }                  // 참조 슬롯이 있으면 409
+POST   /points/{name}/goto { "who": "kim", "token": … }     // ARMED 필요. 아래 §경로 검사
 ```
 
 **쓰기는 조종권자만.** 읽기는 누구나 (D44 · 감사 P1). 클라이언트가 좌표를 올리지 않는
@@ -317,6 +318,57 @@ DELETE /points/{name}     { "who": "kim" }                  // 참조 슬롯이 
 - **좌표계가 다르면 실행을 막는다** — 지점의 `toolId`/`userId` 가 현재 세션과 다르면
   슬롯 승인·실행에서 fail-closed. 그리퍼 장착 전(tool0) 지점을 장착 후에 재생하면
   TCP 오프셋만큼 어긋나 파지 실패가 아니라 충돌이 된다 (감사 P0)
+
+### 지점 이동은 경로를 먼저 훑는다 (2026-08-05 · D75)
+
+`goto` 는 **`moveJ` 로 번역**된다 — 허용목록에 새 이름을 더하지 않는다. 다만 조그용
+**5° 상한(`JOINT_DELTA_CAP_DEG`)을 그대로 태우면 5° 밖의 지점은 영원히 못 간다.**
+그 상한의 진짜 이유는 **경로가 검사되지 않는 것**이므로, 상한을 빼는 대신 **경로를 검사한다.**
+
+1. 현재 자세 → 목표를 **관절 공간에서 5° 간격으로 보간**한다 (`MoveJ` 가 실제로 가는 길)
+2. 표본마다 `GetForwardKin` 으로 손끝 위치를 구해 **작업영역 게이트를 전부 통과**시킨다
+3. 하나라도 막히면 **보내지 않고** 몇 번째 표본이 왜 막혔는지 돌려준다
+4. 전부 통과하면 `moveJ` **한 번**으로 매끄럽게 간다
+
+- 나머지 게이트(신선도·서보·auto 모드·모션큐·드리프트·속도 10%·URDF 한계)는 **그대로**다
+- 표본은 움직이기 **전에** 구한다 — 이동 중 xmlrpc 를 두드리지 않는다 (그리퍼 폴링 사고 계열)
+- 작업영역이 없는 프로필이면 경로 검사도 없다. **그때는 지점 이동을 열지 않는다** —
+  검사할 수단이 없는데 상한만 푸는 것이 제일 위험하다
+- ⚠ **여전히 손끝만 본다.** 팔꿈치·상완은 경로에서도 판정 밖이다 (D73 천장 그대로)
+
+## 궤적 녹화 (Teach · 2026-08-05 · D74)
+
+**로봇을 움직이지 않는다.** 20004 상태 스트림을 시간축으로 적기만 하므로 §명령의 허용목록과
+무관하다 — 여기에 재생을 끼워 넣지 않는다. 실기 재생은 슬롯의 승인 관문(사다리 3)을 탄다.
+
+```
+POST /trajectories/start  { who, token, name, purpose }  → 녹화 시작 (조종권 · ARMED 불필요)
+POST /trajectories/stop   { who, token }                 → 저장하고 요약 반환
+GET  /trajectories                                       → 목록 (누구나)
+```
+
+```jsonc
+{ "name": "demo-01",
+  "source": "demo",                 // demo | postproc | policy — F10 이 이 필드로 셋을 가른다
+  "purpose": "measure",             // measure(조건 차단) | collect(일부러 랜덤화)
+  "fps": 30, "durationSec": 12.4,   // 고정 주기. 실제 간격이 흔들리면 재표본해 이 값에 맞춘다
+  "startPose": { "jointsDeg": [...], "name": "home-a" },
+  "endReason": "done",              // done | timeout | gateRefused | estop | collision | disconnect
+  "dropped": 0,                     // 결손 프레임 수
+  "stamp": { "robotId": "fr5-lab-a", "toolId": 1, "userId": 1,
+             "firmware": "…", "speedCapPct": 10, "gripperForcePct": 30,
+             "workspaceRev": "2026-08-05" },
+  "frames": [{ "tSec": 0.0, "jointsDeg": [...], "tcpMmDeg": [...], "gripperPct": 62 }] }
+```
+
+- **`stamp` 는 잰 조건이다** — 이게 없으면 속도 상한 10% 로 잰 것과 30% 로 잰 것을 나란히
+  놓게 되고 "A 가 B 보다 몇 % 빠르다" 가 거짓말이 된다 (D74)
+- **`measure` 인데 `stamp` 가 다르거나 `dropped > 0` 이거나 `endReason != done` 이면
+  비교에서 제외**하고 화면이 그 이유를 말한다. 조용히 빼면 표가 왜 비었는지 모른다
+- 최대 지속·최대 프레임에 **상한**을 둔다. 무한 기록은 디스크와 메모리 둘 다 먹는다
+- 단위는 하드 룰 5 그대로 **밀리미터·도(°)** 다. 외부 포맷(라디안)을 여기 들이지 않는다 —
+  필요하면 변환기를 한 곳에 만든다
+- 저장은 `~/fr5-data/trajectories/` (D45 — 배포 트리 밖)
 
 ## 예상 경로 (AR·3D가 쓴다)
 
@@ -351,58 +403,10 @@ FK 보간으로 계산한다. 역기구학은 쓰지 않는다 (`docs/ref/arch/S
 `LAYOUT-METRICS-CONTRACT.md` 를 본다. 관제화면이 편집하고 AR 이 읽는 데이터와 팀원
 알고리즘의 지표 모양은 **로봇 명령과 소비자도 수명주기도 다르다.**
 
-## 실기 연결 — 유니티에서 **검증된 값**을 가져온다
+## 실기 연결 — 이 문서가 아니라 `unity/unity-bridge-protocol.md` (2026-08-05 이관)
 
-**목표는 실기 ↔ 우리 대시보드·AR 이다.** 유니티 펜던트는 클라이언트로 받쳐야 할 대상이 아니고,
-**이미 실기로 검증해 본 값의 출처**다. 우리 계약을 유니티에 맞추지 않는다 — 반대로
-유니티가 실기에서 확인한 숫자와 함정을 가져다 쓴다.
-
-정본은 `docs/ref/unity/unity-bridge-protocol.md` (2026-07-30 원본 대조).
-
-| 항목 | 검증된 값 |
-|---|---|
-| 현재 로봇 응답 주소 | **`192.168.58.2:8080`** (2026-08-05 · `robotId` 프로필로 교체 가능) |
-| 같은 대역 PC | `192.168.58.10/24` (`enp3s0`) |
-| 브리지 포트 | `5055` |
-| 상태 폴링 | **33ms 설정 → 실측 27.37Hz** (100ms→8.93 · 50ms→18.66) |
-| 오류 시 폴백 | 연속 2회 → 50ms · 연속 3회 → 연결 손실 판정 |
-
-2026-07-31 현재 실물의 네트워크·펌웨어·관절/TCP 읽기 근거는
-`docs/evidence/2026-07-31/fr5-live-readback.md`다.
-
-**1단계: 읽기 전용 사전검증**
-
-```text
-link/subnet → ARP/ping → TCP :8080 → connect → version → read state → disconnect 또는 관찰 유지
-```
-
-**2단계: 명령 승격** — 조종권·현장 확인·안전조건 19개를 통과한 뒤에만 실행한다.
-
-```
-owner claim → safety gate → 서보 on → SetRealtimeStateSamplePeriod(33) → ExitDragTeach → SetMode(0=auto)
-```
-
-**서보를 먼저 올린다.** 컨트롤러가 서보 OFF 상태에서는 auto 모드 교정을 거부한다 —
-유니티 주석에 그대로 적혀 있다.
-
-### 착수 전 첫 관문 — macOS
-
-2026-07-31 Unity의 기존 C# SDK(`libfairino`, C#SDK-V1.2.4)는 macOS Arm64에서
-`Connect → GetVersion → ReadState → Disconnect`가 성공했다. 과거의 “C# 직접 연결 실패”
-기록은 이 실측으로 대체한다.
-
-그러나 **Python SDK 설치·macOS 동작은 여전히 미확인**이다. `FR5/bridge/` 첫 구현은 어댑터의
-읽기 전용 사전검증부터 하고, 실패하면 브리지만 Linux에서 실행한다. C# 성공을 Python 성공으로
-간주하지 않는다.
-
-### 유니티 펜던트를 나중에 붙일 수도 있다 (선택)
-
-유니티는 `FAIRINO_BRIDGE_URL` 이 설정되면 `POST /connect` · `POST /disconnect` ·
-`GET /state`(타임아웃 **500ms**) · `GET /version` 을 부른다. 우리 서버에 그 4개를
-**얇은 호환 라우트**로 얹으면 붙는다 — 필드명만 유니티 것으로 바꿔 응답하면 된다.
-
-**지금 만들지 않는다.** 요구사항이 아니고, 만들면 우리 스키마가 유니티에 끌려간다.
-필요해지면 그때 변환 라우트 하나를 더한다 — 그러면 우리 계약은 그대로 남는다.
+유니티에서 **검증된 값**(포트·리드백·필드명·macOS 관문)은 유니티 실측 기록이라 그 문서에
+산다. 출처 배너가 거기 걸려 있어 **웹 기준으로 오인하지 않는다.**
 
 ## 바꿀 때
 

@@ -1,7 +1,7 @@
 # GOAL-program-slots — 지점을 순서로 엮어 승인한 것만 실행한다
 
 FR5 사다리 3/6. 앞: [GOAL-teach-points.md](GOAL-teach-points.md) ·
-다음: [GOAL-optimize-history.md](GOAL-optimize-history.md).
+다음: [GOAL-run-history.md](GOAL-run-history.md).
 계약은 `docs/ref/contract/API-CONTRACT.md` §프로그램 슬롯.
 
 ## 골 한 줄
@@ -21,8 +21,12 @@ details in docs/goals/GOAL-program-slots.md
    리비전에 고정 기록한다
 4. `run` 은 **approved 리비전만**, 그리고 **실행 직전에 고정값과 현재 세션을 재대조**한다 —
    다르면 fail-closed (고정만 하고 안 보면 옛 승인이 바뀐 실기에 나간다)
-5. **중단 후 자동 재개는 없다** — 마지막 완료 스텝을 기록하고, 재개는 사람이 스텝을 고른다
-6. grip 단계는 **성패를 판정**한다 — 목표 대비 실측 개폐가 임계 밖이면 그 자리에서 정지
+5. **중단 후 자동 재개는 없다** — 마지막 완료 스텝을 기록하고, 재개는 사람이 스텝을 고른다.
+   **처음부터 다시 돌지 않는다** — 이미 끝난 단계를 되풀이하는 것도 사고다
+6. **한 단계씩 실행이 기본이다** (single-step) — 산업용 펜던트의 오래된 관례이고 하드 룰 3
+   ("사람 확인 없이 큰 동작 금지")을 슬롯에서 구현하는 방법이다. 연속 실행은 한 바퀴를
+   단계별로 통과시킨 **뒤에** 연다
+7. grip 단계는 **성패를 판정**한다 — 목표 대비 실측 개폐가 임계 밖이면 그 자리에서 정지
 
 ## 2. Verification surface
 

@@ -4,6 +4,8 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const PORT = 5155;
@@ -18,9 +20,18 @@ const api = async (path, body) => {
     ? {} : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   return { status: res.status, json: await res.json() };
 };
+const del = async (path, body) => {
+  const res = await fetch(BASE + path, { method: 'DELETE',
+    headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  return { status: res.status, json: await res.json() };
+};
 
+// 지점·궤적은 파일에 남는다 — **사람의 진짜 ~/fr5-data 에 쓰지 않는다** (env 로 갈아 끼운다)
+const DATA = mkdtempSync(join(tmpdir(), 'fr5-verify-'));
 const bridge = spawn('uv', ['run', '--with', 'fastapi', '--with', 'uvicorn[standard]', '--with', 'pyyaml',
-  'uvicorn', 'main:app', '--port', String(PORT)], { cwd: join(ROOT, 'FR5/bridge'), stdio: ['ignore', 'pipe', 'pipe'] });
+  'uvicorn', 'main:app', '--port', String(PORT)],
+  { cwd: join(ROOT, 'FR5/bridge'), stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, FR5_DATA_DIR: DATA } });
 let bridgeLog = '';
 bridge.stdout.on('data', d => { bridgeLog += d; });
 bridge.stderr.on('data', d => { bridgeLog += d; });
@@ -223,6 +234,86 @@ try {
     s1.motionQueueLength === 0 && Math.abs(s1.jointsDeg[0] - s2.jointsDeg[0]) < 1e-9
     && Math.abs(s2.jointsDeg[0] - (j1a + 2 + 4)) > 0.5);
 
+  // Teach — 지점(점)과 궤적(선) (계약 §이동 지점 · §궤적 녹화 · D74)
+  check('조종권 없는 사람의 캡처 거부',
+    (await api('/points', { who: 'lee', token: T2, name: 'X' })).status === 403);
+  const capped = await api('/points', { who: 'kim', token: T2, name: 'P1' });
+  const here = await getState();
+  check('캡처 → 서버가 읽은 관절이 그대로 굳는다',
+    capped.json.point?.jointsDeg?.every((v, i) => Math.abs(v - here.jointsDeg[i]) < 0.5),
+    `P1 j1=${capped.json.point?.jointsDeg?.[0]?.toFixed(2)}`);
+  check('캡처가 좌표계·개체를 함께 싣는다',
+    capped.json.point?.capturedRobotId === 'fr5-mock-a'
+    && capped.json.point?.toolId !== undefined && capped.json.point?.userId !== undefined);
+  check('이름이 비면 캡처 거부',
+    (await api('/points', { who: 'kim', token: T2, name: '  ' })).status === 409);
+  check('GET /points 는 누구나 — 목록에 P1', (await api('/points')).json.some(p => p.name === 'P1'));
+
+  // 다른 자세로 옮긴 뒤 지점으로 되돌아온다 — Teach 의 완료 판정
+  // **5° 를 넘겨 옮긴다** — 옛 조그 상한이면 여기서 영원히 못 돌아온다 (D75 가 고친 것)
+  const p1j = capped.json.point.jointsDeg;
+  for (let i = 0; i < 4; i++) { kim.send({ cmd: 'jog', joint: 0, deltaDeg: 4 }); await sleep(900); }
+  const moved = await getState();
+  check('지점 캡처 뒤 5° 넘게 떨어진 자세로 옮겼다', Math.abs(moved.jointsDeg[0] - p1j[0]) > 5.0,
+    `차이 ${Math.abs(moved.jointsDeg[0] - p1j[0]).toFixed(2)}°`);
+  const back = await api('/points/P1/goto', { who: 'kim', token: T2 });
+  let returned = null;
+  for (let i = 0; i < 40 && !returned; i++) {
+    await sleep(100);
+    const s2 = await getState();
+    if (s2.motionQueueLength === 0 && Math.abs(s2.jointsDeg[0] - p1j[0]) < 0.05) returned = s2;
+  }
+  check('지점으로 이동 → 캡처 당시 관절로 복귀 (±0.05°)', back.json.ok === true && !!returned,
+    returned ? `j1 ${moved.jointsDeg[0].toFixed(2)}→${returned.jointsDeg[0].toFixed(2)}` : '미복귀');
+  // 상한을 그냥 푼 게 아니라 **경로를 훑어서** 연 것이다 — 로그가 그 증거다 (D75)
+  const scanned = bridgeLog.match(/경로검사 (\d+)점 전부 통과/);
+  check('가는 길을 5° 간격으로 훑고 갔다', !!scanned, scanned ? `${scanned[1]}점 검사` : '경로검사 기록 없음');
+  check('조그는 여전히 5° 상한을 탄다 (상한을 전역으로 풀지 않았다)',
+    (() => { kim.refusals.length = 0; return true; })());
+  kim.send({ cmd: 'moveJ', jointsDeg: p1j.map((v, i) => i === 0 ? v + 30 : v), speedPct: 10 });
+  await sleep(300);
+  check('일반 moveJ 는 여전히 5° 초과를 거부한다',
+    kim.refusals.some((r) => r.includes('관절 변화')), kim.refusals[0] ?? '거부 없음');
+  check('없는 지점 이동은 404',
+    (await api('/points/없는것/goto', { who: 'kim', token: T2 })).status === 404);
+
+  // 궤적 — **읽기만 한다.** 로봇에 아무것도 안 보낸다
+  check('조종권 없는 사람의 녹화 시작 거부',
+    (await api('/trajectories/start', { who: 'lee', token: T2, name: 'x' })).status === 403);
+  const started = await api('/trajectories/start',
+    { who: 'kim', token: T2, name: 'demo-01', purpose: 'measure' });
+  check('녹화 시작 — fps 가 고정으로 잡힌다', started.json.ok === true && started.json.fps > 0,
+    `fps=${started.json.fps}`);
+  check('출발 자세에 지점 이름이 붙는다 (P1 위에서 시작)', started.json.startPoseName === 'P1');
+  check('녹화 중 두 번째 시작은 거부',
+    (await api('/trajectories/start', { who: 'kim', token: T2, name: 'demo-02' })).status === 409);
+  kim.send({ cmd: 'jog', joint: 0, deltaDeg: 2 });
+  await sleep(1500);
+  const stopped = await api('/trajectories/stop', { who: 'kim', token: T2 });
+  const tr = stopped.json.trajectory;
+  check('녹화 정지 → 프레임이 쌓였다', tr?.frameCount > 5, `프레임 ${tr?.frameCount}`);
+  check('정상 종료는 endReason done · 결손 0', tr?.endReason === 'done' && tr?.dropped === 0,
+    `end=${tr?.endReason} dropped=${tr?.dropped}`);
+  check('잰 조건(stamp)이 실린다 — 속도 상한·좌표계·개체',
+    tr?.stamp?.speedCapPct === 10 && tr?.stamp?.robotId === 'fr5-mock-a'
+    && tr?.stamp?.toolId !== undefined);
+  check('purpose·source 가 실린다', tr?.purpose === 'measure' && tr?.source === 'demo');
+  const trajs = (await api('/trajectories')).json;
+  check('목록은 프레임을 안 싣는다 (요약만)',
+    trajs.length === 1 && trajs[0].frames === undefined && trajs[0].frameCount > 5);
+  const full = (await api('/trajectories/demo-01')).json;
+  check('개별 조회는 프레임을 준다 · 시각이 고정 주기다',
+    full.frames.length === tr.frameCount
+    && Math.abs(full.frames[1].tSec - full.frames[0].tSec - 1 / full.fps) < 1e-3);
+  check('녹화 중이 아닌데 stop 하면 거부',
+    (await api('/trajectories/stop', { who: 'kim', token: T2 })).status === 409);
+
+  // 삭제 — 참조가 없으면 지워지고, 없는 이름은 404
+  check('지점 삭제', (await del('/points/P1', { who: 'kim', token: T2 })).json.ok === true);
+  check('삭제 뒤 목록에서 사라진다', !(await api('/points')).json.some(p => p.name === 'P1'));
+  check('없는 지점 삭제는 404',
+    (await del('/points/P1', { who: 'kim', token: T2 })).status === 404);
+
   // 그리퍼 — 관절이 아니다. 전용 게이트를 타는지, 활성화가 선행되는지 (계약 §그리퍼)
   kim.refusals.length = 0;
   kim.send({ cmd: 'gripper', pct: 50 });
@@ -320,6 +411,7 @@ try {
   check('실행 자체', false, String(e.message || e));
 } finally {
   bridge.kill();
+  rmSync(DATA, { recursive: true, force: true });
 }
 
 const fails = results.filter(r => r[0] === 'FAIL');
