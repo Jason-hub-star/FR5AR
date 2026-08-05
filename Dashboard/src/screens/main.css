@@ -81,9 +81,18 @@ main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column
                       border: 0; font-size: 13px; line-height: 1.5; cursor: pointer; }
 
 /* 고른 것 — 화면 위에 얹는다. 3D 를 가리지 않게 좌상단 한 줄 */
-.view3d-pick { position: absolute; left: var(--s-4); top: var(--s-3); display: flex; gap: var(--s-3);
+/* 왼쪽 위 통 — **재생 막대와 선택 패널이 위아래로 흐른다.**
+ * 전에는 둘 다 `left: s-4; top: s-3` 이라 그대로 포개졌다. 좌표를 손으로 더해 떼어 놓으면
+ * 막대 높이가 바뀔 때(폰에서 여러 줄로 접힌다) 다시 겹친다 — 그래서 흐름에 맡긴다. */
+.view3d-topleft { position: absolute; left: var(--s-4); top: var(--s-3);
+                  display: flex; flex-direction: column; align-items: flex-start;
+                  gap: var(--s-2); max-width: calc(100% - 2 * var(--s-4));
+                  pointer-events: none; }
+.view3d-topleft > * { pointer-events: auto; }
+.view3d-pick { position: static; display: flex; gap: var(--s-3);
                align-items: baseline; padding: 6px 12px; background: var(--c-panel);
-               border: 1px solid var(--c-info); border-radius: var(--r-ctl); font-size: 12px; }
+               border: 1px solid var(--c-info); border-radius: var(--r-ctl); font-size: 12px;
+               flex-wrap: wrap; }
 .view3d-pick .dim { color: var(--c-fg-mute); }
 
 /* 숫자칸 — **끌기로는 100mm 격자 사이 값을 못 넣는다.** 여기서 정확히 넣는다 */
@@ -101,6 +110,8 @@ main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column
           border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
           font-size: 12px; cursor: pointer; }
 .unsaved, .saved { padding: 3px 8px; border-radius: 99px; font-size: 11px; white-space: nowrap; }
+/* 파일 고르기를 버튼처럼 — `<input type=file>` 은 모양을 못 맞춘다 */
+.revert.as-btn { display: inline-flex; align-items: center; cursor: pointer; }
 .unsaved { background: #f0b86222; color: var(--c-warn); }
 .saved   { background: #7fd6a222; color: var(--c-ok); }
 
@@ -110,6 +121,108 @@ main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column
                        border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
                        font-size: 12px; cursor: pointer; }
 .view3d-tools button:disabled { opacity: .45; cursor: default; }
+
+/* 재생 막대 — 왼쪽 위. **한 사이클 = 1발 조립** (D63). 
+ * 안내·선택 패널이 아래를 쓰고 시점 버튼이 오른쪽 위라, 남은 자리가 여기다. */
+/* **자리는 `.view3d-topleft` 통이 잡는다** — 여기서 좌표를 잡으면 선택 패널과 또 포개진다 */
+.view3d-play { position: static; display: flex;
+               align-items: center; gap: var(--s-2); padding: 5px 10px;
+               background: var(--c-overlay); border: 1px solid var(--c-line);
+               border-radius: var(--r-ctl); font-size: 12px; max-width: 100%; }
+.view3d-play button { padding: 4px 9px; background: var(--c-panel); color: var(--c-fg-dim);
+                      border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
+                      font-size: 12px; cursor: pointer; }
+.view3d-play button:disabled { opacity: .45; cursor: default; }
+.view3d-play input[type="range"] { width: 190px; accent-color: var(--c-fg-dim); }
+.play-now { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.play-now b { font-weight: 600; }
+.play-now.mute { color: var(--c-fg-mute); }
+/* 재생 막대의 배지는 머리글처럼 오른쪽 끝으로 밀지 않는다 — 막대가 폭을 다 먹는다 */
+.view3d-play .source { margin-left: 0; }
+.view3d-play button.on { background: var(--c-fg-dim); color: var(--c-panel); }
+
+/* ── 타임라인 ──────────────────────────────────────────────────────────────
+ * **아래에 붙인다.** 3D 위에 겹치면 방을 가리고, 왼쪽에 두면 폭이 모자라 마커가 겹친다.
+ * 49초에 사건 13개 → 전폭이라야 마커 사이가 손가락 목표(44px)에 가까워진다. */
+.timeline { position: absolute; left: 0; right: 0; bottom: 0; height: 84px;
+            display: flex; flex-direction: column; gap: 3px; padding: 6px 12px 8px;
+            background: var(--c-overlay); border-top: 1px solid var(--c-line);
+            font-size: 12px; }
+.tl-head { display: flex; align-items: center; gap: var(--s-2); }
+.tl-head button { padding: 3px 8px; background: var(--c-panel); color: var(--c-fg-dim);
+                  border: 1px solid var(--c-line-strong); border-radius: var(--r-ctl);
+                  font-size: 11px; cursor: pointer; }
+.tl-head button:disabled { opacity: .45; cursor: default; }
+.tl-pick { max-width: 200px; }
+.tl-hint { margin-left: auto; color: var(--c-fg-mute); font-size: 11px; }
+
+.tl-ticks { position: relative; height: 11px; color: var(--c-fg-mute); font-size: 10px;
+            font-variant-numeric: tabular-nums; }
+.tl-ticks span { position: absolute; transform: translateX(-50%); }
+.tl-ticks .end { transform: translateX(-100%); }
+
+/* 눈금과 마커가 **같은 좌표계**를 쓴다 — 둘이 어긋나면 "24초라 적힌 것이 26초에 있다" 가 된다 */
+.tl-track { position: relative; flex: 1; min-height: 34px;
+            background: var(--c-panel); border: 1px solid var(--c-line);
+            border-radius: var(--r-ctl); }
+.tl-cursor { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+             background: var(--c-fg-dim); pointer-events: none; }
+
+/* 마커. **끄는 물건이라 손가락 목표를 확보한다** — 폭 22px + 세로 전체 */
+.tl-mark { position: absolute; top: 0; bottom: 0; width: 22px; margin-left: -11px;
+           display: flex; flex-direction: column; align-items: center; justify-content: center;
+           gap: 1px; padding: 0; background: transparent; border: 0; cursor: ew-resize;
+           font-size: 9px; line-height: 1; color: var(--c-fg-mute); touch-action: none; }
+.tl-mark::before { content: ''; position: absolute; top: 2px; bottom: 2px; width: 3px;
+                   border-radius: 2px; background: var(--c-line-strong); }
+.tl-mark:hover::before, .tl-mark:focus-visible::before { background: var(--c-fg-dim); }
+.tl-mark b { position: relative; font-variant-numeric: tabular-nums; color: var(--c-fg-dim); }
+/* 사건 이름은 **가로로 눕히면 서로 겹친다** — 세로로 세워 마커 폭 안에 가둔다 */
+.tl-mark span { position: relative; writing-mode: vertical-rl; max-height: 15px;
+                overflow: hidden; }
+
+.ev-menu { width: 182px; }
+.ev-menu label { display: flex; align-items: center; justify-content: space-between;
+                 gap: var(--s-2); padding: 2px 0; font-size: 11px; color: var(--c-fg-mute); }
+.ev-menu label input, .ev-menu label select { width: 96px; font-size: 11px; }
+.ev-menu hr { margin: 4px 0; border: 0; border-top: 1px solid var(--c-line); }
+.ev-menu { width: 210px; }
+.ev-menu label input[type="text"] { width: 96px; }
+/* 자세는 **두 벌**이다 — 구간 시작과 끝. 한 줄에 나란히 둔다 */
+.ev-menu .pose-pair { display: grid; grid-template-columns: 44px 1fr 1fr; gap: 3px; }
+.ev-menu .pose-pair select { width: 100%; }
+
+/* ── 자세 패널. **3D 오른쪽 위** — 왼쪽은 팔레트, 아래는 타임라인이 이미 쓴다 */
+.pose-edit { position: absolute; right: var(--s-3); top: calc(var(--s-3) + 40px);
+             width: 216px; display: flex; flex-direction: column; gap: 3px;
+             padding: 8px 10px; background: var(--c-overlay);
+             border: 1px solid var(--c-line); border-radius: var(--r-ctl); font-size: 12px; }
+.pose-edit label { display: grid; grid-template-columns: 20px 1fr 42px; align-items: center;
+                   gap: var(--s-2); color: var(--c-fg-mute); font-size: 11px; }
+.pose-edit label input { width: 100%; accent-color: var(--c-fg-dim); }
+.pose-edit label span { text-align: right; font-variant-numeric: tabular-nums; color: var(--c-fg-dim); }
+.pose-edit .warn { color: var(--c-warn, #b4541c); font-size: 11px; }
+.pose-edit .dim { color: var(--c-fg-mute); font-size: 11px; }
+.pose-act { display: flex; gap: var(--s-2); }
+.pose-act button { flex: 1; }
+.pose-edit button { margin-top: 3px; padding: 4px 9px; background: var(--c-panel);
+                    color: var(--c-fg-dim); border: 1px solid var(--c-line-strong);
+                    border-radius: var(--r-ctl); font-size: 12px; cursor: pointer; }
+.view3d-pick button.on { background: var(--c-fg-dim); color: var(--c-panel); }
+
+@media (max-width: 820px) {
+  /* 폰 — 오른쪽 위는 시점 버튼이 쓴다. **아래에서 위로** 띄우고 폭을 다 준다.
+   *
+   * **관절 칸을 두 줄로 접는다.** 세로로 6칸을 세우면 패널이 280px 이 되어 3D 를 거의 다
+   * 덮는다 — 돌릴 로봇이 안 보이는 채로 링을 잡으라는 화면이 된다 (2026-08-04 폰 폭에서 확인).
+   * 높이도 잘라 둔다: 넘치면 패널 안에서 스크롤한다. */
+  .pose-edit { right: var(--s-2); left: var(--s-2); top: auto; bottom: calc(var(--s-2) + 112px);
+               width: auto; max-height: 34vh; overflow: auto;
+               display: grid; grid-template-columns: 1fr 1fr; gap: 2px var(--s-2); }
+  .pose-edit > b, .pose-edit .warn, .pose-edit .pose-act,
+  .pose-edit .pose-pair, .pose-edit > .dim { grid-column: 1 / -1; }
+  .pose-edit label { grid-template-columns: 18px 1fr 34px; }
+}
 
 /* ── 폰 ────────────────────────────────────────────────────────────────────
  * 3D 가 메인이므로 **높이를 3D 에 몰아준다.** 머리글·숫자줄을 얇게 만들고
@@ -126,9 +239,31 @@ main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column
   .seg button, .revert, .view3d-tools button { padding: 8px 10px; }
   .view3d-tools, .view3d-pick, .view3d-hint { left: var(--s-2); right: var(--s-2); }
   .view3d-tools { justify-content: flex-end; left: auto; }
+  /* 시점 버튼과 같은 줄에 두면 겹친다 — **한 줄 아래로 내리고 폭을 다 준다** */
+  .view3d-topleft { left: var(--s-2); right: var(--s-2); top: calc(var(--s-3) + 40px);
+                    max-width: none; }
+  .view3d-play { flex-wrap: wrap; width: 100%; }
+  .view3d-pick { width: 100%; }
+  .view3d-play input[type="range"] { flex: 1 1 120px; width: auto; }
+  /* **폰에서는 더 높인다.** 마커 폭이 좁아지므로 세로로라도 잡을 곳을 준다.
+   * 안내 문구는 숨긴다 — 한 줄이 두 줄로 접히면 타임라인이 3D 를 40px 더 먹는다 */
+  .timeline { height: 104px; padding: 6px 8px 8px; }
+  .tl-hint { display: none; }
+  .tl-pick { max-width: 120px; }
+  .tl-mark { width: 26px; margin-left: -13px; }
   /* **선택 패널을 아래로 내린다.** 위에 두면 폭이 좁아 시점·회전 버튼을 덮는다
    * (실렌더 확인). 안내와 자리가 같지만 둘은 동시에 안 뜬다 — LayoutView 참조 */
-  .view3d-pick { top: auto; bottom: var(--s-2); flex-wrap: wrap; gap: var(--s-2); }
+  /* 선택 패널 자리는 **왼쪽 위 통**이 잡는다 — 아래로 내리면 타임라인과 싸운다.
+   *
+   * **자세 편집 중에는 접는다.** 폰은 세로가 모자라 재생 막대·선택 패널·자세 패널·타임라인이
+   * 한 화면에 다 못 선다(실측: 757px 중 넷이 269~705 를 다투었다). 둘은 같은 물건 얘기라
+   * 자세 패널이 이미 팔 이름을 들고 있고, 나가는 버튼도 그 안에 있다.
+   *
+   * **재생 막대도 같이 접는다.** 재생과 자세 편집은 같은 관절을 써서 이미 배타다 —
+   * 재생을 켜면 자세가 꺼진다. 못 쓰는 막대가 3D 를 124px 가리는 것이 손해다.
+   * 데스크톱은 자리가 있어 안 접는다 — 시각을 감아 놓고 그 자세를 만드는 것이 본래 흐름이다. */
+  .view3d:has([data-t="pose-edit"]) .view3d-pick,
+  .view3d:has([data-t="pose-edit"]) .view3d-play { display: none; }
   .view3d-hint { bottom: var(--s-2); }
   .facts { padding: var(--s-2) var(--s-3); gap: 2px var(--s-3); font-size: 11px; }
 }
@@ -158,6 +293,7 @@ main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column
 .part-card:hover { border-color: var(--c-fg); }
 .part-card:active { background: var(--c-fg); color: var(--c-bg); }
 .part-name { font-size: 12.5px; }
+.palette-note { margin: 0 0 var(--s-1); color: var(--c-fg-mute); font-size: 11px; line-height: 1.45; }
 .part-badge { float: right; font-size: 10px; padding: 1px 5px; color: var(--c-fg-mute);
               border: 1px solid var(--c-line); border-radius: 2px; }
 .part-hint { display: block; margin-top: 2px; font-size: 10.5px; line-height: 1.4; color: var(--c-fg-mute); }

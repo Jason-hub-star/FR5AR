@@ -9,7 +9,18 @@ let lastSnapshot = null;
 let reconnects = -1;               // 첫 접속은 재연결이 아니다
 let who = null;
 let sentWho = null;
-let ownerToken = null;    // claim 이 발급한다. 조종권을 증명하는 것은 이름이 아니라 이것 (D55)
+// claim 이 발급한다. 조종권을 증명하는 것은 이름이 아니라 이것 (D55).
+// **탭 저장소에 남긴다** — 메모리에만 두면 새로고침 한 번에 자기 조종권에서 잠긴다.
+// 화면은 owner 이름만 보고 "내 것"이라 판단하는데 토큰이 없어 반납도 안 됐다 (2026-08-04 실측).
+const TOKEN_KEY = 'fr5.ownerToken';
+const store = (() => { try { return window.sessionStorage; } catch { return null; } })();
+let ownerToken = store?.getItem(TOKEN_KEY) || null;
+
+function setToken(v) {
+  ownerToken = v || null;
+  if (ownerToken) store?.setItem(TOKEN_KEY, ownerToken);
+  else store?.removeItem(TOKEN_KEY);
+}
 
 function ensureWs() {
   if (ws && ws.readyState <= WebSocket.OPEN) return;
@@ -74,19 +85,22 @@ export const datasource = {
   disconnect: (w) => api('POST', '/disconnect', { who: w, token: ownerToken }),  // 주인만 끊는다
 
   // 조종권은 이름이 아니라 토큰이 증명한다 (D55). 토큰은 이 모듈만 들고 화면은 모른다
+  hasOwnerToken: () => ownerToken !== null,   // 이름만으로 "내 것"이라 하지 않는다
   claimOwner: async (w) => {
     const res = await api('POST', '/owner/claim', { who: w });
-    if (res?.token) ownerToken = res.token;
+    if (res?.token) setToken(res.token);      // 같은 이름의 재claim 도 새 토큰을 준다 (owner.py)
     return res;
   },
   releaseOwner: async (w) => {
     const res = await api('POST', '/owner/release', { who: w, token: ownerToken });
-    if (res?.ok !== false) ownerToken = null;
+    if (res?.ok !== false) setToken(null);
     return res;
   },
   arm: (w) => api('POST', '/arm', { who: w, token: ownerToken, confirm: '현장확인' }),
   disarm: (w) => api('POST', '/disarm', { who: w, token: ownerToken }),
 
   jog: (joint, deltaDeg) => sendCmd({ cmd: 'jog', joint, deltaDeg }),
+  gripper: (pct) => sendCmd({ cmd: 'gripper', pct }),
+  gripperActivate: () => sendCmd({ cmd: 'gripperActivate' }),
   stop: () => sendCmd({ cmd: 'stop' }),          // 신원·조종권 없어도 항상 통과 (계약)
 };

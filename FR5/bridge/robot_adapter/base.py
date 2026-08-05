@@ -69,3 +69,14 @@ class RobotAdapter:
     def stop(self) -> None:
         """항상 성공해야 한다. 예외를 던지면 브리지가 fail-closed 로 기록한다."""
         raise NotImplementedError
+
+    # ── 그리퍼 — 관절이 아니다. 전용 게이트를 탄다 (API-CONTRACT §그리퍼) ────
+    def gripper_activate(self) -> None:
+        """ActGripper(index, 1). **손가락이 실제로 움직인다** — 원점을 잡는 물리 동작이다.
+        그래서 ARM 시퀀스에 넣지 않고 사람이 화면에서 따로 부른다 (D65)."""
+        raise NotImplementedError
+
+    def gripper_move(self, pct: float, vel_pct: float, force_pct: float) -> None:
+        """MoveGripper — pct 는 **지령 기준** 0~100. 읽기값과 방향이 반대라
+        변환은 여기 경계 안에서만 한다 (하드 룰 5). 상한 검사는 브리지가 이미 끝냈다."""
+        raise NotImplementedError

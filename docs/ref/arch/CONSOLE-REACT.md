@@ -105,6 +105,8 @@ Dashboard/
 
 Shared/                        ← 여기를 고치면 AR 도 같이 확인한다
   model/layout/                배치안 모델 (SSOT)
+  data/scenario/               시나리오(시간축) 모델 — 사건은 **이름만** 든다
+  data/motion/                 자세표 — 화면에 박지 않는다
   data/datasource/            지표·배치안을 어디서 가져오나 — mock.js → http.js
   view3d/{robot,trajectory,safety}/   바닐라 three 공용
 ```

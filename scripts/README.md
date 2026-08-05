@@ -10,12 +10,14 @@ scripts/
 ├── README.md
 ├── check/                      검증 게이트 — 실패하면 exit 1
 │   ├── all.sh                    아래 전부를 순서대로 실행 (진입점)
-│   ├── harness.sh                커맨드 8 · 스킬 18 · 훅 2 · settings 연결
+│   ├── harness.sh                커맨드 0 · 스킬 16 · 훅 2 · settings 연결
 │   ├── docs.sh                   필수 문서 · INDEX 등재 · 깨진 링크 · Unity 배너
 │   ├── assets.sh                 URDF·메시 존재와 삼각형 수
 │   ├── consts.sh                 기준값 표 ↔ 실제 상수 대조 (드리프트)
 │   ├── docs-weight.sh            문서 무게 — 쌓이는 것만 재서 임계 초과 시 알린다
 │   ├── fr5-unit.sh               FR5 브리지 단위 테스트 (safety.py 순수 함수 · unittest)
+│   ├── motion.sh                 자세 — 이름 정합 · NaN · j1 각속도 상한 · 화면에 안 박혔나
+│   ├── scenario.sh               시나리오 — 왕복 · 사건 칸(좌표·관절 금지) · 프리셋 재생
 │   └── cam-web-verify.mjs        글로벌 카메라 겹치기 실렌더 — 사진 재검출 ↔ 투영 픽셀 대조
 ├── build/                      설정·산출물 생성
 │   └── config.mjs                .env → Shared/data/config/*.json (검증 포함)
@@ -119,16 +121,19 @@ node scripts/build/config.mjs --check  # 쓰지 않고 대조만 (게이트가 �
 | `check/assets.sh` | `WANT_ARM_TRIS` `WANT_GRIP_TRIS` | 58482 / 70102 | 유니티 원본 모델이 바뀔 때 |
 | `check/docs.sh` | `REQUIRED` 배열 | 15개 | SSOT 문서를 추가·삭제할 때 |
 | `check/fr5-unit.sh` | 상수 없음 — 테스트가 스스로 기준 | 29 케이스 | `safety.py` 조건을 더하면 테스트도 더한다 |
+| `check/motion.sh` | 상수 없음 — `Shared/data/motion/presets.js`·`limits.js` 가 기준 | 자세 10개 · 관절 한계 6쌍(URDF 대조) | 자세를 더하거나 URDF 가 바뀔 때 |
+| `check/scenario.sh` | 상수 없음 — `Shared/data/scenario/presets.js` 가 기준 | 사건 13개 · 49초 · 거부 10종 | 시나리오 프리셋을 더하거나 사건 칸을 늘릴 때 |
 | `assets/make-marker-sheet.py` | `SHEETS` · `QUIET_RATIO_MIN` | A4 170/14mm · A3 240/20mm · 하한 6% | 마커 크기·용지를 바꿀 때 |
 | `map/make-tags.py` | `SHEETS` · `QUIET_RATIO` · `TAG_IDS` | A4 160mm · 1/8 · id 0~4 | 태그 크기·용지를 바꿀 때 |
 | `map/aim.py` | `SAFE` · `RISKY` | 5.0 · 3.0 px/칸 | 검출 한계 실측이 갱신될 때 |
 | `build/config.mjs` | `AVAILABLE_BARCODES` | 2 · 3 · 5 | 바코드 원본을 더 받거나 지울 때 |
 | `check/docs-weight.sh` | `CAP_ENTRY_*` `CAP_STATUS_*` | 80/110 · 120/160 | 진입 문서 상한을 바꿀 때 |
 | `check/docs-weight.sh` | `CAP_DOC_*` `CAP_INDEX_*` | 300/450 · 45/60 | 개별 문서·INDEX 행 상한 |
-| `check/docs-weight.sh` | `CAP_EVID_*` `CAP_RND_*` `CAP_TOTAL_*` | **8/14** · 5/8 · 9000/13000 | 폴더 개수·총량 상한 |
+| `check/docs-weight.sh` | `CAP_EVID_*` `CAP_RND_*` `CAP_TOTAL_*` | **8/14** · 5/8 · 9000/13000 | 폴더 개수·총량 상한. **총량은 `evidence/`·`archive/` 를 뺀 "읽는 문서"만 센다** (D71) |
+| `check/docs-weight.sh` | `CAP_EVTOT_*` | 6000/12000 | `docs/evidence/**.md` 전용 총량 (2026-08-05 신설 · D71) |
 | `check/docs-weight.sh` | `STALE_DAYS` | 30 | 방치 판정. 템플릿은 7일이나 세션 간격이 길어 늘렸다 |
 | `check/docs-weight.sh` | `CAP_DECLOG_*` | 1200/없음 | **DECISION-LOG 전용.** 덧붙이기 전용 문서라 줄수는 경고만 — 하드 판정은 목차 대조가 한다 (2026-08-04) |
-| `check/docs-weight.sh` | `CAP_FOLDER_MD` | 15 | 폴더별 `CLAUDE.md` 상한. 넘으면 SSOT 로 옮긴다 |
+| `check/docs-weight.sh` | `CAP_FOLDER_MD` | 25 | 폴더별 `AGENTS.md` 상한. 표가 `15`·`CLAUDE.md` 로 낡아 있어 정정 (2026-08-05) |
 
 `make-marker-sheet.py`는 **자기 출력을 픽셀로 검사한다.** quiet zone 안에 검은 잉크가
 있거나 캡션이 용지를 넘치면 파일을 만들지 않고 실패한다. 배치표를 바꿀 때 그 검사가 문지기다.

@@ -220,7 +220,9 @@ export function createInteraction({
   function fitOf(node) {
     let f = fits.get(node);
     if (!f) {
-      _box.setFromObject(node);
+      // **발자국을 대신 재는 자식**을 지정할 수 있다. 팔이 그 경우다 — 도달 링(1.8m)과
+      // URDF 까지 재면 선택 윤곽이 방만 해진다. 베이스 판만 재면 실제 점유 면적이 나온다.
+      _box.setFromObject(node.userData?.fitFrom ?? node);
       _box.getCenter(_c); _box.getSize(_s);
       node.getWorldPosition(_w);
       f = {
@@ -530,6 +532,22 @@ export function createInteraction({
   return {
     /** 끄는 중에는 궤도를 막아야 한다 — 화면 쪽에서 이 값을 보고 controls 를 끈다 */
     isDragging: () => Boolean(dragging),
+    /**
+     * 화면 좌표 → **바닥의 배치안 좌표(mm)**. 팔레트에서 끌어다 놓을 때 쓴다.
+     *
+     * 끌기가 쓰는 **같은 평면·같은 레이**를 쓴다 — 변환을 또 만들면 놓는 자리와
+     * 끄는 자리가 미묘하게 어긋난다 (하드 룰 5). 격자에도 같이 붙인다.
+     * 바닥을 안 맞으면(하늘을 가리키면) `null` 이다.
+     */
+    floorAtMm(clientX, clientY) {
+      const r = renderer.domElement.getBoundingClientRect();
+      ptr.x = ((clientX - r.left) / r.width) * 2 - 1;
+      ptr.y = -((clientY - r.top) / r.height) * 2 + 1;
+      ray.setFromCamera(ptr, camera);
+      if (!ray.ray.intersectPlane(floor, hit)) return null;
+      const snap = (v) => Math.round((v * 1000) / gridMm) * gridMm;
+      return [snap(hit.x), snap(-hit.z)];      // 씬 z → 평면도 y (부호가 뒤집힌다)
+    },
     rotate,
     /** 지금 고른 것들의 id — 삭제·복제가 이걸 쓴다. */
     selectedIds: () => [...group].map((n) => n.userData.item.id),

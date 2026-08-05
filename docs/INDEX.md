@@ -13,7 +13,8 @@
 | `docs/ref/product/USER-REQUIREMENTS.md` | 사용자 요구정의서 — 페르소나 6 · UR 25 · SR 26 · 화면 14 | SSOT | **무엇을 만들지 정할 때 제일 먼저** |
 | `docs/ref/product/FEATURE-SPEC.md` | 기능 F1~F9의 ID·우선순위·폴더·의존 관계 | SSOT | 무엇부터 만들지 정할 때 |
 | `docs/ref/arch/ARCHITECTURE.md` | **역할 분담(우리=시각화)** · 확장성 경계 · 폴더 구조 · 좌표계 · UI 토큰 규약 | SSOT | 구조·폴더·공용 디자인을 바꿀 때 |
-| `docs/ref/arch/STACK.md` | 확정 기술과 버전 · 그리퍼 · **뎁스카메라 D435·Min-Z** · 함정 | SSOT | 라이브러리·부품을 고를 때 |
+| `docs/ref/arch/STACK.md` | 확정 기술과 버전 · 그리퍼 · 함정 | SSOT | 라이브러리·부품을 고를 때 |
+| `docs/ref/arch/DEPTH-CAM.md` | 손목 D435 — 장착 기하·화각 실측·Min-Z·유효 비율·USB | SSOT | 깊이가 안 나오거나 해상도를 고를 때 |
 | `docs/ref/arch/AR-MARKER.md` | AR 마커 방식·번호·인쇄 규격·검출 실측(대비>크기) | SSOT | 마커를 인쇄하거나 검출이 안 될 때 |
 | `docs/ref/contract/API-CONTRACT.md` | REST/WS 계약. 상태·명령·조종권·이동지점·**배치안·지표 요구 모양** | SSOT | 서버·프론트·AR가 맞출 때 |
 | `docs/ref/contract/LAYOUT-METRICS-CONTRACT.md` | 배치안·생산성 지표 계약 — 관제화면이 편집하고 AR이 읽는다 | SSOT | 배치안 데이터·지표 모양을 맞출 때 |
@@ -48,9 +49,7 @@
 | `docs/ref/unity/unity-bridge-protocol.md` | **유니티가 실기에서 검증한 값** — IP·포트·타임아웃·브링업 순서·함정 8개 | 참고 | **브리지 서버를 짤 때** |
 | `docs/evidence/2026-07-30/ar-baseline.md` | **AR 이관 기준값 7개** — 뜯기 전 배포본에서 뽑았다 | 증거 | **이관 후 대조할 때** |
 | `docs/ref/plan/SLICE-AR-DEMO.md` | AR 실증 슬라이스 계획 — 5단계·정합 오차 실측 | 조사 | AR 슬라이스 착수 시 |
-| `docs/ref/rnd/V3-PORT-CONVERGE-LOOP-2026-07-29.md` | v3 이식 계획 수렴 루프 — 크럭스와 킬-실험 | 조사 | 착수 전 판단이 필요할 때 |
 | `docs/ref/rnd/NEXT-REFACTOR-2026-07-30.md` | 구조 개편 선택지 — 프레임워크·폴더·이름 | 조사 | **다음 세션 착수 시** |
-| `docs/ref/rnd/MIGRATION-CONVERGE-LOOP-2026-07-30.md` | 이관 계획 수렴 루프 — 크럭스와 킬실험. 결함 10개 중 2개 사살 | 조사 | **이관 착수·재개 시** |
 | `docs/ref/rnd/AMR-TWIN-DIRECTION-2026-07-30.md` | **AMR 2대·트윈·ROI 방향 판단** — 실기↔AR 방향 · 마커 재고 · 에셋 · 관제 통합 | 조사 | **새 방향 착수 전** |
 | `README.md` | 깃허브 첫 화면. 팀원용 진입 문서 | SSOT | 저장소를 처음 볼 때 |
 | `docs/research/README.md` | 조사 산출물 3건과 승격된 곳 | 조사 | 조사 원본을 볼 때 |
@@ -129,6 +128,6 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 
 ## 자가검증
 
-- INDEX.md에 등재된 문서 행 개수 = 60/60
+- INDEX.md에 등재된 문서 행 개수 = 59/59
 - PROJECT-STATUS.md의 "다음 한 걸음" 항목 개수 = 5/5
 - PROJECT-STATUS.md의 "블로커" 항목 개수 = 3/3

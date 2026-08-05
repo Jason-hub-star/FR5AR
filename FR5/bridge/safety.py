@@ -22,8 +22,9 @@ REQUIRED_FOR_MOTION = ["emergencyStop", "safetyStop", "collisionDetected",
                        "inDragTeach", "mainErrorCode", "subErrorCode"]
 
 
-def check_motion(state, state_age_s, target_deg, speed_pct, applied_settings=None):
-    """jog/moveJ 게이트 (SAFETY-RULES §명령별 최소 조건). 반환: 사유 목록, 비면 허용."""
+def _common_safety(state, state_age_s, applied_settings):
+    """관절·그리퍼가 **함께** 지나는 관문. 두 게이트가 이 판정을 복붙하면 한쪽만 고쳐진다.
+    state 가 None 이면 다른 사유를 버리고 fail-closed 한 줄만 돌려준다 (호출자가 즉시 반환)."""
     reasons = []
     # 조건 26 — 컨트롤러 충돌 감지는 기본으로 안 켜져 있다. 브리지가 넣었다는 기록이
     # 없으면 조건 4·5 는 판정할 게 없는 상태다 (SAFETY-RULES §설정이 전제다)
@@ -50,6 +51,14 @@ def check_motion(state, state_age_s, target_deg, speed_pct, applied_settings=Non
         reasons.append("충돌 감지 상태 (조건 4)")
     if safety.get("inDragTeach"):
         reasons.append("드래그 티칭 중 — 명령을 보내지 않는다")
+    return reasons
+
+
+def check_motion(state, state_age_s, target_deg, speed_pct, applied_settings=None):
+    """jog/moveJ 게이트 (SAFETY-RULES §명령별 최소 조건). 반환: 사유 목록, 비면 허용."""
+    reasons = _common_safety(state, state_age_s, applied_settings)
+    if state is None:
+        return reasons
     if state.get("motionQueueLength", 1) != 0:
         reasons.append(f"모션 큐가 비어있지 않다 — {state.get('motionQueueLength')} (조건 6)")
     if not state.get("enabled"):
@@ -83,6 +92,34 @@ def check_motion(state, state_age_s, target_deg, speed_pct, applied_settings=Non
         for i, (t, (lo, hi)) in enumerate(zip(target_deg, JOINT_LIMITS_DEG)):
             if not (lo <= t <= hi):
                 reasons.append(f"j{i + 1} 목표 {t:.2f}° 가 URDF 한계 [{lo}, {hi}] 밖 (조건 12)")
+    return reasons
+
+
+def check_gripper(state, state_age_s, pct, applied_settings=None):
+    """그리퍼 전용 게이트 (API-CONTRACT §그리퍼). 관절이 아니다 —
+    5°·URDF 한계·모션큐·auto 모드는 **걸지 않는다.** 그대로 복붙하면 통과할 수 없거나
+    엉뚱한 값으로 판정한다 (감사 P1). 반환: 사유 목록, 비면 허용."""
+    reasons = _common_safety(state, state_age_s, applied_settings)
+    if state is None:
+        return reasons
+
+    if not state.get("enabled"):
+        reasons.append("서보 OFF (arm 이 안 됐다)")
+
+    grip = state.get("gripper")
+    if not isinstance(grip, dict):
+        return reasons + ["그리퍼 상태를 못 읽었다 — fail-closed (제1원칙)"]
+    for f in ("fault", "active"):
+        if grip.get(f) is None:
+            reasons.append(f"그리퍼 필드 결측 — gripper.{f} (제1원칙: 결측=차단)")
+    if grip.get("fault"):
+        reasons.append("그리퍼 고장 신호 (gripper.fault)")
+    if grip.get("active") is False:
+        reasons.append("그리퍼가 활성화되지 않았다 — 먼저 활성화한다 (ActGripper)")
+
+    if not isinstance(pct, (int, float)) or isinstance(pct, bool) \
+            or not math.isfinite(pct) or not 0 <= pct <= 100:
+        reasons.append(f"그리퍼 pct 가 0~100 숫자가 아니다 — {pct}")
     return reasons
 
 

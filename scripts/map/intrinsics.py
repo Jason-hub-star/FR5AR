@@ -26,6 +26,7 @@ CONF = ROOT / "Shared/data/config/global-cam.json"
 MIN_SHOTS = 8       # 이보다 적으면 왜곡 계수가 안 풀린다
 MAX_RMS = 0.5       # 재투영 오차 상한 (px)
 MIN_CORNERS = 8     # 한 장에서 이만큼 못 찾으면 그 장은 버린다
+MAX_FX_SPREAD = 0.05  # 반으로 나눈 fx 가 이보다 벌어지면 화각이 안 정해진 것이다 (2026-08-04)
 
 
 def load_board():
@@ -90,6 +91,41 @@ def main():
               "  흔한 원인: 보드가 휘었다 · 초점이 안 맞았다 · 각도가 전부 정면이다",
               file=sys.stderr)
         return 1
+
+    # ── 안정성 — **RMS 만으로는 못 잡는다** (2026-08-04 실측).
+    #
+    # 초점거리는 **원근이 변하는 정도**로 결정된다. 보드를 비슷한 거리·비슷한 각도로만
+    # 찍으면 그 정보가 안 들어와 fx 가 사실상 미결정인데, 재투영 오차는 작게 나온다.
+    # 실제로 20장에서 RMS 0.411 로 통과했는데 앞/뒤 절반이 fx 1757 / 2451
+    # (**화각 72° / 55°**) 이었다. 그 값으로 푼 카메라 높이가 줄자와 20% 어긋났고,
+    # 원인을 찾느라 하루를 썼다. 그래서 **반으로 갈라 서로 맞는지**를 같이 본다.
+    #
+    # **앞/뒤로 가른다.** 홀짝으로 가르면 두 묶음에 같은 시점이 번갈아 섞여 둘 다 같은 답을
+    # 내놓는다 — 실측에서 홀짝은 3.3% 인데 앞/뒤는 39% 였다. 촬영은 시간순으로 자세가
+    # 변하므로, 시간으로 가르는 쪽이 "다른 시점에서도 같은 값이 나오나" 를 실제로 묻는다.
+    n = len(obj_pts) // 2
+    half = [(obj_pts[:n], img_pts[:n]), (obj_pts[n:], img_pts[n:])]
+    if min(len(a) for a, _ in half) >= 4:
+        fxs = [cv2.calibrateCamera(o, i, size, None, None)[1][0, 0] for o, i in half]
+        spread = abs(fxs[0] - fxs[1]) / min(fxs)
+        print(f"안정성: 앞/뒤 절반의 fx {fxs[0]:.0f} / {fxs[1]:.0f} — 차이 {spread*100:.1f}%")
+        if spread > MAX_FX_SPREAD:
+            print(f"실패 — fx 가 {spread*100:.1f}% 흔들린다 (상한 {MAX_FX_SPREAD*100:.0f}%). "
+                  "쓰지 않고 멈춘다.\n"
+                  "  **RMS 가 작아도 화각은 안 정해진 상태다.** 원근 정보가 부족하다 —\n"
+                  "  보드를 화면 **왼쪽 끝·오른쪽 끝**까지 옮기고, 기울기를 30·45·60° 로 크게 주고,\n"
+                  "  초점이 허락하는 만큼 거리도 바꿔 다시 찍어라",
+                  file=sys.stderr)
+            return 1
+    else:
+        print("⚠ 사진이 적어 안정성 검사를 건너뛴다 — 8장 이상이면 fx 흔들림을 잡는다")
+
+    # 화면을 얼마나 덮었나. 안 덮인 구역의 렌즈 값은 **측정이 아니라 추정**이다.
+    A = np.vstack([p.reshape(-1, 2) for p in img_pts])
+    cov_x = (A[:, 0].max() - A[:, 0].min()) / size[0]
+    cov_y = (A[:, 1].max() - A[:, 1].min()) / size[1]
+    print(f"덮은 범위: 가로 {cov_x*100:.0f}% · 세로 {cov_y*100:.0f}%"
+          + ("" if min(cov_x, cov_y) >= 0.6 else "  ⚠ 덮이지 않은 구역의 왜곡은 추정값이다"))
 
     doc = json.loads(CONF.read_text(encoding="utf-8")) if CONF.exists() else {}
     doc.update({

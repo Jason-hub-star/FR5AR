@@ -123,37 +123,8 @@ export function workstation({ wMm = 620, hMm = 420 } = {}) {
   return g;
 }
 
-// ── 의자. 사람이 쓰는 공간이라는 신호. 하나만 있어도 크게 다르다.
-// **인자를 안 받는다.** 예전엔 `hMm` 을 받는 척했는데 본문에서 한 번도 안 썼다 —
-// 게이트가 잡았다 (2026-08-04). 안 쓰는 인자는 다음 사람에게 거짓말이 된다.
-export function chair() {
-  const g = new THREE.Group();
-  add(g, box(420, 60, 420, M.shell), 0, 450, 0);                        // 좌판
-  add(g, box(400, 380, 50, M.shell), 0, 660, -190);                     // 등받이
-  add(g, box(60, 420, 60, M.dark), 0, 240, 0);                          // 기둥
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(mm(260), mm(280), mm(40), 5), M.dark);
-  base.position.y = mm(20); base.castShadow = true;
-  g.add(base);
-  return g;
-}
-
-// ── 흄후드. 유리 새시가 있어 아이솔레이터와 다르게 읽힌다.
-export function fumehood({ wMm = 1500, dMm = 800, hMm = 2300 } = {}) {
-  const g = new THREE.Group();
-  const deskH = 900;
-  add(g, box(wMm, deskH, dMm, M.body), 0, deskH / 2, 0);
-  add(g, box(wMm, 40, dMm, M.steel), 0, deskH + 20, 0);
-  add(g, box(wMm, hMm - deskH - 40, 60, M.shell), 0, (hMm + deskH) / 2, -dMm / 2 + 30);  // 뒷판
-  for (const sx of [-1, 1]) {
-    add(g, box(60, hMm - deskH - 40, dMm, M.shell), sx * (wMm / 2 - 30), (hMm + deskH) / 2, 0);
-  }
-  add(g, box(wMm - 120, 900, 24, M.glass), 0, deskH + 700, dMm / 2 - 20);   // 유리 새시
-  add(g, box(wMm, 220, dMm, M.shell), 0, hMm - 110, 0);                     // 배기 후드
-  return g;
-}
-
 /** 이름 → 팩토리. 배치안이 이 이름으로 부품을 부른다. */
-export const PROPS = { bench, isolator, shelf, instrument, workstation, chair, fumehood };
+export const PROPS = { bench, isolator, shelf, instrument, workstation };
 
 /**
  * 부품의 **지금 크기**(mm). 화면의 크기 칸이 현재 값을 보여주려고 쓴다.
@@ -279,35 +250,7 @@ export function safetyFence({ wMm = 2600, dMm = 2000, hMm = 1500 } = {}) {
 }
 
 /** 잔물건 — 병·랙·상자. **디테일은 큰 가구가 아니라 여기서 온다.** */
-export function clutter({ lengthMm = 1600, hMm = 900, seed = 1 } = {}) {
-  const g = new THREE.Group();
-  // 결정적 난수 — 새로고침마다 배치가 바뀌면 스크린샷 비교가 안 된다
-  let s = seed;
-  const rnd = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
-  const n = Math.max(3, Math.round(lengthMm / 420));
-  for (let i = 0; i < n; i += 1) {
-    const x = -lengthMm / 2 + (lengthMm / n) * (i + 0.5) + (rnd() - 0.5) * 90;
-    const kind = Math.floor(rnd() * 3);
-    if (kind === 0) {
-      const h = 160 + rnd() * 120;                                   // 병
-      const b = new THREE.Mesh(new THREE.CylinderGeometry(mm(45), mm(52), mm(h), 12), M.shell);
-      b.position.set(mm(x), mm(hMm + h / 2), mm((rnd() - 0.5) * 200));
-      b.castShadow = true; g.add(b);
-    } else if (kind === 1) {
-      add(g, box(240, 150, 180, M.shell), x, hMm + 75, (rnd() - 0.5) * 200);   // 상자
-    } else {
-      add(g, box(300, 90, 200, M.body), x, hMm + 45, (rnd() - 0.5) * 200);     // 랙
-      for (let k = -1; k <= 1; k += 1) {
-        const t = new THREE.Mesh(new THREE.CylinderGeometry(mm(22), mm(22), mm(110), 8), M.glass);
-        t.position.set(mm(x + k * 70), mm(hMm + 145), mm(0));
-        g.add(t);
-      }
-    }
-  }
-  return g;
-}
-
-Object.assign(PROPS, { benchRun, wallCabinet, safetyFence, clutter });
+Object.assign(PROPS, { benchRun, wallCabinet, safetyFence });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 방산 해체 라인 소품 (D51 · S1). 레퍼런스는 Codex 로 뽑았고 **문구가 정본이다** —
@@ -323,6 +266,7 @@ Object.assign(PROPS, { benchRun, wallCabinet, safetyFence, clutter });
  */
 export function conveyor({
   lengthMm = 2400, wMm = 600, hMm = 900, rollerDiaMm = 76, pitchMm = 100,
+  rampMm = 0, dropMm = 0,
 } = {}) {
   const g = new THREE.Group();
   const railH = 90;                     // 사이드 레일 높이
@@ -334,9 +278,27 @@ export function conveyor({
   const legT = 70;
   const legInset = 220;                 // 다리는 끝에서 안쪽으로 — 이미지의 그 비율
 
-  // ── 사이드 레일 2개 (길이 방향 X, 폭 방향 Z)
+  // ── 램프 — **−X 끝이 낮아진다.** AMR 이 900mm 상판 위로 물건을 들어 올릴 수는 없다.
+  // 낮은 끝에 대면 밀어 넣는 것으로 끝나고, 나머지는 경사가 한다.
+  // `rampMm` 은 경사 구간의 **수평 길이**이고 `dropMm` 은 그 구간에서 낮아지는 높이다.
+  const ramp = Math.max(0, Math.min(rampMm, lengthMm - 2 * railT));
+  const drop = ramp > 0 ? Math.max(0, Math.min(dropMm, hMm - railH - 100)) : 0;
+  const flat = lengthMm - ramp;
+  const x0 = -lengthMm / 2;                       // 낮은 끝
+  const slope = ramp > 0 ? Math.atan2(drop, ramp) : 0;
+  const hyp = Math.hypot(ramp, drop);
+  /** 길이축 x 에서의 이송면 높이. 램프 밖은 그냥 `hMm` 이다. */
+  const topAt = (x) => (ramp > 0 && x < x0 + ramp ? hMm - drop * (1 - (x - x0) / ramp) : hMm);
+
+  // ── 사이드 레일 (길이 방향 X, 폭 방향 Z). 램프가 있으면 두 토막이다
   for (const s of [-1, 1]) {
-    add(g, box(lengthMm, railH, railT, M.steel), 0, railY, s * (wMm / 2 - railT / 2));
+    const z = s * (wMm / 2 - railT / 2);
+    add(g, box(flat, railH, railT, M.steel), x0 + ramp + flat / 2, railY, z);
+    if (ramp > 0) {
+      const m = box(hyp, railH, railT, M.steel);
+      m.rotation.z = slope;                       // +X 쪽이 올라간다
+      add(g, m, x0 + ramp / 2, railY - drop / 2, z);
+    }
   }
 
   // ── 롤러. 축이 Z 이므로 X 로 90° 눕힌다.
@@ -349,7 +311,17 @@ export function conveyor({
     // 롤러는 금속이다 — `shell`(거의 흰색) 로 두면 베드가 흰 판때기로 읽힌다 (2차 렌더의 결함)
     const r = cyl(rollerDiaMm, wMm - 2 * railT, M.steel);
     r.rotation.x = Math.PI / 2;
-    add(g, r, -span / 2 + step * (i + 0.5), hMm - rollerDiaMm / 2, 0);
+    const x = -span / 2 + step * (i + 0.5);
+    add(g, r, x, topAt(x) - rollerDiaMm / 2, 0);
+  }
+
+  // ── 낮은 끝의 짧은 다리 한 쌍. 없으면 램프가 허공에서 시작한다
+  if (ramp > 0) {
+    const lowH = topAt(x0) - railH - rollerDiaMm * 0.16;
+    for (const sz of [-1, 1]) {
+      add(g, box(legT, Math.max(60, lowH), legT, M.dark),
+        x0 + legT, Math.max(60, lowH) / 2, sz * (wMm / 2 - (legT + 50) / 2));
+    }
   }
 
   // ── 다리 4개 + 발판
@@ -363,6 +335,18 @@ export function conveyor({
     add(g, box(legT, legH, legT, M.dark), x, legH / 2, sz * legZ);
     add(g, box(footT, 16, footT, M.dark), x, 8, sz * legZ);          // 발판
   }
+
+  // **벨트가 자기 이송면을 말해 준다.** 작업물이 컨베이어 위에 앉으려면 화면 쪽이
+  // "여기 높이가 몇인가" 를 물어야 하는데, 램프 때문에 그 값이 위치마다 다르다.
+  // 계산을 여기 한 곳에 두고 밖에서는 부르기만 한다 (하드 룰 5).
+  g.userData.belt = {
+    lengthMm, wMm,
+    /** 길이축 로컬 x(mm) 에서의 이송면 높이(mm). 벨트 밖이면 `null`. */
+    topAtMm(localXMm, localZMm) {
+      if (Math.abs(localXMm) > lengthMm / 2 || Math.abs(localZMm) > wMm / 2) return null;
+      return topAt(localXMm);
+    },
+  };
 
   // ── 하부 브레이스. 길이 방향 2줄 + 다리쌍마다 가로 1줄 — 이게 있어야 "구조물" 로 읽힌다.
   const braceY = legH * 0.22;
@@ -415,6 +399,247 @@ export function warhead({ stage = 0, diaMm = 65, lengthMm = 220 } = {}) {
     // +90° 여야 좁은 끝이 −X(바깥) 을 본다. −90° 면 뒤집혀 뾰족한 쪽이 동체에 박힌다.
     nose.rotation.z = Math.PI / 2;
     add(g, nose, -lengthMm / 2 + noseLen * cut / 2, y, 0);
+  }
+  return g;
+}
+
+/**
+ * 리프트 클램프 — **탄두를 밑에서 받쳐 공중으로 들어 올린다.** 돌리는 물건이 아니다.
+ *
+ * 레퍼런스는 Codex 로 뽑았고 문구가 정본이다 (`MILESTONES.md` §S1 스타일 문구).
+ * 형태의 정체는 셋이다 — **① 양쪽 승강 기둥(볼스크류+리니어 레일) ② 그 사이를 오르내리는
+ * 크로스바 ③ 크로스바 위의 V블록 한 쌍.** 이 셋이 없으면 그냥 받침대로 읽힌다.
+ *
+ * `liftMm` 은 **V홈 바닥 높이**다 — 여기에 작업물 축이 얹힌다. 컨베이어 이송면(기본 900)
+ * 보다 높아야 "들어 올렸다" 가 되고, 배치안의 스테이션 z 가 이 값과 같아야 한다.
+ */
+export function lifter({ wMm = 900, dMm = 620, hMm = 1150, liftMm = 1050, cradleMm } = {}) {
+  const g = new THREE.Group();
+  const baseH = 45;
+  const colW = 95;                       // 승강 기둥 단면
+  const colX = wMm / 2 - colW / 2 - 40;
+  // **아무것도 베이스 밖으로 안 나간다.** 처음엔 옆 클램프가 `wMm` 을 270mm 넘겨
+  // 배치안에서 옆 물건과 겹쳤고, 게이트가 잡았다 (2026-08-04). 인자가 곧 발자국이어야
+  // 겹침 검사·크기 칸이 같은 숫자를 본다 (파일 머리 규약).
+  const cradle = cradleMm ?? wMm * 0.58;
+  const barH = 95;                       // 크로스바 높이
+  const barY = Math.min(Math.max(liftMm - barH - 90, baseH + 120), hMm - barH - 60);
+
+  add(g, box(wMm, baseH, dMm, M.body), 0, baseH / 2, 0);                    // 베이스 판
+  add(g, box(wMm - 120, 14, dMm - 120, M.dark), 0, baseH + 7, 0);           // 상면 홈
+
+  for (const s of [-1, 1]) {
+    const x = s * colX;
+    add(g, box(colW, hMm, colW, M.body), x, baseH + hMm / 2, 0);            // 기둥
+    add(g, box(colW + 40, 26, colW + 40, M.body), x, baseH + hMm + 13, 0);  // 캡
+    // 볼스크류 + 리니어 레일 — **이 둘이 "승강" 신호다.** 없으면 그냥 기둥이다
+    add(g, cyl(34, hMm - 80, M.steel, 12), x, baseH + hMm / 2, colW / 2 - 4);
+    add(g, box(22, hMm - 60, 12, M.steel), x, baseH + hMm / 2, -(colW / 2 - 2));
+    add(g, box(colW + 26, 130, colW + 26, M.dark), x, barY + barH / 2, 0);  // 캐리지 블록
+    add(g, box(colW + 60, 30, colW + 30, M.body), x, baseH + 15, 0);        // 기둥 발
+  }
+
+  add(g, box(2 * colX - colW, barH, 120, M.body), 0, barY + barH / 2, 0);   // 크로스바
+
+  // V블록 한 쌍 — **V홈이 이 물건의 정체다.** 기울인 판 두 짝으로 만든다.
+  for (const s of [-1, 1]) {
+    const x = s * (cradle / 2);
+    add(g, box(150, 60, 190, M.body), x, barY + barH + 30, 0);              // 받침 발
+    for (const t of [-1, 1]) {
+      const v = box(120, 22, 150, M.body);
+      v.rotation.x = t * 0.72;                                              // 약 41° — V 각 82°
+      add(g, v, x, barY + barH + 95, t * 52);
+    }
+  }
+
+  // 옆 클램프 두 짝 — 가볍게 문다. 작업물 축(=`liftMm`) 높이에 온다
+  for (const s of [-1, 1]) {
+    const x = s * Math.min(cradle / 2 + 190, wMm / 2 - 70);
+    add(g, box(70, 200, 60, M.dark), x, barY + barH + 100, 0);              // 클램프 기둥
+    for (const t of [-1, 1]) {
+      add(g, box(60, 26, 90, M.steel), x, liftMm + t * 46, t * 30);         // 집게 두 짝
+    }
+  }
+  return g;
+}
+
+/**
+ * 경고 비콘 — **작은데 신호가 세다.** 화이트 모형에서 색이 있는 것은 유리뿐이라,
+ * 돔 하나가 시선을 끌고 "여기는 위험구역" 을 한 글자도 없이 말한다.
+ *
+ * 색을 재질로 넣지 않고 **공유 재질 `dark` + 유리 돔**으로 낸다 — 새 재질을 만들면
+ * 화이트 모형의 6색 규약이 무너진다 (파일 머리 규약).
+ */
+export function beacon({ hMm = 1400, diaMm = 120 } = {}) {
+  const g = new THREE.Group();
+  const poleH = hMm - diaMm;
+  add(g, box(diaMm * 1.6, 24, diaMm * 1.6, M.dark), 0, 12, 0);            // 바닥 판
+  add(g, cyl(46, poleH, M.dark, 10), 0, poleH / 2, 0);                    // 기둥
+  add(g, cyl(diaMm * 1.15, 30, M.dark, 14), 0, poleH + 15, 0);            // 베이스 링
+  const dome = new THREE.Mesh(
+    new THREE.SphereGeometry(mm(diaMm / 2), 14, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+    M.glass,
+  );
+  dome.position.y = mm(poleH + 30);
+  g.add(dome);
+  add(g, cyl(diaMm, 26, M.dark, 14), 0, poleH + diaMm / 2 + 30, 0);       // 상단 캡
+  return g;
+}
+
+
+/**
+ * 갠트리 크레인 — **이 화면에서 가장 큰 구조물이다.**
+ *
+ * 지금까지 모든 것이 허리 높이였다. 천장 3m 가 통째로 비어 사진이 납작했고, 이 하나가
+ * **수직과 규모**를 동시에 채운다. 방산 라인에서 실제로 쓰는 장비이기도 하다 — 리프터가
+ * 못 드는 무거운 탄체를 옮긴다.
+ *
+ * 형태의 정체 넷 — **양쪽 주행 레일 · 걸쳐진 상자형 거더 · 그 위를 달리는 트롤리 ·
+ * 내려온 호이스트 갈고리.** 하나라도 빠지면 그냥 대들보로 읽힌다.
+ *
+ * `baseMm` 은 **레일 밑면 높이**다 (`wallCabinet` 과 같은 규약) — 0 을 주면 바닥에 내려온다.
+ * 인자 이름은 공용 치수 이름을 쓴다: `lengthMm` = 거더 스팬 · `dMm` = 레일 길이.
+ */
+export function crane({ lengthMm = 5000, dMm = 3400, baseMm = 2400, hookDropMm = 900, trolleyAtMm = 0 } = {}) {
+  const g = new THREE.Group();
+  const railH = 260, railW = 130;
+  const girH = 330, girD = 300;                 // 거더 단면
+  const railY = baseMm + railH / 2;
+  const girY = baseMm + railH + girH / 2;
+  const halfSpan = lengthMm / 2;
+
+  // 주행 레일 2줄 (깊이 방향 Z) — I 형강처럼 위아래 플랜지를 둔다
+  for (const sx of [-1, 1]) {
+    const x = sx * halfSpan;
+    add(g, box(railW, railH * 0.55, dMm, M.steel), x, railY, 0);              // 웨브
+    for (const sy of [-1, 1]) {
+      add(g, box(railW * 1.7, railH * 0.22, dMm, M.steel), x, railY + sy * railH * 0.39, 0);
+    }
+    // 레일 받침 — `baseMm` 이 0 이 아니면 바닥까지 기둥이 내려온다
+    if (baseMm > 1) {
+      for (const sz of [-1, 1]) {
+        add(g, box(railW * 1.4, baseMm, railW * 1.4, M.dark), x, baseMm / 2, sz * (dMm / 2 - railW));
+      }
+    }
+  }
+
+  // 거더 — 레일 위에 걸친다. 양 끝에 주행 대차(엔드트럭).
+  // **브리지 전체가 부분그룹이다** — 레일을 따라 달리는 것은 거더 통째이지 트롤리가 아니다.
+  // 트롤리는 거더 위(x)를, 브리지는 레일 위(z)를 달린다 — 축이 다르다.
+  const bridge = new THREE.Group();
+  bridge.name = 'bridge';
+  g.add(bridge);
+  add(bridge, box(lengthMm + railW * 2, girH, girD, M.body), 0, girY, 0);
+  for (const sx of [-1, 1]) {
+    add(bridge, box(railW * 2.4, girH * 0.7, girD * 1.5, M.dark), sx * halfSpan, girY, 0);
+    for (const sz of [-1, 1]) {                                              // 바퀴
+      const w = cyl(150, 90, M.steel, 12);
+      w.rotation.x = Math.PI / 2;
+      add(bridge, w, sx * halfSpan, baseMm + railH, sz * girD * 0.6);
+    }
+  }
+
+  // 트롤리 + 호이스트 — **부분그룹으로 뗀다.** 재생기가 이것만 옮기면 되고,
+  // 매 프레임 크레인 30개 메시를 다시 만들 이유가 없다 (`userData.crane` 로 찾는다).
+  const t = new THREE.Group();
+  t.name = 'trolley';
+  const tx = Math.max(-halfSpan + 400, Math.min(halfSpan - 400, trolleyAtMm));
+  t.position.x = mm(tx);
+  bridge.add(t);
+  // 거더 **위**를 달리는 대차. 이게 있어야 "크레인" 이 된다
+  add(t, box(560, 210, girD * 1.2, M.body), 0, girY + girH / 2 + 105, 0);
+  for (const sz of [-1, 1]) {
+    const w = cyl(120, 70, M.steel, 10);
+    w.rotation.x = Math.PI / 2;
+    add(t, w, 0, girY + girH / 2, sz * girD * 0.5);
+  }
+
+  // 호이스트 — 케이블 + 갈고리 블록. **아래로 내려온 선 하나가 높이를 설명한다**
+  const drop = Math.max(120, Math.min(hookDropMm, girY - 200));
+  const hoist = new THREE.Group();
+  hoist.name = 'hoist';
+  t.add(hoist);
+  add(hoist, cyl(26, drop, M.dark, 8), 0, girY + girH / 2 - drop / 2, 0);
+  add(hoist, box(190, 150, 150, M.dark), 0, girY + girH / 2 - drop - 60, 0);
+  const hookR = 90;
+  const hook = new THREE.Mesh(
+    new THREE.TorusGeometry(mm(hookR), mm(26), 8, 14, Math.PI * 1.45), M.steel,
+  );
+  hook.position.y = mm(girY + girH / 2 - drop - 140 - hookR);
+  hook.rotation.z = Math.PI / 2;
+  hook.castShadow = true;
+  hoist.add(hook);
+  // 재생기가 찾을 손잡이 — **스팬을 같이 실어** 트롤리가 거더 밖으로 못 나가게 한다
+  // `hookYMm` — 갈고리 블록이 매달린 높이. 재생기가 작업물을 여기에 매단다
+  g.userData.crane = { trolley: t, bridge, halfSpanMm: halfSpan, halfRailMm: dMm / 2,
+    baseXMm: tx, hookYMm: girY + girH / 2 - drop - 60 };
+  return g;
+}
+
+/**
+ * 작업자 — **건축 화이트 모형의 스케일 인물상이다.**
+ *
+ * 사람 하나가 서 있으면 방 크기가 즉시 읽힌다. 그게 이 부품의 전부이고, 그래서
+ * **얼굴·손가락·옷 주름을 안 그린다** — 디테일을 넣는 순간 인물상이 아니라 캐릭터가 되고
+ * 화이트 모형의 문법이 깨진다. 헬멧만 있으면 "작업자" 로 읽힌다.
+ */
+export function worker({ hMm = 1750 } = {}) {
+  const g = new THREE.Group();
+  const u = hMm / 1750;                        // 기준 키에 대한 배율
+  const S = (v) => v * u;
+  add(g, cyl(S(560), S(30), M.dark, 20), 0, S(15), 0);                        // 받침 원판
+  for (const sx of [-1, 1]) {                                                 // 다리
+    add(g, cyl(S(150), S(830), M.shell, 10), sx * S(105), S(30 + 415), 0);
+    add(g, box(S(170), S(90), S(300), M.dark), sx * S(105), S(75), S(50));    // 신발
+  }
+  add(g, cyl(S(320), S(70), M.shell, 12), 0, S(880), 0);                      // 골반
+  add(g, box(S(420), S(520), S(230), M.shell), 0, S(1160), 0);                // 몸통
+  for (const sx of [-1, 1]) {                                                 // 팔
+    add(g, cyl(S(120), S(620), M.shell, 8), sx * S(255), S(1150), 0);
+  }
+  add(g, cyl(S(150), S(120), M.shell, 10), 0, S(1470), 0);                    // 목
+  add(g, cyl(S(230), S(220), M.shell, 12), 0, S(1620), 0);                    // 머리
+  // 헬멧 — **이 한 조각이 "작업자" 를 만든다**
+  const helm = new THREE.Mesh(
+    new THREE.SphereGeometry(mm(S(140)), 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.body,
+  );
+  helm.position.y = mm(S(1700));
+  helm.castShadow = true;
+  g.add(helm);
+  add(g, cyl(S(330), S(24), M.body, 16), 0, S(1700), 0);                      // 챙
+  return g;
+}
+
+/**
+ * 탄약 팔레트 — **반복이 규모를 만든다.** 탄두 한 발보다 열두 발 쌓인 쪽이 훨씬 세다.
+ *
+ * 그리고 이건 장식이 아니라 **모순을 고친다** — AMR 은 높이 190mm 인데 공급 자리가
+ * 1900mm 선반이면 거기서 아무것도 못 받는다. 저상 팔레트가 AMR 이 실제로 붙는 높이다.
+ */
+export function ammoPallet({ wMm = 1200, dMm = 800, rows = 2, perRow = 6, shellDiaMm = 155 } = {}) {
+  const g = new THREE.Group();
+  const deckH = 130;                            // 팔레트 상면
+  add(g, box(wMm, 40, dMm, M.dark), 0, deckH - 20, 0);                        // 상판
+  add(g, box(wMm, 26, dMm, M.dark), 0, 13, 0);                                // 하판
+  // 지게차 포크 구멍 — 받침 블록 3개 사이의 빈 곳이 곧 구멍이다
+  for (const sx of [-1, 0, 1]) {
+    add(g, box(wMm * 0.16, deckH - 66, dMm, M.dark), sx * (wMm / 2 - wMm * 0.08), 26 + (deckH - 66) / 2, 0);
+  }
+  const len = Math.min(dMm - 60, shellDiaMm * 5.2);
+  const pitch = Math.min((wMm - 80) / perRow, shellDiaMm * 1.12);
+  const layerH = shellDiaMm + 40;               // 간살 두께 포함
+  for (let r = 0; r < rows; r += 1) {
+    const y = deckH + 30 + r * layerH + shellDiaMm / 2;
+    add(g, box(wMm - 40, 26, dMm - 60, M.body), 0, y - shellDiaMm / 2 - 13, 0);   // 간살(분리대)
+    for (let i = 0; i < perRow; i += 1) {
+      const c = cyl(shellDiaMm, len, M.body, 14);
+      c.rotation.x = Math.PI / 2;                                             // 축을 Z 로 눕힌다
+      add(g, c, -((perRow - 1) * pitch) / 2 + i * pitch, y, 0);
+      add(g, cyl(shellDiaMm * 1.04, 14, M.dark, 14), 0, 0, 0).position.set(
+        mm(-((perRow - 1) * pitch) / 2 + i * pitch), mm(y), mm(len * 0.22),
+      );
+      g.children[g.children.length - 1].rotation.x = Math.PI / 2;             // 회전 밴드
+    }
   }
   return g;
 }
@@ -511,4 +736,5 @@ export function blastWall({ lengthMm = 3000, hMm = 1200, tMm = 300, windowMm = 0
   return g;
 }
 
-Object.assign(PROPS, { conveyor, warhead, chuck, partTray, blastWall });
+Object.assign(PROPS, { conveyor, warhead, chuck, partTray, blastWall, lifter, beacon,
+  crane, worker, ammoPallet });

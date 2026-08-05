@@ -1,0 +1,30 @@
+/* WebXR 정합 — 폰만으로 도는 화면. 맥도 케이블도 없어야 강의실에서 쓴다. */
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: #14161a; color: #eef1f4;
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; }
+
+#panel { padding: 20px 18px 40px; }
+h2 { margin: 0 0 6px; font-size: 20px; }
+#sup { margin: 0 0 12px; opacity: .85; }
+label { display: block; margin-bottom: 10px; }
+select, button { font: inherit; padding: 12px 16px; border-radius: 10px;
+  border: 1px solid #4a5058; background: #232830; color: inherit; margin: 4px 6px 4px 0; }
+button:disabled { opacity: .45; }
+
+#log { margin-top: 16px; font-size: 14px; }
+#log div { padding: 3px 0; border-bottom: 1px solid #23272d; }
+.ok { color: #7fd88f; }
+.bad { color: #ff8b8b; }
+
+/* 오버레이 — 루트는 크기 0. 아래 것들만 화면에 띄운다 (탭을 안 먹기 위해서다) */
+#ov { position: fixed; left: 0; top: 0; width: 0; height: 0; }
+#hud, #fps, #hint, #bar { position: fixed; text-shadow: 0 1px 4px #000; }
+#hud { left: 12px; top: 12px; font-weight: 600; }
+#fps { right: 12px; top: 12px; font-variant-numeric: tabular-nums; opacity: .8; }
+#hint { left: 0; right: 0; bottom: 96px; text-align: center; font-weight: 600; padding: 0 16px;
+  pointer-events: none; }
+
+/* 조작바 — 여기 탭만 DOM 이 가져간다 (`beforexrselect`). 나머지 화면은 맵 놓기다. */
+#bar { left: 0; right: 0; bottom: 16px; display: flex; gap: 6px; justify-content: center;
+  flex-wrap: wrap; padding: 0 8px; }
+#bar button { margin: 0; background: rgba(35, 40, 48, .92); backdrop-filter: blur(6px); }

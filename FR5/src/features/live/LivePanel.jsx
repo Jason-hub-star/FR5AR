@@ -9,6 +9,43 @@ const JOINT_LABELS = ['j1', 'j2', 'j3', 'j4', 'j5', 'j6'];
 const TCP_LABELS = ['x mm', 'y mm', 'z mm', 'rx °', 'ry °', 'rz °'];
 const JOG_STEP_DEG = 1.0;
 
+// 그리퍼 — 관절이 아니다. 보내는 값과 읽는 값이 **같은 척도**다 (2026-08-04 실기 확인).
+// 그래서 숫자를 하나만 보여준다. 반대라고 적혀 있던 8/3 기록은 수동 모드 관측이었다.
+function GripperControl({ gripper, busy, refusal }) {
+  const [pct, setPct] = useState(50);
+  const g = gripper ?? {};
+  const active = g.active === true;
+  return (
+    <div className="gripper" data-t="gripper">
+      <h3>그리퍼</h3>
+      {g.fault && <p className="refusal" data-t="gripper-fault">그리퍼 고장 신호 — 명령이 거부된다</p>}
+      {!active && (
+        <button type="button" data-t="gripper-activate" disabled={busy}
+          onClick={() => datasource.gripperActivate()}>
+          활성화 — 손가락이 움직인다
+        </button>
+      )}
+      <label>보낼 값 {pct}% <span className="mm">(벌어짐 약 {(pct * 0.4).toFixed(1)}mm)</span>
+        <input type="range" min="0" max="100" step="1" value={pct} data-t="gripper-range"
+          disabled={!active || busy} onChange={(e) => setPct(Number(e.target.value))} />
+      </label>
+      <div className="griprow">
+        <button type="button" data-t="gripper-open" disabled={!active || busy}
+          onClick={() => datasource.gripper(100)}>완전 열기</button>
+        <button type="button" data-t="gripper-send" disabled={!active || busy}
+          onClick={() => datasource.gripper(pct)}>{pct}% 로</button>
+        <button type="button" data-t="gripper-close" disabled={!active || busy}
+          onClick={() => datasource.gripper(0)}>완전 닫기</button>
+      </div>
+      <dl>
+        <dt>지금 벌어짐</dt><dd data-t="gripper-raw">{g.pct == null ? '—' : `${g.pct}%`}</dd>
+        <dt>상태</dt><dd>{g.motionDone === undefined ? '—' : g.motionDone ? '멈춤' : '움직이는 중'}</dd>
+      </dl>
+      {refusal && <p className="refusal" data-t="gripper-refusal">거부됨 — {refusal}</p>}
+    </div>
+  );
+}
+
 export function LivePanel({ state, who }) {
   const [robots, setRobots] = useState([]);
   const [picked, setPicked] = useState('');
@@ -36,12 +73,16 @@ export function LivePanel({ state, who }) {
     setBusy(false);
   };
 
-  const mine = who && state.owner === who;
+  // 이름이 같아도 **토큰이 없으면 내 것이 아니다** — 그래야 다시 잡을 길이 열린다.
+  // 이름만 보고 판단하면 새로고침 뒤 반납·DISARM 이 전부 거부되며 갇힌다 (2026-08-04 실측)
+  const sameName = who && state.owner === who;
+  const mine = sameName && datasource.hasOwnerToken();
   const armed = state.phase === 'ARMED' || state.phase === 'EXECUTING';
 
   return (
     <div className="live">
-      <RobotTwin jointsDeg={state.jointsDeg ?? [0, 0, 0, 0, 0, 0]} />
+      <RobotTwin jointsDeg={state.jointsDeg ?? [0, 0, 0, 0, 0, 0]}
+        gripperPct={state.gripper?.pct ?? null} />
       <aside>
         <section className="card diag" data-t="diag">
           <h2>연결 진단</h2>
@@ -81,10 +122,16 @@ export function LivePanel({ state, who }) {
                     조종권 반납
                   </button>
                 : <button type="button" className="primary" disabled={busy || !who}
-                    title={who ? undefined : '헤더에 이름부터'}
+                    data-t="claim" title={who ? undefined : '헤더에 이름부터'}
                     onClick={() => run(() => datasource.claimOwner(who))}>
-                    조종권 잡기 {state.owner && state.owner !== who ? `(현재 ${state.owner})` : ''}
+                    {sameName ? '조종권 다시 잡기' : '조종권 잡기'}
+                    {state.owner && state.owner !== who ? ` (현재 ${state.owner})` : ''}
                   </button>}
+              {sameName && !mine && (
+                <p className="hint" data-t="token-lost">
+                  이름은 {who} 로 잡혀 있는데 이 창에 토큰이 없다 — 다시 잡으면 새 토큰을 받는다
+                </p>
+              )}
               {mine && !armed && (
                 <div className="armrow">
                   <label className="confirm" data-t="confirm">
@@ -115,6 +162,7 @@ export function LivePanel({ state, who }) {
                   <p className="hint">서버 상한 — 속도 10% · 관절 5°/회 (초과는 거부된다)</p>
                 </div>
               )}
+              {armed && mine && <GripperControl gripper={state.gripper} busy={busy} refusal={lastRefusal} />}
             </>
           )}
         </section>

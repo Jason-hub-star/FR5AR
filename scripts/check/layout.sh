@@ -56,7 +56,10 @@ for (const preset of PRESETS) {
   // (벤치 뒷턱이 상판보다 50mm 높아 AABB 가 물린다).
   const items = [
     ...(L.props ?? []),
-    ...(L.stations ?? []).filter((s) => s.prop).map((s) => ({ ...s, type: s.prop })),
+    // **\`baseMm\` 이 실제로 놓이는 높이다** — 화면(\`layout-view.js\`)이 그렇게 놓는데
+    // 게이트만 \`posMm[2]\` 를 보면, 바닥에 선 리프터를 '떠 있다' 고 잡는다 (2026-08-04).
+    ...(L.stations ?? []).filter((s) => s.prop)
+      .map((s) => ({ ...s, type: s.prop, posMm: [s.posMm[0], s.posMm[1], s.baseMm ?? s.posMm[2] ?? 0] })),
   ];
   const g = assembleProps(items);
   const boxes = g.children.map((c, i) => ({
@@ -72,7 +75,11 @@ for (const preset of PRESETS) {
     if (!room.containsBox(b.box)) bad(k + ': 방 밖으로 나갔다 — ' + b.id + ' (' + b.type + ')');
   }
 
-  const floor = boxes.filter((b) => !b.zMm);
+  // **머리 위 구조물은 바닥 겹침 규칙 밖이다.** 갠트리 크레인의 AABB 는 그 아래를 통째로
+  // 덮으므로, 같은 잣대로 보면 크레인 하나가 방 안 모든 것과 '겹친다' 고 나온다.
+  // 그렇다고 검사를 끄지 않는다 — **방 안에 있는지는 그대로 본다** (천장을 뚫으면 잡힌다).
+  const ceiling = new Set(PROP_CARDS.filter((c) => c.mount === 'ceiling').map((c) => c.id));
+  const floor = boxes.filter((b) => !b.zMm && !ceiling.has(b.type));
   for (let i = 0; i < floor.length; i += 1) {
     for (let j = i + 1; j < floor.length; j += 1) {
       if (floor[i].box.intersectsBox(floor[j].box)) {
@@ -92,12 +99,28 @@ for (const preset of PRESETS) {
   note(k + ': 상자 ' + boxes.length + '개 (바닥 ' + floor.length + ') — 방 안 · 안 겹침 · 받침 위');
 }
 
+// 팔 규약 — **이송팔에 FR5 모형을 달지 않는다** (\`SHARED-CORE.md\` §arms).
+// 실물이 없는 팔에 실물 모형을 달면 실측 수치가 어디에 붙는지 화면이 말하지 못한다. **검사가 실제로 잡는지 일부러 어겨서 확인한다** — 안 그러면
+// \`validateLayout\` 이 조용히 헛돌아도 모른다 (2026-08-03 에 실제로 그랬다).
+{
+  const base = buildPreset('cell');
+  const bad2 = [
+    ['이송팔이 FR5', { ...base, arms: [...base.arms, { id: 'tfX', role: 'transfer', model: 'FR5', basePosMm: [0, 0, 0], reachMm: 800 }] }],
+    ['팔 id 중복', { ...base, arms: base.arms.map((a) => ({ ...a, id: 'same' })) }],
+    ['팔이 없다', { ...base, arms: [] }],
+  ];
+  for (const [why, L] of bad2) {
+    if (!validateLayout(L).length) bad('팔 규약을 어겼는데 통과했다 — ' + why);
+  }
+  note('팔 규약 — 어긴 배치안 ' + bad2.length + '종을 전부 잡는다');
+}
+
 // 카탈로그 자체 — 규약 두 개는 전 부품이 지켜야 한다.
 //
-// **설치 높이는 인자로만 올라간다.** 벽걸이(\`wallCabinet.baseMm\`)나 상판 위 잔물건
-// (\`clutter.hMm\`)은 기본값이 공중이지만, 그 인자를 0 으로 주면 바닥에 내려와야 한다.
+// **설치 높이는 인자로만 올라간다.** 벽걸이(\`wallCabinet.baseMm\`)는 기본값이 공중이지만,
+// 그 인자를 0 으로 주면 바닥에 내려와야 한다.
 // 코드에 높이를 박아 두면 배치안이 그 부품만 못 옮긴다 (하드 룰 5).
-const LIFT = { wallCabinet: { baseMm: 0 }, clutter: { hMm: 0 } };
+const LIFT = { wallCabinet: { baseMm: 0 }, crane: { baseMm: 0 } };
 for (const [name, make] of Object.entries(PROPS)) {
   let g;
   try { g = make(LIFT[name] ?? {}); } catch (e) { bad('부품 ' + name + ' 생성 실패: ' + e.message); continue; }
@@ -158,6 +181,34 @@ if (new Set(keys).size !== keys.length) bad('카탈로그 카드 키가 겹친�
 note('카탈로그 ' + CATALOG.length + '장(소품 ' + PROP_CARDS.length + ') · 분류 ' + CATEGORIES.length + '개 — 팩토리와 양방향 일치');
 
 console.log('');
+// ── AMR 경로 교차 — **선분으로 본다.**
+//
+// 2026-08-04 까지는 꼭짓점끼리만 비교해서, 가운데서 대각으로 완전히 교차하는 두 경로도
+// **검출 0건**이었다 (꼭짓점 사이가 5657mm 라서). 교착이 날 자리를 미리 보여주는 것이
+// 이 함수의 목적인데 정작 교차를 못 잡았다. 그 판을 여기 박아 둔다.
+{
+  const mk = (id, w) => ({ id, model: 'TurtleBot', reachMm: 380, dockPosMm: w[0], waypointsMm: w });
+  const T = [
+    ['대각으로 엇갈린다', [[0, 0], [4000, 4000]], [[0, 4000], [4000, 0]], 1, 0],
+    ['멀리 나란하다', [[0, 0], [4000, 0]], [[0, 5000], [4000, 5000]], 0, null],
+    ['가까이 나란하다', [[0, 0], [4000, 0]], [[0, 300], [4000, 300]], 1, 300],
+    ['T 자로 닿는다', [[0, 0], [4000, 0]], [[2000, 0], [2000, 3000]], 1, 0],
+    ['점 하나씩', [[1000, 1000]], [[1200, 1000]], 1, 200],
+  ];
+  for (const [name, wa, wb, want, gap] of T) {
+    const c = crossings({ amrs: [mk('a', wa), mk('b', wb)] });
+    if (c.length !== want) bad('교차 ' + name + ' — ' + c.length + '건 (기대 ' + want + ')');
+    else if (gap !== null && c[0].gapMm !== gap) bad('교차 ' + name + ' 틈 ' + c[0].gapMm + ' (기대 ' + gap + ')');
+  }
+  // **묶는다** — 나란한 선분이 길면 표시가 수십 개 쏟아져 바닥이 구슬밭이 된다
+  const many = crossings({ amrs: [
+    mk('a', [[0, 0], [1000, 0], [2000, 0], [3000, 0], [4000, 0]]),
+    mk('b', [[0, 200], [1000, 200], [2000, 200], [3000, 200], [4000, 200]]),
+  ] });
+  if (many.length > 4) bad('나란한 경로에서 표시가 ' + many.length + '개 — 묶이지 않았다');
+  note('경로 교차 — 엇갈림·나란함·T자·한 점 ' + T.length + '종 · 묶기 ' + many.length + '개');
+}
+
 console.log(fail ? '배치안 실패' : '배치안 OK');
 process.exit(fail);
 " 2>&1 | grep -v '^모르는 부품'

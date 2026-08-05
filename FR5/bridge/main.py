@@ -26,6 +26,10 @@ HERE = Path(__file__).parent
 CONFIG = yaml.safe_load((HERE / "config.yaml").read_text())
 PROFILES = {r["robotId"]: r for r in CONFIG["robots"]}
 SAMPLE_MS = CONFIG.get("sample_ms", 33)
+# 그리퍼 속도·힘은 화면이 못 정한다 — 보수적 기본값을 서버가 박는다 (GOAL-live-gripper §3).
+# 파지 실험으로 힘을 올리려면 여기 한 곳만 고친다. 천장: 물체별 힘 프로필은 이 골 밖이다.
+GRIPPER_VEL_PCT = 30.0
+GRIPPER_FORCE_PCT = 30.0
 
 app = FastAPI(title="fr5-bridge")
 
@@ -236,6 +240,41 @@ def _do_motion(target_deg, speed_pct):
     return []
 
 
+def _do_gripper(pct):
+    """게이트 → MoveGripper. 관절 게이트가 아니라 그리퍼 전용을 탄다 (계약 §그리퍼)."""
+    state = session.read_fresh_state()
+    reasons = safety.check_gripper(state, time.time() - session.lastStateAt,
+                                   pct, session.appliedSettings)
+    if reasons:
+        log("gripper-거부", " · ".join(reasons))   # 거부를 조용히 버리면 원인을 못 찾는다
+        return reasons
+    session.adapter.gripper_move(float(pct), GRIPPER_VEL_PCT, GRIPPER_FORCE_PCT)
+    # 되던 모양으로 되돌렸다 (2026-08-04) — 명령 뒤 8초짜리 조밀 폴링을 걷어낸다.
+    # 그 폴링은 read_state 마다 IsInDragTeach(xmlrpc) 를 태워 **이동 중에** 단일 연결을
+    # 50번 두드렸다. 20003 은 연결이 하나뿐이고 행에 약하다 (fairino.py _guard 주석).
+    # 정착값은 다음 상태 스트림이 어차피 싣는다 — 명령 경로에서 캐낼 이유가 없다.
+    log("gripper", f"지령={pct} vel={GRIPPER_VEL_PCT} force={GRIPPER_FORCE_PCT}")
+    return []
+
+
+def _do_gripper_activate():
+    """활성화 — 손가락이 실제로 움직인다. 이동 게이트와 같은 안전 확인을 지나되
+    pct 판정은 없다 (아직 지령이 없다)."""
+    state = session.read_fresh_state()
+    reasons = safety.check_gripper(state, time.time() - session.lastStateAt,
+                                   0, session.appliedSettings)
+    # 활성화 자체가 active 를 만드는 것이므로 '활성화 안 됨' 은 사유에서 뺀다
+    reasons = [r for r in reasons if "활성화되지 않았다" not in r]
+    if reasons:
+        return reasons
+    diag = session.adapter.gripper_activate()
+    time.sleep(0.5)                      # 활성화는 원점을 잡는 물리 동작 — 비트가 서기까지 한 번만 본다
+    after = (session.read_fresh_state() or {}).get("gripper") or {}
+    log("gripper-activate", f"config={diag} → activeRaw={after.get('activeRaw')} "
+        f"faultRaw={after.get('faultRaw')} pctRaw={after.get('pctRaw')}")
+    return []
+
+
 async def handle_cmd(msg, who, token):
     cmd = msg.get("cmd")
     if cmd == "stop":                            # 제3원칙 — 조종권·신원·phase 무관 항상 실행
@@ -272,8 +311,15 @@ async def handle_cmd(msg, who, token):
     elif cmd == "moveJ":
         reasons = await asyncio.to_thread(
             _do_motion, msg.get("jointsDeg"), msg.get("speedPct", safety.SPEED_CAP_PCT))
+    elif cmd == "gripper":
+        pct = msg.get("pct")
+        if pct is None and isinstance(msg.get("open"), bool):
+            pct = 100.0 if msg["open"] else 0.0     # open 은 pct 의 별칭 (계약 §그리퍼)
+        reasons = await asyncio.to_thread(_do_gripper, pct)
+    elif cmd == "gripperActivate":
+        reasons = await asyncio.to_thread(_do_gripper_activate)
     else:
-        return {"ok": False, "reason": f"모르는 cmd — {cmd} (gripper 는 P3)"}
+        return {"ok": False, "reason": f"모르는 cmd — {cmd}"}
     return {"ok": True} if not reasons else {"ok": False, "reason": " · ".join(reasons)}
 
 

@@ -141,7 +141,10 @@ const gripper = {
     'PGEA-100-40_finger_left.stl',
     'PGEA-100-40_finger_right.stl',
   ],
-  _손가락: '개폐(prismatic 관절)는 이번 범위 밖. 벌어진 채로 고정한다.',
+  fingerHalfStrokeMm: 20,
+  _손가락: '개폐를 3D 에 반영한다 (2026-08-04). 손가락 STL 둘을 X 축 대칭으로 밀어 흉내 낸다 — '
+    + 'URDF 에 prismatic 관절이 없어 관절이 아니라 메시 이동이다. 20mm 은 PGE A-100-40 의 '
+    + '총 행정 40mm 의 절반(모델명 유래) — 데이터시트 실측으로 확정하기 전까지 근사다.',
 };
 
 const targets = [

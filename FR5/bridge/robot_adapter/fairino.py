@@ -19,6 +19,15 @@ ERROR_TRANSLATE = {
 DRAG_CACHE_S = 0.5              # IsInDragTeach 는 xmlrpc 왕복이라 캐시한다 (신선도 게이트 이내)
 CMD_TIMEOUT_S = 3.0             # xmlrpc 왕복 상한. 넘으면 행으로 보고 던진다 (아래 _guard)
 STOP_LOCK_WAIT_S = 0.2          # stop 이 잠금을 기다리는 최대 시간. 그 뒤엔 잠금 없이 보낸다
+GRIPPER_INDEX = 1               # 말단 1번 포트 (펜던트 실측 · STACK §그리퍼)
+GRIPPER_COMPANY = 4             # 대환(DAHUAN) — 펜던트 4필드와 1:1 (evidence 2026-08-03)
+GRIPPER_DEVICE = 0              # PGI-140 (대환의 유일한 선택지 · 실물은 PGE A-100-40)
+# MoveGripper 시간 상한. **속도와 함께 정해야 한다** — 2026-08-04 실기에서 이걸 어겨
+# 컨트롤러가 `8/1 Gripper Movement timeout` 을 래치했다 (펜던트 문구 실측).
+# 전체 행정이 최고속 약 1초인데 우리는 안전하게 vel 30% 로 보낸다 → 실제 3초 안팎.
+# 상한을 3000ms 로 두면 정상 이동이 상한과 겹쳐 **닫기가 끝나기 직전에 타임아웃**한다.
+# 10초는 3배 여유이면서, 진짜로 낀 그리퍼는 여전히 10초 안에 보고된다 (SDK 상한은 30000).
+GRIPPER_MAXTIME_MS = 10000
 
 
 def _code(rtn, op):
@@ -144,11 +153,47 @@ class FairinoAdapter(RobotAdapter):
             "motionQueueLength": int(pkg.mc_queue_len),
             "safety": safety,
             "coord": {"toolId": int(pkg.tool), "userId": int(pkg.user)},
-            "gripper": {"opened": None, "pos": int(pkg.gripper_position)},
+            "gripper": self._read_gripper(pkg),
             "lastServoTargetDeg": [float(v) for v in pkg.lastServoTarget],
             "missing": missing,
         }
         return state
+
+    # ── 그리퍼 (D65) — 20004 실시간 구조체의 **이름 붙은** 필드만 읽는다 ──────
+    # GetGripperMotionDone() 은 자리로 구분하는 튜플이라 [fault, status] 가 뒤집혀도
+    # 알아챌 방법이 없다 (실측 [1, 0]). 이름으로 오는 값은 순서가 섞이지 않는다.
+    def _read_gripper(self, pkg):
+        return {
+            # 읽기 = 지령이다 (2026-08-04 실측: 지령 30·70 → 읽기 30·70, 자동 모드).
+            # 8/3 의 "방향이 반대" 는 **수동 모드**에서 잰 값이었다 (unity-bridge-protocol §6).
+            # 그래서 변환도, 두 벌의 숫자도 필요 없다.
+            "pct": int(pkg.gripper_position),
+            "fault": bool(int(pkg.gripper_fault)),
+            "motionDone": bool(int(pkg.gripper_motiondone)),
+            # gripper_active 는 비트마스크지만 우리 그리퍼는 하나다 — 0 이 아니면 활성.
+            # 천장: 두 번째 그리퍼가 붙으면 비트 자리를 확정해야 한다 (실측 bit0 이었다).
+            "active": int(pkg.gripper_active) != 0,
+        }
+
+    def gripper_activate(self):
+        """**ActGripper 만 부른다.** 설정은 읽어서 보고만 하고 쓰지 않는다.
+
+        2026-08-04 롤백 — `SetGripperConfig` 를 활성화마다 넣어 봤다가 뺐다. 근거가 갈렸고
+        (우리 실측 `company=4·device=0` ↔ 유니티 기록 `company=2·device=4`) 컨트롤러에
+        쓰는 값은 **틀리면 되돌리기 어렵다.** 펜던트가 이미 설정을 들고 있고, 그 상태에서
+        `ActGripper(1,1)` 만으로 활성화가 실제로 됐다 (`activeRaw=1` 실측).
+        설정을 다시 넣어야 한다는 증거가 나오면 그때 되살린다.
+        """
+        with self._lock:
+            cfg = _guard(self._r.GetGripperConfig)      # 읽기만 — 진단 기록용
+            _code(_guard(self._r.ActGripper, GRIPPER_INDEX, 1), "gripper-activate")
+        return {"config": cfg}
+
+    def gripper_move(self, pct, vel_pct, force_pct):
+        with self._lock:
+            _code(_guard(self._r.MoveGripper, GRIPPER_INDEX, int(round(pct)),
+                         int(round(vel_pct)), int(round(force_pct)),
+                         GRIPPER_MAXTIME_MS, 1, 0, 0, 0, 0), "gripper-move")
 
     # ── 안전 설정 (D53) — 되읽기가 없는 항목이 절반이라 매번 다시 넣는다 ──
     def apply_settings(self, settings):

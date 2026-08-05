@@ -4,7 +4,8 @@
 양쪽 다 정상으로 보인다 — 에러가 안 난다 (D17).
 
 - `data/` — 데이터·계약. **프레임워크 무관, 렌더링 없음**
-  (`layout` `units` `config` 는 있다. `datasource` 는 아직 빈 폴더 — **L1 착수 때 채운다**)
+- **`data/datasource/` 가 데이터 출처를 아는 유일한 곳이다** — 화면은 `fetch`·저장소를
+  직접 부르지 않는다. 교체는 `index.js` 한 줄 (`scripts/check/datasource.sh` 가 지킨다)
 - `view3d/` — 바닐라 three 공용. **React 를 쓰지 않는다**
 - `tokens/` — codegate 시각 정본의 런타임 미러. **컴포넌트 스타일은 공유하지 않는다**
 - **화면을 두지 않는다** — 화면은 `AR/` · `Dashboard/` · `FR5/` 안에만
@@ -17,7 +18,7 @@
 | 경로 | 무엇 |
 |---|---|
 | `assets/` | URDF, 마커, 그리퍼 STL 등 정적 자산 |
-| `data/` | `layout` 배치안 · `units` 단위변환 · `config` 굽힌 설정 · `datasource` (빈 폴더) |
+| `data/` | `layout` 배치안(팩토리·스키마) · `units` 단위변환 · `config` 굽힌 설정 · `datasource` 출처 경계 |
 | `tokens/` | 색·간격·타이포 CSS 변수 |
 | `view3d/` | 바닐라 three.js 3D 뷰 모듈 |
 

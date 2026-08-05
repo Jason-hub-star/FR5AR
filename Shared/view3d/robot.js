@@ -108,12 +108,36 @@ function attachGripper(robot, cfg, dir, manager) {
       geom.computeVertexNormals();
       // 팔(URDF 재질 = 연회색)과 **구별되는 색**으로 둔다. 정합을 눈으로 확인할 때
       // 같은 색이면 어디가 팔이고 어디가 그리퍼인지 안 보인다.
-      meshRoot.add(new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
+      const mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
         color: 0x4a5a68, metalness: 0.45, roughness: 0.4,
-      })));
+      }));
+      mesh.name = file;              // 손가락 둘을 나중에 찾아 밀기 위해 이름을 남긴다
+      mesh.userData.restX = 0;       // 구워진 원래 X (조립 좌표계 기준)
+      meshRoot.add(mesh);
     });
   }
   return mount;
+}
+
+/**
+ * 손가락 개폐를 3D 에 반영한다 (2026-08-04).
+ *
+ * **관절이 아니라 메시 이동이다** — URDF 에 prismatic 관절이 없다. 손가락 STL 둘이 X 축
+ * 대칭으로 구워져 있어(attachGripper 주석) 좌우를 반대 부호로 밀면 개폐로 보인다.
+ * openPct 0=닫힘 100=열림. 값이 null 이면 아무것도 하지 않는다 — **모르면 안 움직인다**
+ * (마지막 자세를 유지하는 편이, 없는 값을 0 으로 읽어 손가락을 닫아 보이는 것보다 정직하다).
+ */
+export function setGripperOpenPct(mount, openPct, halfStrokeMm) {
+  if (!mount || openPct == null || !Number.isFinite(openPct)) return;
+  // **STL 은 이미 벌어진 자세로 구워져 있다** (gripper-mount.json `_손가락`).
+  // 그래서 여는 게 아니라 **닫을 때만 안쪽으로 당긴다** — 100% 에서 offset 0 이다.
+  // 반대로 짜면 구워진 폭에 20mm 이 더해져 비현실적으로 벌어진다 (2026-08-04 육안 확인).
+  const closing = (1 - Math.min(100, Math.max(0, openPct)) / 100) * halfStrokeMm;
+  for (const m of mount.getObjectByName('gripperMeshes')?.children ?? []) {
+    if (!m.name.includes('finger')) continue;
+    const sign = m.name.includes('left') ? -1 : 1;   // 닫히는 방향 = 서로 마주보게
+    m.position.x = m.userData.restX + sign * closing;
+  }
 }
 
 /** 설정값을 mount 에 적용한다. 육안 정합 중 여러 번 다시 부른다. */

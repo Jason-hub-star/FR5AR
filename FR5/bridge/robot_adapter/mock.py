@@ -36,6 +36,9 @@ class MockFr5Adapter(RobotAdapter):
         self._last_tick = time.time()
         self._servo_target = [0.0] * 6
         self._settings = None          # apply_settings 가 넣은 값 — 되읽기의 출처
+        self._grip_active = False      # ActGripper 전에는 이동 명령이 거부돼야 한다
+        self._grip_cmd_pct = 0.0       # 마지막 지령 (지령 기준)
+        self._grip_fault = bool(self._fault.get("gripperFault"))
 
     def connect(self):
         self._connected = True
@@ -99,6 +102,20 @@ class MockFr5Adapter(RobotAdapter):
     def stop(self):
         self._target = None
 
+    # ── 그리퍼 ─────────────────────────────────────────────────────────────
+    def gripper_activate(self):
+        self._require()
+        if not self._enabled:
+            raise ConnectionError("mock: 서보 OFF — 활성화를 거부한다")
+        self._grip_active = True
+        return {"config": (0, [1, 4, 0, 0])}    # 실기와 같은 진단 모양
+
+    def gripper_move(self, pct, vel_pct, force_pct):
+        self._require()
+        if not self._grip_active:
+            raise ConnectionError("mock: 그리퍼가 활성화되지 않았다")
+        self._grip_cmd_pct = float(pct)
+
     def _require(self):
         if not self._connected:
             raise ConnectionError("mock: 연결이 없다")
@@ -146,7 +163,12 @@ class MockFr5Adapter(RobotAdapter):
                 "subErrorCode": 0,
             },
             "coord": {"toolId": 0, "userId": 0},
-            "gripper": {"opened": True, "pos": 0},
+            "gripper": {
+                "pct": round(self._grip_cmd_pct, 1),   # 읽기 = 지령 (실기와 같다)
+                "fault": self._grip_fault,
+                "motionDone": True,        # mock 은 순간 도달 — 실기는 실시간 필드가 준다
+                "active": self._grip_active,
+            },
             "lastServoTargetDeg": list(self._servo_target),
             "missing": [],
         }

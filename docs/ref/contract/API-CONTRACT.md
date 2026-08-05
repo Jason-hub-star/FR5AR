@@ -51,7 +51,7 @@ WebSocket `/ws/state`로 브로드캐스트. 접속한 전원이 같은 것을 �
   },
   "coord": { "toolId": 0, "userId": 0 },
   "sampleMs": 33,                // 서버가 실제로 쓰는 폴링 주기
-  "gripper": { "opened": true, "pos": 0 },
+  "gripper": { "pct": 70, "fault": false, "motionDone": true, "active": true },
   "owner": "kim",                // 조종권 보유자 (없으면 null)
   "phase": "OBSERVE_ONLY",      // 연결 상태기계 (FR5-IMPLEMENTATION-PLAN §안전 상태) — 클라이언트가 이걸 보고 조작 UI를 잠근다
   "failReason": null,            // FAIL_CLOSED 일 때만 사유 문자열
@@ -139,7 +139,8 @@ WebSocket 같은 연결로 올린다. **조종권을 가진 클라이언트의 �
 { "cmd": "hello",   "who": "kim", "token": "…" }   // 이 연결의 신원. 명령 전 1회 (토큰은 §조종권)
 { "cmd": "jog",     "joint": 2, "deltaDeg": 1.0 }
 { "cmd": "moveJ",   "jointsDeg": [0,0,0,0,0,0], "speedPct": 10 }
-{ "cmd": "gripper", "open": true }
+{ "cmd": "gripper", "pct": 30 }         // 아래 §그리퍼. open:true/false 는 별칭
+{ "cmd": "gripperActivate" }
 { "cmd": "stop" }                       // 조종권·신원 없어도 항상 받는다
 ```
 
@@ -171,19 +172,35 @@ POST /disarm  { "who": "kim", "token": "…" }                        → 서보
 
 ```jsonc
 { "cmd": "gripper", "pct": 30 }      // 0~100. open:true/false 는 pct 의 별칭으로 남긴다
+{ "cmd": "gripperActivate" }         // 활성화(ActGripper). 손가락이 실제로 움직인다 — 사람이 누른다
 ```
+
+`gripperActivate` 를 **ARM 시퀀스에 넣지 않는다** (2026-08-04 · D65). 활성화는 원점을 잡는
+**물리 동작**이라, 서보를 올리는 것과 같은 순간에 손가락까지 움직이면 사람이 예상하지 못한다.
+조종권자가 화면에서 따로 누른다.
 
 - **관절이 아니다** — 5°·URDF 한계·모션큐 게이트는 걸지 않고, 그리퍼 전용 게이트를 탄다:
   조종권 · ARMED · 상태 신선도 · `gripperFault` 없음 · 힘 상한. 관절 게이트를 그대로
   복붙하면 통과할 수 없거나 엉뚱한 값으로 판정한다 (감사 P1)
-- **지령 pct 와 읽기 pct 는 방향이 반대다** (실측: 지령 30→읽기 76). 브리지가 한 곳에서
-  변환하고, 계약에 나오는 값은 전부 **지령 기준**이다 — 단위 변환은 한 곳에서만 (하드 룰 5)
-- `state.gripper` 는 `{ pct, fault, motionDone, active }` 를 싣는다. 못 읽으면 `missing` 에
-  올려 fail-closed 로 넘긴다
-- ⚠ **`GetGripperMotionDone` 의 필드 순서를 구현 첫 줄에 재실측한다.** SDK 문서는
-  `[fault, status]` 인데 실측은 이동 직후 `[1, 0]` 이었다 — 실제 순서가 `[status, fault]`
-  이면 그대로 짠 코드가 **fault 를 motionDone 으로 읽는다**(고장을 완료로 본다).
-  `state.gripper` 에 싣기 전에 어느 쪽인지부터 굳힌다 (`STACK.md` §스모크 실측)
+- ~~지령 pct 와 읽기 pct 는 방향이 반대다~~ → **모드 문제였다. 변환은 없다** (2026-08-04).
+  유니티 실기 기록: `before auto mode + DAHUAN: 0% → position=96 · after auto mode: 0% → 0`
+  (`unity/unity-bridge-protocol.md` §6). 8/3 스모크는 브리지를 끄고 **수동 모드**에서 쟀다.
+  우리 ARM 은 `Mode(0)` 자동이라 실측이 곧다 — `지령 30·70·100 → 읽기 30·70·100`.
+  **그래서 `pct` 한 벌만 싣는다.** 두 벌의 숫자도, 변환표도, `calibrated` 깃발도 없앴다 —
+  없는 문제를 위한 구조를 남기지 않는다
+- **읽기는 명령 직후가 아니라 약 5초 뒤에 수렴한다** (유니티 실측). 즉시 판정하면 오판한다 —
+  이동 중 값으로 결론을 내리지 않는다 (8/3 의 "방향 반대" 가 그 실수였다)
+- ⚠ **`maxtime` 은 `vel` 과 함께 정한다.** `vel 30% + maxtime 3000ms` 로 보냈다가 정상 이동이
+  상한과 겹쳐 컨트롤러가 `8/1 Gripper Movement timeout` 을 **래치**했다 — 브리지 재시작으로
+  안 풀려 전원 재투입이 필요했다 (2026-08-04 · 펜던트 문구 실측). 지금 `maxtime 10000ms`
+- `state.gripper` 는 `{ pct, fault, motionDone, active }` 를 싣는다.
+  못 읽으면 `missing` 에 올려 fail-closed 로 넘긴다
+- ✅ **필드 순서 문제는 `GetGripperMotionDone` 을 안 써서 없앴다** (2026-08-04 · D65).
+  그 xmlrpc 는 **자리로 구분하는 튜플**이라 `[fault, status]` 가 뒤집혀도 알아챌 방법이 없다
+  (실측 `[1, 0]`). 대신 20004 실시간 구조체의 **이름 붙은 필드**를 읽는다 —
+  `gripper_motiondone` · `gripper_fault` · `gripper_active` · `gripper_position`.
+  이름으로 오는 값은 순서가 섞이지 않는다. xmlrpc 왕복도 사라진다
+- `active` 는 **비트마스크**다 — `gripper_active` 의 bit N 이 그리퍼 N번. 우리 것은 1번 포트
 - 프로필에 그리퍼 정체(`company: 4` 대환 · `device: 0` · 포트 1)를 등재하고 preflight 가
   대조한다 — 다른 그리퍼가 달린 개체에서 같은 지점을 재생하면 파지 폭이 달라진다
 
@@ -371,8 +388,8 @@ POST /proposal/{id}/reject   { who, token }
 
 | 항목 | 검증된 값 |
 |---|---|
-| 현재 로봇 응답 주소 | **`192.168.57.2:8080`** (`robotId` 프로필로 교체 가능) |
-| 같은 대역 PC | `192.168.57.10/24` |
+| 현재 로봇 응답 주소 | **`192.168.58.2:8080`** (2026-08-05 · `robotId` 프로필로 교체 가능) |
+| 같은 대역 PC | `192.168.58.10/24` (`enp3s0`) |
 | 브리지 포트 | `5055` |
 | 상태 폴링 | **33ms 설정 → 실측 27.37Hz** (100ms→8.93 · 50ms→18.66) |
 | 오류 시 폴백 | 연속 2회 → 50ms · 연속 3회 → 연결 손실 판정 |

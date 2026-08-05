@@ -18,7 +18,7 @@ FAIRINO FR5 협동로봇을 **브라우저에서 팀 전체가 함께 다루는*
 | FR5 브리지 (Python) | `docs/ref/contract/API-CONTRACT.md` → `docs/ref/arch/ARCHITECTURE.md` |
 | FR5 웹 조작 화면 | `FR5/AGENTS.md` → `docs/ref/contract/API-CONTRACT.md` |
 | 배치·지표 관제화면 | `docs/ref/arch/CONSOLE-REACT.md` → `docs/ref/contract/SHARED-CORE.md` |
-| AR 겹쳐 보기 | `docs/ref/arch/STACK.md` §AR → `docs/evidence/` |
+| AR 겹쳐 보기 | `docs/ref/arch/AR-MARKER.md` → `docs/evidence/` |
 | 로봇 실기 | `docs/ref/arch/ARCHITECTURE.md` §로봇 |
 | 무엇을 만들지 | `docs/ref/product/PRD.md` |
 | 문서를 새로 만들 때 | `docs/ref/README.md` — 어느 카테고리 폴더인지 |

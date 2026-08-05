@@ -20,7 +20,7 @@ const L = { id:'T', name:'t', unit:'mm-deg',
   doors:[{wall:'south', atMm:3000, widthMm:1200, heightMm:2100}],
   windows:[{wall:'west', atMm:1200, widthMm:1000, heightMm:1200, sillMm:900},
            {wall:'north', atMm:2500, widthMm:1000, heightMm:1200, sillMm:900}],
-  arm:{model:'FR5', basePosMm:[3000,2000,900], baseYawDeg:30, reachMm:922},
+  arms:[{id:'fr5', model:'FR5', role:'process', basePosMm:[3000,2000,900], baseYawDeg:30, reachMm:922}],
   stations:[{id:'s1', name:'S1', posMm:[1000,500,0]}],
   amrs:[{id:'a1', model:'tb3', reachMm:300, dockPosMm:[500,3500,0], waypointsMm:[[500,3500],[4000,1000]]}],
   props:[{id:'p1', type:'bench', posMm:[2000,3000,0], rotDeg:45}], verified:false };

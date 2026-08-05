@@ -7,6 +7,7 @@ import './main.css';
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { FR5_REACH_M } from '@fr5/shared/view3d/reach-zone.js';
+import { datasource } from '@fr5/shared/data/datasource/index.js';
 import { LayoutEditor } from '../features/layout/LayoutEditor.jsx';
 import { MetricsCompare } from '../features/metrics/MetricsCompare.jsx';
 import { RobotControl } from '../features/control/RobotControl.jsx';
@@ -17,8 +18,9 @@ const TABS = [
   ['control', '로봇 조작', RobotControl],
 ];
 
-// 지표 출처. 지금은 목업뿐이다 — 실물이 붙으면 Shared/data/datasource/ 가 바꿔 끼운다.
-const SOURCE = 'mock';
+// 출처. **여기 문자열을 박지 않는다** — datasource 가 자기가 무엇인지 말한다.
+// 박아 두면 `http.js` 로 바꿔 끼운 날 화면이 계속 "mock" 이라고 우긴다 (SR_24).
+const SOURCE = datasource.source;
 
 function App() {
   const [tab, setTab] = useState('layout');

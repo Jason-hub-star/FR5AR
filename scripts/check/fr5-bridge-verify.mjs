@@ -38,7 +38,7 @@ try {
   const robots = (await api('/robots')).json;
   check('GET /robots — 프로필 5개', robots.length === 5);
   const lab = robots.find(r => r.robotId === 'fr5-lab-a');
-  check('실기 프로필 endpoint 는 증거값', lab?.endpoint === '192.168.57.2:8080');
+  check('실기 프로필 endpoint 는 증거값', lab?.endpoint === '192.168.58.2:8080');
   check('프로필에 비밀번호류 없음', !JSON.stringify(robots).match(/password|passwd|secret/i));
 
   // 2. 미연결 스냅샷 — 같은 스키마 (D40)
@@ -222,6 +222,37 @@ try {
   check('무신원 stop → 즉시 정지 (관절 정지·큐 0)',
     s1.motionQueueLength === 0 && Math.abs(s1.jointsDeg[0] - s2.jointsDeg[0]) < 1e-9
     && Math.abs(s2.jointsDeg[0] - (j1a + 2 + 4)) > 0.5);
+
+  // 그리퍼 — 관절이 아니다. 전용 게이트를 타는지, 활성화가 선행되는지 (계약 §그리퍼)
+  kim.refusals.length = 0;
+  kim.send({ cmd: 'gripper', pct: 50 });
+  await sleep(200);
+  check('활성화 전 그리퍼 이동 거부 (사람이 읽는 사유)',
+    kim.refusals.some((r) => r.includes('활성화')));
+  kim.refusals.length = 0;
+  kim.send({ cmd: 'gripper', pct: 140 });
+  await sleep(200);
+  check('그리퍼 pct 범위 밖 거부', kim.refusals.some((r) => r.includes('0~100')));
+
+  kim.send({ cmd: 'gripperActivate' });
+  await sleep(300);
+  check('활성화 → state.gripper.active', (await getState()).gripper?.active === true);
+
+  kim.refusals.length = 0;
+  kim.send({ cmd: 'gripper', pct: 30 });
+  await sleep(300);
+  const grip = (await getState()).gripper ?? {};
+  check('그리퍼 30% 지령 → 읽기가 같은 값으로 따라온다 (2026-08-04 실기 확인)',
+    grip.pct === 30, `pct=${grip.pct}`);
+  check('그리퍼는 관절 게이트를 타지 않는다 (5°·모션큐 사유 없음)',
+    !kim.refusals.some((r) => r.includes('5°') || r.includes('모션 큐')));
+
+  // 무신원·비조종권은 그리퍼도 못 만진다 (stop 만 예외)
+  lee.refusals.length = 0;
+  lee.send({ cmd: 'gripper', pct: 10 });
+  await sleep(200);
+  check('조종권 없는 사람의 그리퍼 명령 거부',
+    lee.refusals.some((r) => r.includes('조종권')));
 
   // 조종권 반납 → 자동 disarm (주인 없는 ARMED 를 남기지 않는다)
   check('옛 토큰으로는 반납도 안 된다',

@@ -41,7 +41,8 @@ CAP_DOC_W=300;     CAP_DOC_H=450        # 개별 md 한 개
 CAP_INDEX_W=45;    CAP_INDEX_H=60       # docs/INDEX.md 등재 행
 CAP_EVID_W=8;      CAP_EVID_H=14        # docs/evidence/<날짜>/ 폴더 **하나당** 파일 수 (D37)
 CAP_RND_W=5;       CAP_RND_H=8          # docs/ref/rnd/ 파일 수
-CAP_TOTAL_W=9000;  CAP_TOTAL_H=13000    # docs/**.md 총 줄수
+CAP_TOTAL_W=9000;  CAP_TOTAL_H=13000    # **읽는** 문서 총 줄수 (evidence/·archive/ 제외 — D71)
+CAP_EVTOT_W=6000;  CAP_EVTOT_H=12000    # docs/evidence/**.md 총 줄수 — 참조용이라 별도 상한
 CAP_DECLOG_W=1200; CAP_DECLOG_H=99999   # DECISION-LOG 줄수는 **경고만** — 아래 참조
 STALE_DAYS=30                           # weekend: 방치 판정
 
@@ -81,7 +82,7 @@ while IFS= read -r f; do
   [ "$n" -gt "$CAP_DOC_W" ] || continue
   BIG=$((BIG+1))
   gauge "$f" "$n" "$CAP_DOC_W" "$CAP_DOC_H" "절을 잘라 별 문서로 이관 (삭제 금지)"
-done < <(find docs -name '*.md' -not -path './docs/archive/*' | sort)
+done < <(find docs -name '*.md' -not -path 'docs/archive/*' | sort)
 [ "$BIG" -eq 0 ] && note "${CAP_DOC_W}줄 넘는 문서 없음 (DECISION-LOG 제외 — 아래)"
 
 echo
@@ -118,8 +119,14 @@ gauge "docs/ref/rnd/ 파일" "$(find docs/ref/rnd -type f 2>/dev/null | wc -l | 
 
 echo
 echo "== 총량 =="
-MD_TOTAL=$(find docs -name '*.md' -exec cat {} + 2>/dev/null | wc -l | tr -d ' ')
-gauge "docs/**.md 총 줄수" "$MD_TOTAL" "$CAP_TOTAL_W" "$CAP_TOTAL_H" "위 처방을 먼저 실행"
+# 총량은 **통독 대상**만 센다 — 읽기 비용을 재는 지표이기 때문이다 (D71).
+# evidence/ 는 참조만 하고 archive/ 는 근거로 쓰지 않는다. 아래 html 을 빼는 것과 같은 논리다.
+MD_TOTAL=$(find docs -name '*.md' -not -path 'docs/evidence/*' -not -path 'docs/archive/*' \
+           -exec cat {} + 2>/dev/null | wc -l | tr -d ' ')
+gauge "docs/**.md 총 줄수 (읽는 것만)" "$MD_TOTAL" "$CAP_TOTAL_W" "$CAP_TOTAL_H" "위 처방을 먼저 실행"
+EV_TOTAL=$(find docs/evidence -name '*.md' -exec cat {} + 2>/dev/null | wc -l | tr -d ' ')
+gauge "docs/evidence/**.md 총 줄수" "$EV_TOTAL" "$CAP_EVTOT_W" "$CAP_EVTOT_H" \
+      "한 날짜 안에서 같은 주제를 한 파일로 합친다"
 HTML_TOTAL=$(find docs -name '*.html' -exec cat {} + 2>/dev/null | wc -l | tr -d ' ')
 note "docs/**.html 총 줄수 = ${HTML_TOTAL}줄 (조사·공유물 — 읽기 비용에 안 든다)"
 
@@ -158,7 +165,7 @@ if [ "$MODE" = weekend ]; then
   n=0
   while IFS= read -r f; do
     n=$((n+1)); warn "$f  (${STALE_DAYS}일+ 방치) → 현행인지 확인. 아니면 archive/"
-  done < <(find docs -name '*.md' -mtime "+$STALE_DAYS" -not -path './docs/archive/*' | sort)
+  done < <(find docs -name '*.md' -mtime "+$STALE_DAYS" -not -path 'docs/archive/*' | sort)
   [ "$n" -eq 0 ] && note "방치 문서 없음"
 
   echo

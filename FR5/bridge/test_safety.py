@@ -158,5 +158,72 @@ class ArmGate(unittest.TestCase):
         self.assertEqual(safety.check_arm(state(enabled=False), 0.0), [])
 
 
+class GripperGate(unittest.TestCase):
+    """그리퍼는 **관절이 아니다.** 관절 게이트를 복붙하면 통과할 수 없거나 엉뚱하게 막는다."""
+
+    def gstate(self, **over):
+        grip = {"pctRaw": 50, "pct": None, "fault": False,
+                "motionDone": True, "active": True, "calibrated": False}
+        grip.update(over.pop("gripper", {}))
+        return state(gripper=grip, **over)
+
+    def gate(self, st=None, age=0.0, pct=50, applied=OK_SETTINGS):
+        return safety.check_gripper(st if st is not None else self.gstate(), age, pct, applied)
+
+    def test_기준_상태는_통과한다(self):
+        self.assertEqual(self.gate(), [])
+
+    # ── 관절 게이트를 타지 않는다 (감사 P1) ─────────────────────────────
+    def test_모션큐가_차_있어도_그리퍼는_움직인다(self):
+        # 팔이 이동 중이어도 손가락은 따로다. 모션큐를 걸면 pick 이 성립하지 않는다
+        self.assertEqual(self.gate(self.gstate(motionQueueLength=3)), [])
+
+    def test_수동_모드에서도_그리퍼는_움직인다(self):
+        # auto 모드 요구는 MoveJ 의 조건이다 — 그리퍼까지 걸면 티칭 중 개폐를 못 한다
+        self.assertEqual(self.gate(self.gstate(mode=1)), [])
+
+    def test_관절값이_비정상이어도_그리퍼는_판정하지_않는다(self):
+        self.assertEqual(self.gate(self.gstate(jointsDeg=[float("nan")] * 6)), [])
+
+    # ── 그리퍼 고유 조건 ───────────────────────────────────────────────
+    def test_활성화_전에는_거부(self):
+        self.assertTrue(blocked(self.gate(self.gstate(gripper={"active": False})), "활성화"))
+
+    def test_고장_신호면_거부(self):
+        self.assertTrue(blocked(self.gate(self.gstate(gripper={"fault": True})), "고장"))
+
+    def test_그리퍼_필드_결측은_차단(self):
+        self.assertTrue(blocked(self.gate(self.gstate(gripper={"fault": None})), "결측"))
+
+    def test_그리퍼_상태_자체가_없으면_차단(self):
+        st = state()
+        st.pop("gripper", None)
+        self.assertTrue(blocked(self.gate(st), "못 읽었다"))
+
+    def test_pct_범위_밖은_거부(self):
+        for bad in (-1, 101, float("nan"), "50", None, True):
+            self.assertTrue(blocked(self.gate(pct=bad), "0~100"), f"{bad!r} 가 통과했다")
+
+    # ── 공통 관문은 그대로 탄다 ────────────────────────────────────────
+    def test_서보_off_면_거부(self):
+        self.assertTrue(blocked(self.gate(self.gstate(enabled=False)), "서보 OFF"))
+
+    def test_비상정지_중_거부(self):
+        self.assertTrue(blocked(self.gate(self.gstate(safety={"emergencyStop": True})), "비상정지"))
+
+    def test_드래그_티칭_중_거부(self):
+        self.assertTrue(blocked(self.gate(self.gstate(safety={"inDragTeach": True})), "드래그"))
+
+    def test_낡은_상태는_거부(self):
+        self.assertTrue(blocked(self.gate(age=safety.STATE_FRESH_S + 0.01), "낡았다"))
+
+    def test_안전설정_기록이_없으면_거부(self):
+        self.assertTrue(blocked(self.gate(applied=None), "조건 26"))
+
+    def test_상태_None_은_차단(self):
+        # gate() 헬퍼는 None 을 '기본값 쓰라'로 읽으므로 여기만 직접 부른다
+        self.assertTrue(blocked(safety.check_gripper(None, 0.0, 50, OK_SETTINGS), "fail-closed"))
+
+
 if __name__ == "__main__":
     unittest.main()

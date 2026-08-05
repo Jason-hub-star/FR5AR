@@ -86,14 +86,93 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, _narrow ? 1.5 : 2));
   // 실내가 평평해졌다". 채움은 환경맵이 한다 — 여기선 아주 약하게만 둔다.
   scene.add(new THREE.HemisphereLight(0xffffff, 0xe8e9ea, 0.12));
 
+  // ── 시점 맞추기.
+  //
+  // **가로·세로 화각을 둘 다 본다.** 전에는 `dist = r / tan(fov/2)` 로 세로 화각만 썼고,
+  // three.js 의 `fov` 는 세로라서 **한 코드가 정반대 두 방향으로 틀렸다** — 가로 화면에선
+  // 남고 세로 화면에선 넘쳤다. 2026-08-04 실측(`evidence/2026-08-04/assembly-line.md`):
+  //   1600×900  방이 화면의 13.6% (좌 34% · 우 36% 여백)
+  //   900×1600  가로 140% — **양옆 40% 가 화면 밖으로 잘렸다**
+  //
+  // 그리고 `r = max(size.x, size.z)` 로 바닥의 가장 긴 축을 세로 화각에 예약했는데,
+  // 45° 대각에서 보면 그 축은 화면에서 **대각선으로 눕는다.** 세로로 필요한 건 절반도
+  // 안 되는데 통째로 비워 뒀다 — 낭비의 대부분이 여기였다.
+  //
+  // 지금은 **AABB 8모서리를 카메라 축으로 분해**해 두 화각을 동시에 만족하는 최소 거리를
+  // 구한다. 짐작이 없어지므로 `pad` 는 손으로 고르는 값이 아니라 여유분(6%)일 뿐이다.
+  const UP = new THREE.Vector3(0, 1, 0);
+  let framed = null;   // 마지막으로 맞춘 대상 — 창 비율이 바뀌면 다시 잡는다
+
+  function frameTo(object3d, { pitch = 0.42, pad = 1.06 } = {}) {
+    if (calib) return;               // 실카메라 시점은 옮기는 게 아니다
+    const box = new THREE.Box3().setFromObject(object3d);
+    if (box.isEmpty()) return;
+    framed = { object: object3d, opts: { pitch, pad } };
+
+    // **정규화한다.** 전에는 `(0.75, pitch, 0.75)` 를 거리에 그대로 곱했는데
+    // 이 벡터의 길이가 1.141 이라 계산한 거리보다 **늘 14% 뒤에** 섰다.
+    const back = new THREE.Vector3(0.75, pitch, 0.75).normalize();
+    const right = new THREE.Vector3().crossVectors(back, UP).normalize();
+    const up = new THREE.Vector3().crossVectors(right, back);
+    const tv = Math.tan((camera.fov * Math.PI) / 360);
+    const th = tv * camera.aspect;
+
+    const corners = [];
+    for (const X of [box.min.x, box.max.x]) {
+      for (const Y of [box.min.y, box.max.y]) {
+        for (const Z of [box.min.z, box.max.z]) corners.push(new THREE.Vector3(X, Y, Z));
+      }
+    }
+
+    // **맞춘 뒤 가운데로 민다.** 비스듬히 본 상자는 화면에서 상하·좌우가 대칭이 아니라,
+    // 상자 중심을 겨누면 한쪽만 화면 끝에 닿고 반대쪽에 여백이 남는다 (실측: 위 27% ·
+    // 아래 3%). 투영된 상자의 가운데를 다시 겨누면 그 여백이 회수된다. 두 번이면 붙는다.
+    const target = box.getCenter(new THREE.Vector3());
+    const v = new THREE.Vector3();
+    let dist = 0;
+    for (let pass = 0; pass < 3; pass++) {
+      dist = 0;
+      for (const c of corners) {
+        // 모서리를 (가로 · 세로 · 카메라쪽 깊이) 로 나눈다. 가까운 쪽 모서리는
+        // 깊이가 양수라 그만큼 더 물러나야 화면에 들어온다.
+        v.copy(c).sub(target);
+        const depth = v.dot(back);
+        dist = Math.max(dist,
+          Math.abs(v.dot(up)) / tv + depth,
+          Math.abs(v.dot(right)) / th + depth);
+      }
+      dist = Math.max(dist * pad, camera.near * 2);
+      if (pass === 2) break;
+      let x0 = Infinity; let x1 = -Infinity; let y0 = Infinity; let y1 = -Infinity;
+      for (const c of corners) {
+        v.copy(c).sub(target);
+        const d = Math.max(dist - v.dot(back), 1e-3);
+        const x = v.dot(right) / (d * th); const y = v.dot(up) / (d * tv);
+        if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+      target.addScaledVector(right, ((x0 + x1) / 2) * dist * th)
+        .addScaledVector(up, ((y0 + y1) / 2) * dist * tv);
+    }
+
+    controls?.target.copy(target);
+    camera.position.copy(target).addScaledVector(back, dist);
+    camera.updateProjectionMatrix();
+    controls?.update();
+  }
+
   function resize() {
     const w = host.clientWidth || 1;
     const h = host.clientHeight || 1;
     // **캘리브레이션 카메라는 화면 크기에 반응하지 않는다.** 투영 행렬이 실측 화각·주점이라
     // 여기서 aspect 로 덮어쓰면 애써 잰 값이 날아간다. 화면 비율은 CSS 로 맞춘다.
     if (!calib) {
+      const prev = camera.aspect;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      // **비율이 바뀌면 다시 맞춘다.** 시점을 배치안마다 한 번만 잡던 탓에, 창을 키워도
+      // 방은 그대로 작았고 폰을 돌리면 양옆이 잘린 채 남았다. 폭만 바뀌는 것도 비율이다.
+      if (framed && Math.abs(prev - camera.aspect) > 1e-3) frameTo(framed.object, framed.opts);
     }
     // **updateStyle 을 끄지 않는다.** 끄면 캔버스 CSS 크기가 버퍼 크기(=픽셀비 배)로 남아
     // 컨테이너의 몇 배가 되고 왼쪽 위 일부만 보인다. 실제로 밟았다.
@@ -114,20 +193,8 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, _narrow ? 1.5 : 2));
     scene, camera, renderer, controls,
     /** 매 프레임 부를 함수를 등록한다 */
     onTick: (f) => ticks.push(f),
-    /** 대상 전체가 화면에 담기게 시점을 잡는다 */
-    frame(object3d, { pitch = 0.42, pad = 1.35 } = {}) {
-      if (calib) return;               // 실카메라 시점은 옮기는 게 아니다
-      const box = new THREE.Box3().setFromObject(object3d);
-      if (box.isEmpty()) return;
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-      const r = Math.max(size.x, size.z) * 0.5 * pad;
-      const dist = r / Math.tan((camera.fov * Math.PI) / 360);
-      controls?.target.copy(center);
-      camera.position.set(center.x + dist * 0.75, center.y + dist * pitch, center.z + dist * 0.75);
-      camera.updateProjectionMatrix();
-      controls?.update();
-    },
+    /** 대상 전체가 화면에 담기게 시점을 잡는다. 이후 창 비율이 바뀌면 자동으로 다시 잡는다 */
+    frame: frameTo,
     dispose() {
       renderer.setAnimationLoop(null);
       ro.disconnect();

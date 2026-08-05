@@ -103,6 +103,16 @@ try {
   await clickText('조종권 잡기');
   check('조종권 claim → 안전 바에 kim',
     !!(await p.waitFor(`document.querySelector('[data-t="safetybar"]').textContent.includes('조종권 kim')`, { timeoutMs: 4000 })));
+  // 새로고침으로 토큰을 잃어도 자기 조종권에 갇히지 않는다 (2026-08-04 실기 사고)
+  await p.eval(`sessionStorage.removeItem('fr5.ownerToken'); location.reload()`);
+  await new Promise((r) => setTimeout(r, 2500));
+  await setInput('header [data-t="who"] input', 'kim');
+  check('토큰을 잃으면 "다시 잡기" 가 열린다 (반납 불가로 갇히지 않는다)',
+    !!(await p.waitFor(`document.querySelector('[data-t="claim"]')?.textContent.includes('다시 잡기')`, { timeoutMs: 5000 })));
+  await clickText('조종권 다시 잡기');
+  check('다시 잡기 → 새 토큰으로 조종권 복구',
+    !!(await p.waitFor(`!!document.querySelector('[data-t="control"] [data-t="confirm"]')`, { timeoutMs: 5000 })));
+
   check('현장확인 전 ARM 비활성',
     (await p.eval(`document.querySelector('[data-t="control"] button[data-t="arm"]')?.disabled`)) === true);
   await p.eval(`document.querySelector('[data-t="control"] [data-t="confirm"] input').click()`);
@@ -115,6 +125,19 @@ try {
   check('jog +1° → 3D·표의 관절값이 정확히 +1° 도달',
     !!(await p.waitFor(`Math.abs(parseFloat(document.querySelector('[data-t="joints"] td').textContent) - ${j1Before + 1}) < 0.01`, { timeoutMs: 8000 })),
     `j1 ${j1Before.toFixed(2)}→${j1Target}`);
+  // 그리퍼 — 활성화 전에는 슬라이더가 잠겨 있고, 활성화하면 열린다 (GOAL-live-gripper 1)
+  check('ARMED 에서 그리퍼 블록이 보인다',
+    !!(await p.eval(`!!document.querySelector('[data-t="gripper"]')`)));
+  check('활성화 전 슬라이더 잠김',
+    (await p.eval(`document.querySelector('[data-t="gripper-range"]').disabled`)) === true);
+  await p.eval(`document.querySelector('[data-t="gripper-activate"]').click()`);
+  check('활성화 → 슬라이더 열림',
+    !!(await p.waitFor(`document.querySelector('[data-t="gripper-range"]')?.disabled === false`, { timeoutMs: 5000 })));
+  await p.eval(`document.querySelector('[data-t="gripper-close"]').click()`);
+  check('완전 닫기 → 읽은 값이 화면에 돌아온다',
+    !!(await p.waitFor(`document.querySelector('[data-t="gripper-raw"]')?.textContent === '0%'`, { timeoutMs: 5000 })),
+    '지령 0 → 읽기 0% (같은 방향)');
+
   await p.eval(`document.querySelector('[data-t="safetybar"] [data-t="estop"]').click()`);
   await clickText('DISARM');
   check('DISARM → 서보 OFF 복귀',

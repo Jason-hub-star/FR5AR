@@ -3,17 +3,21 @@
 // 목록을 여기서 만들지 않는다 — `Shared/data/layout/catalog.js` 가 SSOT 다.
 // 그래야 부품을 더해도 이 파일을 안 고친다 (codegate `PartsPalette` 와 같은 규약).
 //
-// **천장** — 지금은 클릭하면 **방 가운데**에 놓고, 옮기는 것은 기존 끌기가 한다.
-// 바닥을 찍은 자리에 놓으려면 `interaction.js` 의 floor 레이캐스트를 팔레트와
-// 연결해야 하는데, 그건 배치 모드라는 상태가 하나 더 생기는 일이라 지금은 안 한다.
+// **끌어다 놓을 수 있다** (2026-08-04). 눌러서 놓으면 방 가운데, **끌어다 놓으면 그 자리**다.
+//
+// 전에는 "배치 모드라는 상태가 하나 더 생긴다" 는 이유로 안 했는데, 그건 *클릭 후 조준*
+// 방식의 이야기였다. HTML5 끌어놓기는 **브라우저가 그 상태를 들고 있어서** 우리 쪽에
+// 모드가 안 생긴다 — 끌기가 끝나면 흔적도 안 남는다.
 
 import { useEffect, useMemo, useState } from 'react';
 import { CATEGORIES, VISIBLE, cardKey, kindOf } from '@fr5/shared/data/layout/catalog.js';
 import { thumbFor, disposeThumbs } from '@fr5/shared/view3d/thumb.js';
 
 const MOUNT_BADGE = { wall: '벽', bench: '작업대 위' };
+// **자리는 소품이 아니다** — 배지로 갈라 준다. 시나리오가 이 이름으로 부른다
+const KIND_BADGE = { station: '자리' };
 // 문·창은 팩토리가 없어 구울 것이 없다 — 대신 납작한 기호를 그린다
-const OPENING_ICON = { door: '▯', window: '▭' };
+const OPENING_ICON = { door: '▯', window: '▭', station: '◎' };
 
 export function PartsPalette({ onPlace, count }) {
   const [q, setQ] = useState('');
@@ -57,18 +61,26 @@ export function PartsPalette({ onPlace, count }) {
       </div>
 
       <div className="palette-list">
-        {CATEGORIES.map(({ id, label }) => {
+        {CATEGORIES.map(({ id, label, note }) => {
           const items = hits.filter((c) => c.category === id);
           if (!items.length) return null;           // 빈 분류는 숨긴다
           return (
             <section key={id}>
               <h4>{label}</h4>
+              {/* 분류마다 한 줄 안내 — **어디에 놓나**가 안 적혀 있어 헤맸다 (2026-08-04) */}
+              {note && <p className="palette-note">{note}</p>}
               {items.map((c) => (
                 <button
                   key={cardKey(c)}
                   type="button"
                   className="part-card"
                   onClick={() => onPlace(c)}
+                  draggable
+                  onDragStart={(e) => {
+                    // 카드 **객체**를 못 실으므로 키만 싣고 받는 쪽이 카탈로그에서 찾는다
+                    e.dataTransfer.setData('text/fr5-card', cardKey(c));
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
                   title={c.hint ?? c.label}
                 >
                   <span className="part-thumb" aria-hidden="true">
@@ -78,7 +90,8 @@ export function PartsPalette({ onPlace, count }) {
                   </span>
                   <span className="part-text">
                     <span className="part-name">{c.label}</span>
-                    {MOUNT_BADGE[c.mount] && <span className="part-badge">{MOUNT_BADGE[c.mount]}</span>}
+                    {(KIND_BADGE[kindOf(c)] ?? MOUNT_BADGE[c.mount])
+                      && <span className="part-badge">{KIND_BADGE[kindOf(c)] ?? MOUNT_BADGE[c.mount]}</span>}
                     {c.hint && <span className="part-hint">{c.hint}</span>}
                   </span>
                 </button>
@@ -95,3 +108,4 @@ export function PartsPalette({ onPlace, count }) {
     </aside>
   );
 }
+

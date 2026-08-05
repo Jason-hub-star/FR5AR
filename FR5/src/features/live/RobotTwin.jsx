@@ -3,12 +3,14 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { loadConfig, loadRobot, setJointsDeg } from '@fr5/shared/view3d/robot.js';
+import { loadConfig, loadRobot, setJointsDeg, setGripperOpenPct } from '@fr5/shared/view3d/robot.js';
 
-export function RobotTwin({ jointsDeg }) {
+export function RobotTwin({ jointsDeg, gripperPct }) {
   const hostRef = useRef(null);
   const jointsRef = useRef(jointsDeg);
   jointsRef.current = jointsDeg;
+  const gripRef = useRef(gripperPct);   // 손가락 개폐 — 관절과 같은 틱에서 그린다
+  gripRef.current = gripperPct;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -34,6 +36,7 @@ export function RobotTwin({ jointsDeg }) {
     scene.add(zUpToYUp);
 
     let robot = null;
+    let gripMount = null;
     let raf = 0;
     let disposed = false;
     const { gripper } = loadConfig();
@@ -44,6 +47,7 @@ export function RobotTwin({ jointsDeg }) {
     }).then((r) => {
       if (disposed) return;
       robot = r.robot;
+      gripMount = r.gripperGroup ?? null;
       zUpToYUp.add(robot);
       host.dataset.ready = '1';                            // 실렌더 검증이 이 깃발을 본다
     }).catch((e) => { host.dataset.error = String(e.message || e); });
@@ -63,6 +67,7 @@ export function RobotTwin({ jointsDeg }) {
       if (robot) {
         const j = jointsRef.current;
         setJointsDeg(robot, { j1: j[0], j2: j[1], j3: j[2], j4: j[3], j5: j[4], j6: j[5] });
+        setGripperOpenPct(gripMount, gripRef.current, gripper.fingerHalfStrokeMm);
       }
       controls.update();
       renderer.render(scene, camera);
