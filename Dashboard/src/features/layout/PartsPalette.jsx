@@ -18,8 +18,28 @@ const MOUNT_BADGE = { wall: '벽', bench: '작업대 위' };
 const KIND_BADGE = { station: '자리' };
 // 문·창은 팩토리가 없어 구울 것이 없다 — 대신 납작한 기호를 그린다
 const OPENING_ICON = { door: '▯', window: '▭', station: '◎' };
+// 시나리오 어휘는 부품 탭에 안 뜬다 — 분류 id 로 가른다
+const SCENARIO_CATS = new Set(['spot']);
 
-export function PartsPalette({ onPlace, count }) {
+/**
+ * 좌측 패널 — **부품과 시나리오는 다른 것이다.**
+ *
+ * 전에는 한 목록에 섞여 있었다. `작업 지점 ①~⑥` 은 부품이 아니라 **시나리오가 이름으로
+ * 부르는 어휘**인데 소품 옆에 있으니, 경로를 그린 다음 "이걸 어디에 넣지" 가 나왔다
+ * (주인님 지적 · 2026-08-04). 탭으로 가른다.
+ *
+ * **사건은 여기서도 고친다.** 타임라인 마커 우클릭과 **같은 문**(`onSetEvent`)을 쓰므로
+ * 정본이 둘이 되지 않는다 — 보여주는 자리만 둘이다.
+ */
+export function PartsPalette({
+  onPlace, count,
+  series = [], stations = [], amrs = [], cycleSec = 0,
+  onSetEvent, onRemoveEvent, onAddEvent, onSeek,
+  // **탭은 밖에서도 바꾼다** — 경로 편집을 끝내면 화면이 시나리오 탭으로 데려간다.
+  // 안에만 두면 "이제 뭘 하지" 를 사람이 스스로 알아내야 한다 (2026-08-04 · 세 번 물으셨다).
+  tab = 'part', onTab, highlightEvent = null,
+}) {
+  const setTab = onTab ?? (() => {});
   const [q, setQ] = useState('');
 
   const hits = useMemo(() => {
@@ -48,20 +68,100 @@ export function PartsPalette({ onPlace, count }) {
 
   return (
     <aside className="palette">
+      <div className="palette-tabs" role="tablist">
+        <button
+          type="button" role="tab" data-t="tab-part"
+          className={tab === 'part' ? 'on' : ''} onClick={() => setTab('part')}
+        >부품
+        </button>
+        <button
+          type="button" role="tab" data-t="tab-scenario"
+          className={tab === 'scenario' ? 'on' : ''} onClick={() => setTab('scenario')}
+        >시나리오
+        </button>
+      </div>
+
       <div className="palette-head">
-        <h3>부품 팔레트</h3>
-        <p>고르면 방 가운데 놓여요. 끌어서 옮기고 <kbd>R</kbd> 로 돌려요.</p>
-        <input
-          type="search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="부품 검색…"
-          aria-label="부품 검색"
-        />
+        {tab === 'part' ? (
+          <>
+            <p>고르면 방 가운데 놓여요. 끌어서 옮기고 <kbd>R</kbd> 로 돌려요.</p>
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="부품 검색…"
+              aria-label="부품 검색"
+            />
+          </>
+        ) : (
+          <p>
+            <b>자리</b>를 놓고, <b>사건</b>이 그 자리를 부릅니다.
+            AMR 은 사건에 붙여야 움직여요 — 경로는 AMR 이 듭니다.
+          </p>
+        )}
       </div>
 
       <div className="palette-list">
+        {/* ── 시나리오 탭. **자리를 놓고 사건이 그 자리를 부른다** */}
+        {tab === 'scenario' && (
+          <section data-t="scn-events">
+            <h4>사건 — {series.length}개 · {cycleSec}초</h4>
+            {!series.length && <p className="palette-note">재생할 사이클이 없어요</p>}
+            {series.map((e, i) => (
+              <div
+                className={`scn-row${highlightEvent === i ? ' hot' : ''}`}
+                key={`${i}-${e.tSec}`} data-t="scn-row"
+              >
+                <input
+                  type="number" className="scn-t" min="0" step="0.5" value={e.tSec}
+                  aria-label="시각" data-t="scn-t"
+                  onChange={(ev) => onSetEvent?.(i, { tSec: Math.max(0, Number(ev.target.value) || 0) })}
+                />
+                <input
+                  type="text" className="scn-name" value={e.event ?? ''}
+                  aria-label="사건 이름" data-t="scn-name"
+                  onChange={(ev) => onSetEvent?.(i, { event: ev.target.value })}
+                />
+                <select
+                  value={e.station ?? ''} aria-label="자리" data-t="scn-st"
+                  onChange={(ev) => onSetEvent?.(i, { station: ev.target.value })}
+                >
+                  <option value="">자리 —</option>
+                  {stations.map((x) => <option key={x.id} value={x.id}>{x.name ?? x.id}</option>)}
+                </select>
+                <select
+                  value={e.amr ?? ''} aria-label="AMR" data-t="scn-amr"
+                  onChange={(ev) => onSetEvent?.(i, ev.target.value
+                    ? { amr: ev.target.value, amrAt: e.amrAt ?? e.station ?? stations[0]?.id }
+                    : { amr: '', amrAt: '' })}
+                >
+                  <option value="">AMR —</option>
+                  {amrs.map((a2) => <option key={a2.id} value={a2.id}>{a2.id}</option>)}
+                </select>
+                {/* 그 시각으로 감는다 — 고치기 전에 무엇이 벌어지는지 보게 */}
+                <button type="button" title="그 시각으로" data-t="scn-seek"
+                  onClick={() => onSeek?.(e.tSec)}
+                >▶
+                </button>
+                {/* **마지막 하나는 안 지운다** — 사건이 0 개면 사이클이 0 초라 재생이 사라진다 */}
+                <button type="button" title="삭제" data-t="scn-del"
+                  disabled={series.length <= 1} onClick={() => onRemoveEvent?.(i)}
+                >✕
+                </button>
+              </div>
+            ))}
+            <button type="button" className="scn-add" data-t="scn-add"
+              // **끝에 붙인다.** `cycleSec` 을 그대로 주면 마지막 사건과 같은 시각에 쌓여
+              // 눌러도 아무 일이 안 일어난 것처럼 보인다 (빈 시나리오에서는 0,0 이 됐다).
+              onClick={() => onAddEvent?.(cycleSec + 5)}
+            >+ 사건 추가
+            </button>
+          </section>
+        )}
+
         {CATEGORIES.map(({ id, label, note }) => {
+          // **탭이 분류를 가른다** — 자리는 시나리오 어휘라 부품 탭에 안 뜬다
+          if ((tab === 'scenario') !== SCENARIO_CATS.has(id)) return null;
           const items = hits.filter((c) => c.category === id);
           if (!items.length) return null;           // 빈 분류는 숨긴다
           return (
@@ -99,7 +199,7 @@ export function PartsPalette({ onPlace, count }) {
             </section>
           );
         })}
-        {hits.length === 0 && <p className="palette-empty">“{q}” 검색 결과 없음</p>}
+        {tab === 'part' && hits.length === 0 && <p className="palette-empty">“{q}” 검색 결과 없음</p>}
       </div>
 
       <div className="palette-foot">

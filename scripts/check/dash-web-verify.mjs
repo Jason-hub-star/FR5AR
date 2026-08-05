@@ -180,11 +180,36 @@ try {
     return 'ok';
   })()`);
   await p.waitFor(`${edit}.props === 0`);
-  check('스테이션이 없으면 그렇게 말한다',
+  // **빈 방에는 빈 시나리오가 붙는다** (2026-08-04). 그래서 "스테이션이 없어요" 가 아니라
+  // **재생 막대 자체가 안 뜬다** — 돌릴 사건이 0개다. 전에는 조립 라인 사건 13개가 딸려 와
+  // 자리를 다 놓기 전까지 그 문구만 반복했다.
+  check('빈 방에는 빈 시나리오가 붙는다',
+    (await p.eval(`${edit}.scenarioId`)) === 'blank' && (await p.eval(`${edit}.events`)) === 0,
+    `${await p.eval(`${edit}.scenarioId`)} · 사건 ${await p.eval(`${edit}.events`)}개`);
+  check('돌릴 사건이 없으면 재생 막대가 안 뜬다',
+    (await p.eval(`!!document.querySelector('.view3d-play')`)) === false);
+
+  // **자리가 모자란 것은 여전히 말해야 한다** — 조립 라인 시나리오를 빈 방에 태워 본다
+  await p.eval(`(() => {
+    const s = document.querySelector('.tl-pick') || document.querySelector('.scene-pick');
+    return 'ok';
+  })()`);
+  await p.eval(`(() => {
+    const S = JSON.parse(localStorage.getItem('fr5.scenes'));
+    const id = new URLSearchParams(location.search).get('scene');
+    S.scenes[id].scenarioId = 'assembly49';
+    localStorage.setItem('fr5.scenes', JSON.stringify(S));
+    return 'ok';
+  })()`);
+  await p.navigate(`${URL}?scene=${await p.eval(`${edit}.current`)}`);
+  await p.waitFor(`${edit}?.scenes >= 1`);
+  await new Promise((r) => setTimeout(r, 900));
+  check('자리가 없으면 그렇게 말한다',
     (await p.eval(`document.querySelector('.view3d-play .play-now')?.textContent ?? ''`))
-      .includes('없어서 못 돌려요'));
-  check('빈 방에서는 재생 버튼이 잠긴다',
-    await p.eval(`[...document.querySelectorAll('.view3d-play button')][0].disabled === true`));
+      .includes('없어서 못 돌려요'),
+    (await p.eval(`document.querySelector('.view3d-play .play-now')?.textContent ?? '(막대 없음)'`)).trim());
+  check('자리가 없으면 재생 버튼이 잠긴다',
+    await p.eval(`[...document.querySelectorAll('.view3d-play button')][0]?.disabled === true`));
 
   // ── 9. 로봇이 실제로 움직이나 (관절 + 순기구학) ──────────────────────
   //
@@ -595,7 +620,7 @@ try {
   await new Promise((r) => setTimeout(r, 400));
   const named = await p.eval(`(() => {
     const S = JSON.parse(localStorage.getItem('fr5.scenarios'));
-    return Object.values(S.items)[0].events[6].event;
+    return (S.items[window.__fr5edit.scenarioId] ?? Object.values(S.items)[0]).events[6].event;
   })()`);
   check('사건 이름을 자유롭게 짓는다', named === '나사조임', `사건 6 = ${named}`);
 
@@ -957,7 +982,7 @@ try {
     s.dispatchEvent(new Event('change', { bubbles: true })); return 'ok'; })()`);
   const ev9 = () => p.eval(`(() => {
     const S = JSON.parse(localStorage.getItem('fr5.scenarios'));
-    const e = Object.values(S.items)[0].events[9];
+    const e = (S.items[window.__fr5edit.scenarioId] ?? Object.values(S.items)[0]).events[9];
     return JSON.stringify({ amr: e.amr ?? null, amrAt: e.amrAt ?? null });
   })()`);
   await pickSel('ev-amr', 'amr2');
@@ -1062,6 +1087,147 @@ try {
   check('두 번째 다리가 앞 사건 시각에서 시작한다',
     band2?.legs?.length === 2 && Math.abs(parseFloat(leg2?.left) - (36 / 49) * 100) < 0.1,
     `다리 ${band2?.legs?.length ?? 0}개 · 두 번째 ${leg2?.tip ?? '(없음)'} left ${leg2?.left ?? '?'}`);
+
+  // ── 24. 좌측 패널이 부품과 시나리오를 가른다 ─────────────────────────
+  //
+  // `작업 지점 ①~⑥` 은 부품이 아니라 **시나리오가 이름으로 부르는 어휘**인데 소품 옆에
+  // 있었다. 그래서 경로를 그린 다음 "이걸 어디에 넣지" 가 나왔다 (주인님 지적 · 2026-08-04).
+  const catsOf = () => p.eval(`[...document.querySelectorAll('.palette-list h4')].map((h) => h.textContent).join(' | ')`);
+  const partCats = await catsOf();
+  check('부품 탭에 작업 지점이 없다', !partCats.includes('작업 지점'), partCats);
+  await p.eval(`document.querySelector('[data-t=tab-scenario]').click(); 'ok'`);
+  await p.waitFor(`document.querySelectorAll('[data-t=scn-row]').length > 0`);
+  const scnCats = await catsOf();
+  check('시나리오 탭에 자리와 사건이 있다',
+    scnCats.includes('작업 지점') && scnCats.includes('사건'), scnCats);
+  const rowsP = await p.eval(`document.querySelectorAll('[data-t=scn-row]').length`);
+  check('사건 줄이 사건 수만큼 뜬다', rowsP === (await p.eval(`${edit}.events`)),
+    `줄 ${rowsP} · 사건 ${await p.eval(`${edit}.events`)}`);
+
+  // **여기서 고친 것도 같은 문으로 들어간다** — 타임라인 우클릭과 정본이 같아야 한다
+  const setRow = (t, i, v, evt) => p.eval(`(() => {
+    const el = document.querySelectorAll('[data-t=${t}]')[${i}];
+    const proto = el.tagName === 'SELECT' ? window.HTMLSelectElement : window.HTMLInputElement;
+    Object.getOwnPropertyDescriptor(proto.prototype, 'value').set.call(el, '${v}');
+    el.dispatchEvent(new Event('${evt}', { bubbles: true }));
+    return 'ok'; })()`);
+  const secsP = await p.eval(`${edit}.eventSecs`);
+  await setRow('scn-t', 2, '11', 'change');
+  await new Promise((r) => setTimeout(r, 400));
+  check('패널에서 사건 시각을 고친다', (await p.eval(`${edit}.eventSecs`)) !== secsP,
+    `${secsP} → ${await p.eval(`${edit}.eventSecs`)}`);
+  await setRow('scn-name', 2, '투입', 'input');
+  await new Promise((r) => setTimeout(r, 400));
+  const evAt2 = () => p.eval(`(() => { const S = JSON.parse(localStorage.getItem('fr5.scenarios'));
+    const e = (S.items[window.__fr5edit.scenarioId] ?? Object.values(S.items)[0]).events[2];
+    return JSON.stringify({ event: e.event, amr: e.amr ?? null, amrAt: e.amrAt ?? null }); })()`);
+  check('패널에서 사건 이름을 고친다', JSON.parse(await evAt2()).event === '투입', await evAt2());
+  await setRow('scn-amr', 2, 'amr2', 'change');
+  await new Promise((r) => setTimeout(r, 400));
+  const withAmr = JSON.parse(await evAt2());
+  check('패널에서 AMR 을 붙인다', withAmr.amr === 'amr2' && Boolean(withAmr.amrAt), await evAt2());
+
+  const nEvP = await p.eval(`${edit}.events`);
+  await p.eval(`document.querySelectorAll('[data-t=scn-del]')[2].click(); 'ok'`);
+  await p.waitFor(`${edit}.events === ${nEvP - 1}`);
+  check('패널에서 사건을 지운다', (await p.eval(`${edit}.events`)) === nEvP - 1);
+  await p.eval(`document.querySelector('[data-t=scn-add]').click(); 'ok'`);
+  await p.waitFor(`${edit}.events === ${nEvP}`);
+  check('패널에서 사건을 더한다', (await p.eval(`${edit}.events`)) === nEvP);
+
+  // ── 25. 경로를 시나리오에 넣는 길이 화면에 있다 ──────────────────────
+  //
+  // **같은 질문을 세 번 받았다** — "경로 끝난 걸 시나리오에 어떻게 추가하나" (2026-08-04).
+  // 답은 "사건에 AMR 을 붙인다" 인데, `[경로 끝]` 을 눌러도 화면이 한 마디도 안 했다.
+  // 그래서 말만 하지 않고 **대신 해 준다.**
+  await p.eval(`localStorage.clear(); 'ok'`);
+  await p.navigate(URL);
+  await p.waitFor(`${edit}?.scenes >= 1`);
+  await new Promise((r) => setTimeout(r, 1300));
+  const clickCard = (t) => p.eval(`(() => { const c = [...document.querySelectorAll('.part-card')]
+    .find((x) => x.textContent.includes('${t}')); c?.click(); return !!c; })()`);
+  await clickCard('터틀봇');
+  await p.waitFor(`${edit}.wp.length === 1`);
+  await p.eval(`document.querySelector('[data-t=tab-scenario]').click(); 'ok'`);
+  await new Promise((r) => setTimeout(r, 300));
+  await clickCard('① 탄체');
+  await new Promise((r) => setTimeout(r, 500));
+
+  // **자리를 AMR 에서 떼어 놓는다.** 둘 다 방 가운데에 놓이면 자리가 AMR 을 가려
+  // 클릭으로 못 고른다 (피킹은 앞엣것을 잡는다). 숫자칸은 **blur 에서 커밋**하고,
+  // React 는 `onBlur` 를 `focusout` 으로 받으므로 진짜 `.focus()`→`.blur()` 여야 한다.
+  const numSet = (label, v) => p.eval(`(() => {
+    const nb = [...document.querySelectorAll('.view3d-pick .numbox')]
+      .find((x) => x.textContent.trim().startsWith('${label}'));
+    const i = nb?.querySelector('input');
+    if (!i) return 'no';
+    i.focus();
+    Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(i, '${v}');
+    i.dispatchEvent(new Event('input', { bubbles: true }));
+    i.blur();
+    return 'ok';
+  })()`);
+  // **먼저 고른다.** 숫자칸은 고른 물건에만 뜬다 — 안 고르고 찾으면 `null` 이라
+  // 자리가 안 옮겨지고, 그러면 AMR 이 자리 뒤에 가려 클릭으로 못 고른다 (2026-08-04).
+  const pilePx = await p.eval(`window.__fr5view().at.pile`);
+  await p.eval(`(() => { const c = document.querySelector('canvas');
+    for (const t of ['pointerdown', 'pointerup']) c.dispatchEvent(new PointerEvent(t,
+      { bubbles: true, clientX: ${pilePx?.[0] ?? 0}, clientY: ${pilePx?.[1] ?? 0}, pointerId: 1, button: 0 }));
+    return 'ok'; })()`);
+  await new Promise((r) => setTimeout(r, 350));
+  await numSet('x', '1500');
+  await new Promise((r) => setTimeout(r, 350));
+  await numSet('y', '2000');
+  await new Promise((r) => setTimeout(r, 450));
+
+  // **잡힐 때까지 훑는다.** 투영 중심 한 점만 찍으면 앞의 물건에 가려 못 고르고,
+  // 그러면 뒤 검사가 통째로 `null.click()` 으로 무너진다 (2026-08-04).
+  const amrPts = await p.eval(`(() => {
+    const st = window.__stage, b2 = document.querySelector('canvas').getBoundingClientRect();
+    let g = null;
+    st.scene.traverse((o) => { if (o.userData?.item?.kind === 'amr') g = o; });
+    if (!g) return [];
+    const V = Object.getPrototypeOf(st.camera.position).constructor;
+    const out = [];
+    g.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return;
+      o.geometry.computeBoundingSphere();
+      const v = o.geometry.boundingSphere.center.clone();
+      o.localToWorld(v); v.project(st.camera);
+      out.push([Math.round(b2.left + (v.x + 1) / 2 * b2.width), Math.round(b2.top + (1 - v.y) / 2 * b2.height)]);
+    });
+    return out;
+  })()`);
+  let amrOk = false;
+  for (const [x, y] of amrPts.slice(0, 20)) {
+    await p.eval(`(() => { const c = document.querySelector('canvas');
+      for (const t of ['pointerdown', 'pointerup']) c.dispatchEvent(new PointerEvent(t,
+        { bubbles: true, clientX: ${x}, clientY: ${y}, pointerId: 1, button: 0 }));
+      return 'ok'; })()`);
+    await new Promise((r) => setTimeout(r, 120));
+    if ((await p.eval(`${edit}.pickedId`)) === 'amr-1') { amrOk = true; break; }
+  }
+  check('놓은 AMR 을 클릭으로 고른다', amrOk, `후보 ${amrPts.length}점`);
+  await p.eval(`document.querySelector('[data-t=path-toggle]')?.click(); 'ok'`);
+  await p.waitFor(`!!document.querySelector('[data-t=path-edit]')`);
+  check('경로 패널이 다음 걸음을 말한다',
+    (await p.eval(`document.querySelector('[data-t=path-edit]')?.textContent ?? ''`)).includes('사건')
+      && (await p.eval(`!!document.querySelector('[data-t=path-to-scenario]')`)),
+    await p.eval(`!!document.querySelector('[data-t=path-to-scenario]')`) ? '넣기 버튼 있음' : '**버튼 없음**');
+
+  const ev0 = await p.eval(`${edit}.events`);
+  await p.eval(`document.querySelector('[data-t=path-to-scenario]').click(); 'ok'`);
+  await p.waitFor(`${edit}.events === ${ev0 + 1}`);
+  const made = await p.eval(`(() => { const S = JSON.parse(localStorage.getItem('fr5.scenarios'));
+    const e = (S.items[window.__fr5edit.scenarioId] ?? Object.values(S.items)[0]).events.slice(-1)[0];
+    return JSON.stringify({ amr: e.amr ?? null, amrAt: e.amrAt ?? null, tSec: e.tSec }); })()`);
+  // **AMR 이 붙은 사건**이어야 한다 — 빈 사건을 만들면 여전히 아무 일도 안 일어난다
+  check('한 번 눌러 그 AMR 이 붙은 사건이 생긴다',
+    JSON.parse(made).amr === 'amr-1' && Boolean(JSON.parse(made).amrAt), made);
+  check('시나리오 탭으로 데려가고 그 줄을 강조한다',
+    (await p.eval(`document.querySelector('[data-t=tab-scenario]')?.className`)) === 'on'
+      && (await p.eval(`document.querySelectorAll('.scn-row.hot').length`)) === 1,
+    `강조 ${await p.eval(`document.querySelectorAll('.scn-row.hot').length`)}개`);
 
   check('콘솔 오류 0건', p.consoleErrors.length === 0, p.consoleErrors.join(' | '));
 } catch (e) {

@@ -158,7 +158,8 @@ export function LayoutView({
   series = [], seriesSource = null, onDropCard,
   scenarios = [], scenarioId = null,
   onPickScenario, onDupScenario, onRenameScenario, onDelScenario,
-  onMoveEvent, onSetEvent, onAddEvent, onRemoveEvent, onDupEvent, onSavePose, onDeletePose, onSetWaypoints, poses = null, poseMsg = null,
+  onMoveEvent, onSetEvent, onAddEvent, onRemoveEvent, onDupEvent, onSavePose, onDeletePose, onSetWaypoints, onUseInScenario,
+  poses = null, poseMsg = null, seekTo = null,
 }) {
   const hostRef = useRef(null);
   const stageRef = useRef(null);
@@ -621,6 +622,15 @@ export function LayoutView({
   const amrPicked = pathing && picked?.kind === 'amr'
     ? (layout.amrs ?? []).find((a) => a.id === picked.id) : null;
 
+  // 패널의 "그 시각으로" — 재생 막대를 감는다. **`arm()` 을 같이 부른다** 안 그러면
+  // 아직 재생을 안 켠 상태에서 작업물이 안 뜬다 (t=0 이 "재생 안 함" 과 겹치던 그 문제).
+  useEffect(() => {
+    if (!seekTo) return;
+    playRef.current.armed = true;
+    setArmed(true);
+    seek(seekTo.t);
+  }, [seekTo]);
+
   // ② 내용물 — 배치안이 바뀔 때만. **시점은 안 건드린다.**
   useEffect(() => {
     const stage = stageRef.current;
@@ -1055,7 +1065,21 @@ export function LayoutView({
               );
             })}
           <span className="dim">점을 끌어 옮겨요 · 우클릭하면 추가·삭제</span>
-          <button type="button" data-t="path-close" onClick={() => setPathing(false)}>끝</button>
+          {/* **여기서 다음 걸음을 말한다.** 경로만 그려 놓으면 아무 일도 안 일어난다 —
+              그 경로를 **언제** 타는지는 사건이 정한다. 화면이 안 알려줘서 같은 질문을
+              세 번 받았다 (2026-08-04). 그래서 말만 하지 않고 **대신 해 준다.** */}
+          <span className="dim">
+            경로만으로는 안 움직여요 — <b>사건</b>이 언제 탈지 정합니다
+          </span>
+          <div className="pose-act">
+            <button
+              type="button" data-t="path-to-scenario"
+              onClick={() => { onUseInScenario?.(picked.id); setPathing(false); }}
+            >
+              시나리오에 넣기
+            </button>
+            <button type="button" data-t="path-close" onClick={() => setPathing(false)}>끝</button>
+          </div>
         </div>
       )}
 

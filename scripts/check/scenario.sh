@@ -79,7 +79,9 @@ for (const p of SCENARIO_PRESETS) {
   const S = buildScenario(p.id);
   const errs = validateScenario(S);
   if (errs.length) { bad(p.id + ': 프리셋이 스키마를 어긴다 — ' + errs.join(' · ')); continue; }
-  if (!S.events.length) bad(p.id + ': 사건이 없다');
+  // **빈 시나리오는 사건 0 개가 정상이다** — 빈 방이 가리키는 것이라 사건이 없어야 한다
+  if (!S.events.length && p.id !== 'blank') bad(p.id + ': 사건이 없다');
+  if (!S.events.length) { note(p.id + ' — 사건 0개 (빈 방용 · 재생 막대가 안 뜬다)'); continue; }
   // 시각순으로 적혀 있나 — \`stateAt\` 은 스스로 정렬하지만 **사람이 고칠 파일**이다
   if (JSON.stringify(S.events) !== JSON.stringify(sortEvents(S.events))) {
     bad(p.id + ': 사건이 시각순이 아니다');
@@ -105,9 +107,26 @@ await ds.deleteLayout('g1');
 
 // ⑤ 저장분이 깨져도 **빈 목록으로 시작한다** — 배치안 read() 와 같은 규칙
 localStorage.setItem('fr5.scenarios', '{{{깨진');
-if ((await ds.getScenarios()).length !== 1) bad('깨진 저장분에서 프리셋 1건으로 안 떨어진다');
+if ((await ds.getScenarios()).length !== SCENARIO_PRESETS.length) {
+  bad('깨진 저장분에서 프리셋 ' + SCENARIO_PRESETS.length + '건으로 안 떨어진다');
+}
 localStorage.removeItem('fr5.scenarios');
 note('없는 id · 깨진 저장분 — 프리셋으로 떨어진다');
+
+// ⑤-c **배치안이 가리키는 시나리오를 실제로 받는가.** 프리셋 id 를 못 알아보면
+//      빈 방이 `blank` 을 가리켜도 조립 라인으로 떨어져 **사건 13개가 딸려 온다**
+//      (2026-08-04 실사용에서 막힌 자리다).
+for (const [pid, wantScn, wantEv] of [['empty', 'blank', 0], ['cell', 'assembly49', 13]]) {
+  const L2 = buildPreset(pid, 'r-' + pid, pid);
+  if (L2.scenarioId !== wantScn) bad(pid + ' 배치안이 가리키는 시나리오 — ' + L2.scenarioId);
+  await ds.putLayout(L2);
+  const got = await ds.getSeries('r-' + pid);
+  if (got.series.length !== wantEv) {
+    bad(pid + ' 이 받는 사건 수 — ' + got.series.length + ' (기대 ' + wantEv + ')');
+  }
+  await ds.deleteLayout('r-' + pid);
+}
+note('배치안 → 시나리오 — 빈 방은 사건 0개 · 조립 라인은 13개');
 
 // ⑥ **시나리오가 부르는 자리가 조립 라인에 있는가.** \`timeline.sh\` ⑩ 과 같은 검사를
 //    프리셋 쪽에서 한 번 더 한다 — 여기서 어긋나면 재생이 조용히 아무것도 안 한다

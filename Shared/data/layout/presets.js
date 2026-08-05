@@ -31,6 +31,9 @@ const AMR = (id, dock, waypointsMm) => ({
 // 나중에야 안다 (2026-08-04에 실제로 그랬다). 무대가 하나면 방 모양도 하나다.
 const empty = () => ({
   floor: LINE_FLOOR,
+  // **빈 방에는 빈 시나리오.** 조립 라인 사건이 딸려 오면 자리를 다 놓기 전까지
+  // 재생이 "스테이션이 없어요" 만 말한다 (2026-08-04 실사용에서 막혔다).
+  scenarioId: 'blank',
   doors: [{ id: 'door-1', wall: 'south', atMm: 6000, widthMm: 1800, heightMm: 2200 }],
   windows: [],
   props: [],
@@ -64,6 +67,7 @@ const FEED_Y = 900;           // 투입 팔 두 대가 서는 줄
 
 const cell = () => ({
   floor: LINE_FLOOR,
+  scenarioId: 'assembly49',
   doors: [
     { id: 'exit', wall: 'north', atMm: LINE_X, widthMm: 1100, heightMm: 1600, sillMm: 700 },
     { id: 'door-1', wall: 'south', atMm: 1400, widthMm: 1800, heightMm: 2200 },

@@ -177,8 +177,13 @@ export const datasource = {
     if (!layoutId) return { source: 'mock', cycleSec: 0, series: [] };
     const L = read()[layoutId];
     const saved = readScenarios();
-    // **가리키는 시나리오가 지워졌어도 화면이 안 죽는다** — 프리셋으로 떨어진다
-    const S = (L?.scenarioId && saved[L.scenarioId]) || buildScenario(DEFAULT_SCENARIO);
+    // **가리키는 것을 저장분 → 프리셋 순으로 찾는다.** 프리셋을 안 보면 배치안이 `blank`
+    // 을 가리켜도 못 찾아 조립 라인으로 떨어진다 — 빈 방에 사건 13개가 딸려 왔다 (2026-08-04).
+    // 그래도 못 찾으면 기본값이다: **가리키는 시나리오가 지워져도 화면이 안 죽는다.**
+    const want = L?.scenarioId;
+    const S = (want && saved[want])
+      || (want && SCENARIO_IDS.has(want) && buildScenario(want))
+      || buildScenario(DEFAULT_SCENARIO);
     // **정렬하지 않고 저장된 순서 그대로 낸다.** 편집기가 사건을 **번호로** 집는데
     // 여기서 정렬하면 화면이 보는 번호와 저장된 번호가 어긋나 **엉뚱한 사건이 고쳐진다.**
     // 순서는 `stateAt`·`cycleSecOf` 가 스스로 잡으므로 재생은 영향이 없다.
@@ -194,10 +199,14 @@ export const datasource = {
 
   async getScenarios() {
     const saved = Object.values(readScenarios()).map((S) => ({ id: S.id, name: S.name }));
-    // **저장분이 없어도 목록이 비지 않는다** — 프리셋이 하나 서 있어야 재생 막대가 뜬다
-    if (saved.length) return saved;
-    const p = buildScenario(DEFAULT_SCENARIO);
-    return [{ id: p.id, name: p.name, preset: true }];
+    // **프리셋을 전부 낸다.** 하나만 내면 빈 방이 가리키는 `blank` 를 화면이 못 찾아
+    // 조립 라인 시나리오로 떨어진다 — 빈 방에 사건 13개가 딸려 오던 이유다 (2026-08-04).
+    const presets = SCENARIO_PRESETS.map((x) => {
+      const b3 = buildScenario(x.id);
+      return { id: b3.id, name: b3.name, preset: true };
+    });
+    const have = new Set(saved.map((x) => x.id));
+    return [...saved, ...presets.filter((x) => !have.has(x.id))];
   },
 
   async getScenario(id) {

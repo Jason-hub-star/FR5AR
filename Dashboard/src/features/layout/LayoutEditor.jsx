@@ -21,6 +21,7 @@ import { newScene, uniqueName, nextSceneId } from '@fr5/shared/data/layout/scene
 import { validateLayout, migrateLayout } from '@fr5/shared/data/layout/schema.js';
 import { PRESETS } from '@fr5/shared/data/layout/presets.js';
 import { clampPose } from '@fr5/shared/data/motion/limits.js';
+import { pointAlong } from '@fr5/shared/data/layout/schema.js';
 import { LayoutView } from './LayoutView.jsx';
 import { PartsPalette } from './PartsPalette.jsx';
 
@@ -131,6 +132,12 @@ function Editor({ initial }) {
   const [pickedId, setPickedId] = useState(null);
   const [saveErr, setSaveErr] = useState(false);
   const [poseMsg, setPoseMsg] = useState(null);
+  // 패널에서 "그 시각으로" 를 누르면 3D 재생 막대가 감긴다. **`n` 은 같은 시각을 두 번
+  // 눌러도 반응하게 하는 도장이다** — 값이 같으면 React 가 갱신을 안 낸다
+  const [seekTo, setSeekTo] = useState(null);
+  // 좌측 패널 탭 — **경로를 끝내면 화면이 시나리오로 데려간다** (2026-08-04)
+  const [tab, setTab] = useState('part');
+  const [hotEvent, setHotEvent] = useState(null);
   const [renaming, setRenaming] = useState(false);
   const nameRef = useRef(null);
 
@@ -173,6 +180,18 @@ function Editor({ initial }) {
   // 재생 순서는 `stateAt` 이 스스로 잡는다.
   const curScenario = store.scenarios?.[store.currentScenario] ?? null;
   const series = curScenario?.events ?? [];
+
+  // **배치안을 바꾸면 그 배치안이 가리키는 시나리오로 따라간다.**
+  //
+  // 빈 방은 `blank`(사건 0개), 조립 라인은 `assembly49` 를 가리킨다. 이걸 안 따라가면
+  // 빈 방에서 조립 라인을 새로 만들었을 때 **사건이 0개인 채로** 재생 막대가 아예 안 뜬다
+  // (2026-08-04 · 빈 방에 빈 시나리오를 붙이면서 드러났다).
+  useEffect(() => {
+    const want = store.scenes[store.current]?.scenarioId;
+    if (!want || want === store.currentScenario) return;
+    if (!store.scenarios?.[want]) return;      // 지워진 것을 가리키면 지금 것을 유지한다
+    setStore((prev) => (prev.currentScenario === want ? prev : { ...prev, currentScenario: want }));
+  }, [store.current, store.scenes, store.scenarios, store.currentScenario]);
 
   // 주소줄이 지금 씬을 든다 — 새로고침해도 보던 배치안으로 돌아온다.
   useEffect(() => {
@@ -626,6 +645,35 @@ function Editor({ initial }) {
     });
   }, [edit]);
 
+  /**
+   * **경로를 그린 AMR 을 시나리오에 넣는다.** 말만 하지 않고 대신 해 준다 —
+   * "경로를 어떻게 시나리오에 넣나" 를 세 번 물으셨다 (2026-08-04).
+   *
+   * 이미 그 AMR 을 부르는 사건이 있으면 **거기로 데려가고**, 없으면 끝에 하나 만든다.
+   * 목적지는 **경로 끝점에 가장 가까운 자리** — 사람이 그린 길의 끝이 곧 가려던 곳이다.
+   */
+  const useInScenario = useCallback((amrId) => {
+    setTab('scenario');
+    const S = store.scenarios?.[store.currentScenario];
+    const a = (scene.amrs ?? []).find((x) => x.id === amrId);
+    if (!S || !a) return;
+    const at = (S.events ?? []).findIndex((e) => e.amr === amrId);
+    if (at >= 0) { setHotEvent(at); return; }
+    const end = pointAlong(a.waypointsMm ?? [], 1);
+    const near = (scene.stations ?? [])
+      .map((x) => ({ id: x.id, d: end ? Math.hypot(x.posMm[0] - end[0], x.posMm[1] - end[1]) : Infinity }))
+      .sort((x, y) => x.d - y.d)[0];
+    const last = Math.max(0, ...(S.events ?? []).map((e) => Number(e.tSec) || 0));
+    editScenario((cur) => ({
+      ...cur,
+      events: [...(cur.events ?? []), {
+        tSec: last + 5, event: `${amrId} 이동`,
+        ...(near?.id ? { amr: amrId, amrAt: near.id, station: near.id } : {}),
+      }],
+    }));
+    setHotEvent((S.events ?? []).length);
+  }, [store, scene, editScenario]);
+
   /** 시나리오를 갈아 끼운다. **배치안이 그걸 기억한다** — 다음에 열어도 같은 것이 돈다. */
   const pickScenario = useCallback((id) => {
     setStore((prev) => {
@@ -795,7 +843,14 @@ function Editor({ initial }) {
       </div>
 
       <div className="editor-body">
-        <PartsPalette onPlace={place} count={total} />
+        <PartsPalette
+          onPlace={place} count={total}
+          series={series} cycleSec={curScenario ? Math.max(...series.map((e) => e.tSec), 0) : 0}
+          stations={scene.stations ?? []} amrs={scene.amrs ?? []}
+          onSetEvent={setEvent} onRemoveEvent={removeEvent} onAddEvent={addEvent}
+          onSeek={(t) => setSeekTo({ t, n: Date.now() })}
+          tab={tab} onTab={setTab} highlightEvent={hotEvent}
+        />
         <div className="editor-stage">
           <LayoutView
             layout={scene}
@@ -823,6 +878,8 @@ function Editor({ initial }) {
             onSavePose={savePose}
             onDeletePose={deletePose}
             onSetWaypoints={setWaypoints}
+            onUseInScenario={useInScenario}
+            seekTo={seekTo}
             poseMsg={poseMsg}
             poses={store.poseSets?.[store.currentPoseSet]?.poses ?? null}
             onDropCard={(key, posMm) => {

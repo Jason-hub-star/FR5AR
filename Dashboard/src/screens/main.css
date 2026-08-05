@@ -285,6 +285,30 @@ main { padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column
 
 .palette { width: 232px; flex: none; display: flex; flex-direction: column;
            border-right: 1px solid var(--c-line); background: var(--c-bg); min-height: 0; }
+/* 탭 — **부품과 시나리오는 다른 것이다.** 자리(①~⑥)는 시나리오 어휘라 부품 탭에 없다 */
+.palette-tabs { display: flex; border-bottom: 1px solid var(--c-line); }
+.palette-tabs button { flex: 1; padding: 8px 0; background: none; border: 0;
+                       border-bottom: 2px solid transparent; color: var(--c-fg-mute);
+                       font: inherit; font-size: 12px; cursor: pointer; }
+.palette-tabs button.on { color: var(--c-fg); border-bottom-color: var(--c-fg-dim); font-weight: 600; }
+
+/* 사건 한 줄 — 시각 · 이름 · 자리 · AMR · 감기 · 삭제 */
+.scn-row { display: grid; grid-template-columns: 40px 1fr 1fr 1fr 18px 18px;
+           gap: 2px; align-items: center; margin-bottom: 3px; }
+.scn-row input, .scn-row select { width: 100%; box-sizing: border-box; padding: 2px 3px;
+                                  font: inherit; font-size: 10px; border: 1px solid var(--c-line);
+                                  border-radius: 3px; background: var(--c-panel); color: var(--c-fg-dim); }
+.scn-row .scn-t { font-variant-numeric: tabular-nums; }
+.scn-row button { padding: 0; background: none; border: 0; color: var(--c-fg-mute);
+                  font-size: 11px; cursor: pointer; }
+.scn-row button:disabled { opacity: .3; cursor: default; }
+/* 방금 만든 사건 — **눈에 띄어야 한다.** 안 그러면 어디로 데려왔는지 모른다 */
+.scn-row.hot input, .scn-row.hot select { border-color: var(--c-info, #2f6f8f);
+                                          box-shadow: 0 0 0 1px var(--c-info, #2f6f8f); }
+.scn-add { width: 100%; margin-top: var(--s-2); padding: 5px 0; background: var(--c-panel);
+           color: var(--c-fg-dim); border: 1px solid var(--c-line-strong);
+           border-radius: var(--r-ctl); font: inherit; font-size: 11px; cursor: pointer; }
+
 .palette-head { padding: var(--s-3) var(--s-3) var(--s-2); border-bottom: 1px solid var(--c-line); }
 .palette-head h3 { margin: 0 0 4px; font-size: 12px; letter-spacing: .04em; text-transform: uppercase;
                    color: var(--c-fg-mute); }
