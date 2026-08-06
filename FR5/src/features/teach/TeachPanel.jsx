@@ -8,28 +8,49 @@
 // (SAFETY-RULES 제2원칙).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { datasource } from '../../data/datasource/index.js';
-// 쌍둥이는 Live 의 소유물이 아니다 — 같은 URDF 를 되감기에도 쓴다. 한 번에 한 패널만
-// 떠 있으므로 인스턴스는 여전히 하나다.
-import { RobotTwin } from '../live/RobotTwin.jsx';
+// 쌍둥이는 `main.jsx` 가 들고 있다 (계획 §레이아웃). 이 패널은 **무엇을 그릴지만 올려보낸다** —
+// 되감기·미리보기 자세를 `onView` 로 넘기고, 떠날 때 비워 실물로 되돌린다.
 
 const fmt = (v) => (typeof v === 'number' ? v.toFixed(2) : '—');
 
 function PointList({ points, mine, armed, busy, preview, onPreview, onGoto, onDelete }) {
+  // 삭제는 되돌릴 수 없고, 바로 옆이 **실기를 움직이는** 「이동」이다 (감사 2026-08-05 P0-4).
+  // 그래서 한 번 더 묻는다. `window.confirm` 은 안 쓴다 — 브라우저 모달은 화면 전체를 막아
+  // 실렌더 검증과 자동화가 그 자리에서 멈춘다. 확인은 그 카드 안에서 한다.
+  const [asking, setAsking] = useState(null);
   if (!points.length) {
-    return <p className="empty" data-t="points-empty">아직 지점이 없다 — 조그로 자세를 만들고 캡처한다</p>;
+    return (
+      <p className="empty" data-t="points-empty">
+        아직 지점이 없다. 아래 조작대에서 자세를 만들고 캡처한다.
+      </p>
+    );
   }
+  // **표가 아니라 카드다.** 조작대가 오른쪽 열을 나눠 쓰면서 5열 표가 340px 안에서 뭉개졌다
+  // (2026-08-06 실렌더). 관절 6개는 어차피 한 줄에 안 들어가고, 눌러야 하는 것은 버튼이다.
   return (
-    <table className="points" data-t="points">
-      <thead><tr><th>이름</th><th>관절 (°)</th><th>좌표계</th><th>그리퍼</th><th /></tr></thead>
-      <tbody>
-        {points.map((p) => (
-          <tr key={p.name} data-t="point-row" data-name={p.name}
-            aria-selected={preview === p.name}>
-            <td>{p.name}</td>
-            <td className="mono">{(p.jointsDeg || []).map(fmt).join(' · ')}</td>
-            <td>tool{p.toolId}/user{p.userId}</td>
-            <td>{p.gripperPct == null ? '—' : `${p.gripperPct}%`}</td>
-            <td className="rowbtns">
+    <ul className="points" data-t="points">
+      {points.map((p) => (
+        <li key={p.name} className="pointcard" data-t="point-row" data-name={p.name}
+          aria-selected={preview === p.name}>
+          <div className="cardhead">
+            <b>{p.name}</b>
+            <span className="mm">tool{p.toolId}/user{p.userId}
+              {p.gripperPct == null ? '' : ` · 그리퍼 ${p.gripperPct}%`}</span>
+          </div>
+          <p className="mono">{(p.jointsDeg || []).map(fmt).join(' · ')}</p>
+          {asking === p.name ? (
+            <div className="askdelete" data-t="point-delete-ask">
+              <p>{p.name} 을 지우면 되돌릴 수 없다.</p>
+              <div className="rowbtns">
+                <button type="button" data-t="point-delete-cancel"
+                  onClick={() => setAsking(null)}>취소</button>
+                <button type="button" className="danger" data-t="point-delete-confirm"
+                  disabled={!mine || busy}
+                  onClick={() => { setAsking(null); onDelete(p.name); }}>지운다</button>
+              </div>
+            </div>
+          ) : (
+            <div className="rowbtns">
               {/* 미리보기는 **로봇에 아무것도 안 보낸다** — 어디로 갈지 화면에서 먼저 본다 */}
               <button type="button" data-t="point-preview"
                 onClick={() => onPreview(preview === p.name ? null : p.name)}>
@@ -39,43 +60,41 @@ function PointList({ points, mine, armed, busy, preview, onPreview, onGoto, onDe
                 title={!mine ? '조종권을 잡아야 한다' : !armed ? 'ARM 이 먼저다' : ''}
                 onClick={() => onGoto(p.name)}>이동</button>
               <button type="button" data-t="point-delete" disabled={!mine || busy}
-                onClick={() => onDelete(p.name)}>삭제</button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+                onClick={() => setAsking(p.name)}>삭제</button>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
 function TrajectoryList({ items, playing, onPlay }) {
   if (!items.length) return <p className="empty" data-t="trajs-empty">아직 궤적이 없다</p>;
   return (
-    <table className="trajs" data-t="trajs">
-      <thead><tr><th>이름</th><th>길이</th><th>출처</th><th>목적</th><th>끝</th><th>결손</th><th /></tr></thead>
-      <tbody>
-        {items.map((t) => (
-          <tr key={t.name} data-t="traj-row" data-name={t.name}
-            /* 조건이 어긋난 측정본은 비교에서 빠진다 — 화면이 그 이유를 말한다 (D74) */
-            data-usable={String(t.purpose !== 'measure'
-              || (t.dropped === 0 && t.endReason === 'done'))}>
-            <td>{t.name}</td>
-            <td>{fmt(t.durationSec)}s <span className="mm">/ {t.fps}fps</span></td>
-            <td>{t.source}</td>
-            <td>{t.purpose}</td>
-            <td>{t.endReason}</td>
-            <td>{t.dropped}</td>
-            <td><button type="button" data-t="traj-play" onClick={() => onPlay(t.name)}>
+    <ul className="trajs" data-t="trajs">
+      {items.map((t) => (
+        <li key={t.name} className="pointcard" data-t="traj-row" data-name={t.name}
+          /* 조건이 어긋난 측정본은 비교에서 빠진다 — 화면이 그 이유를 말한다 (D74) */
+          data-usable={String(t.purpose !== 'measure'
+            || (t.dropped === 0 && t.endReason === 'done'))}>
+          <div className="cardhead">
+            <b>{t.name}</b>
+            <span className="mm">{fmt(t.durationSec)}s / {t.fps}fps</span>
+          </div>
+          <p className="mm">{t.source} · {t.purpose} · {t.endReason} · 결손 {t.dropped}</p>
+          <div className="rowbtns">
+            <button type="button" data-t="traj-play" onClick={() => onPlay(t.name)}>
               {playing === t.name ? '다시' : '되감기'}
-            </button></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+            </button>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
-export function TeachPanel({ state, who }) {
+export function TeachPanel({ state, who, onView }) {
   const [points, setPoints] = useState([]);
   const [trajs, setTrajs] = useState([]);
   const [name, setName] = useState('');
@@ -126,11 +145,21 @@ export function TeachPanel({ state, who }) {
   };
 
   // 3D 가 무엇을 그리나 — 되감기 > 미리보기 > 실물. **실물이 아닐 때는 화면이 그렇게 말한다.**
-  const previewPoint = preview && points.find((p) => p.name === preview);
-  const shown = play ? play.frames[play.i]
-    : previewPoint ? { jointsDeg: previewPoint.jointsDeg, gripperPct: previewPoint.gripperPct }
-      : { jointsDeg: state.jointsDeg, gripperPct: state.gripper?.pct };
-  const live = !play && !previewPoint;
+  // 그리는 것은 `main.jsx` 라 여기서는 올려보내기만 한다. 파생 객체(`previewPoint`)를 deps 에
+  // 넣으면 매 렌더마다 새 객체라 무한 루프가 되므로, 원시값(`preview`)과 `points` 로 건다.
+  useEffect(() => {
+    if (play) {
+      const f = play.frames[play.i];
+      onView({ jointsDeg: f?.jointsDeg, gripperPct: f?.gripperPct,
+        label: `${play.name} 되감기 ${fmt(f?.tSec)}s · 실물은 안 움직인다` });
+      return;
+    }
+    const pt = preview && points.find((p) => p.name === preview);
+    onView(pt ? { jointsDeg: pt.jointsDeg, gripperPct: pt.gripperPct,
+      label: `${pt.name} 로 가면 이 자세다. 아직 안 보냈다` } : null);
+  }, [play, preview, points, onView]);
+  // 탭을 떠나면 실물로 되돌린다 — 미리보기 자세가 다른 화면까지 따라가면 위치를 오판한다
+  useEffect(() => () => onView(null), [onView]);
 
   const usable = useMemo(
     () => trajs.filter((t) => t.purpose === 'measure' && t.dropped === 0 && t.endReason === 'done'),
@@ -138,24 +167,20 @@ export function TeachPanel({ state, who }) {
 
   return (
     <div className="teach" data-t="teach">
-      <section className="twinbox">
-        <RobotTwin jointsDeg={shown.jointsDeg} gripperPct={shown.gripperPct} />
-        <p className="twinnote" data-t="twin-note" data-live={String(live)}>
-          {play ? `되감기 — ${play.name} · ${fmt(play.frames[play.i]?.tSec)}s (실물은 안 움직인다)`
-            : previewPoint ? `미리보기 — ${previewPoint.name} 로 가면 이 자세다 (아직 안 보냈다)`
-              : '실물 자세'}
-        </p>
-        {play && (
+      {play && (
+        <section className="scrubbox">
+          <p className="mm">{play.name} 되감기 · 실물은 안 움직인다</p>
           <input type="range" data-t="play-scrub" min="0" max={play.frames.length - 1}
             value={play.i} onChange={(e) => {
               clearInterval(timer.current);
               setPlay((p) => ({ ...p, i: Number(e.target.value) }));
             }} />
-        )}
-      </section>
+        </section>
+      )}
 
       <section data-t="teach-points">
-        <h3>지점 — 자세 하나에 이름을 붙인다</h3>
+        <h3>지점</h3>
+        <p className="mm">자세 하나에 이름을 붙인다.</p>
         <div className="row">
           <input value={name} placeholder="이름 (예: trayPick)" data-t="point-name"
             onChange={(e) => setName(e.target.value)} />
@@ -174,24 +199,24 @@ export function TeachPanel({ state, who }) {
       </section>
 
       <section data-t="teach-trajs">
-        <h3>궤적 — 움직인 것을 시간축으로 적는다</h3>
+        <h3>궤적</h3>
         <p className="mm">
-          녹화는 <b>읽기만 한다</b> — 로봇에 아무것도 보내지 않는다. 실기 재생은 Program 의
-          승인 관문을 탄다.
+          움직인 것을 시간축으로 적는다. 녹화는 <b>읽기만 한다.</b> 로봇에 아무것도 보내지
+          않는다. 실기 재생은 Program 의 승인 관문을 탄다.
         </p>
         <div className="row">
           <input value={trajName} placeholder="이름 (예: demo-01)" data-t="traj-name"
             disabled={!!recording} onChange={(e) => setTrajName(e.target.value)} />
           <select value={purpose} data-t="traj-purpose" disabled={!!recording}
             onChange={(e) => setPurpose(e.target.value)}>
-            <option value="measure">measure — 조건을 묶어 잰다 (비교용)</option>
-            <option value="collect">collect — 일부러 바꿔가며 모은다 (학습용)</option>
+            <option value="measure">비교용 measure · 조건을 묶어 잰다</option>
+            <option value="collect">학습용 collect · 일부러 바꿔가며 모은다</option>
           </select>
           {recording ? (
             <button type="button" data-t="traj-stop" disabled={busy}
               onClick={() => run(() => datasource.stopRecording(who))
                 .then(() => setRecording(null))}>
-              녹화 정지 — {recording}
+              {recording} 녹화 정지
             </button>
           ) : (
             <button type="button" data-t="traj-start"
@@ -203,16 +228,16 @@ export function TeachPanel({ state, who }) {
             </button>
           )}
         </div>
-        {recording && <p className="refusal" data-t="traj-live">● 녹화 중 — {recording}</p>}
+        {recording && <p className="refusal" data-t="traj-live">● {recording} 녹화 중</p>}
         <TrajectoryList items={trajs} playing={play?.name} onPlay={startPlay} />
         <p className="mm" data-t="traj-usable">
           비교에 쓸 수 있는 것 {usable.length} / {trajs.length}
           {trajs.length > usable.length
-            && ' — 나머지는 조건이 어긋났다 (measure 가 아니거나 · 결손이 있거나 · done 으로 안 끝났다)'}
+            && '. 나머지는 조건이 어긋났다 (measure 가 아니거나 · 결손이 있거나 · done 으로 안 끝났다)'}
         </p>
       </section>
 
-      {note && <p className="refusal" data-t="teach-refusal">거부됨 — {note}</p>}
+      {note && <p className="refusal" data-t="teach-refusal"><b>거부됨</b> {note}</p>}
     </div>
   );
 }

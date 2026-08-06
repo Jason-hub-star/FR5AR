@@ -10,7 +10,7 @@ scripts/
 ├── README.md
 ├── check/                      검증 게이트 — 실패하면 exit 1
 │   ├── all.sh                    아래 전부를 순서대로 실행 (진입점)
-│   ├── harness.sh                커맨드 0 · 스킬 16 · 훅 2 · settings 연결
+│   ├── harness.sh                커맨드 0 · 스킬 17 · 훅 2 · settings 연결
 │   ├── docs.sh                   필수 문서 · INDEX 등재 · 깨진 링크 · Unity 배너
 │   ├── assets.sh                 URDF·메시 존재와 삼각형 수
 │   ├── consts.sh                 기준값 표 ↔ 실제 상수 대조 (드리프트)
@@ -120,7 +120,7 @@ node scripts/build/config.mjs --check  # 쓰지 않고 대조만 (게이트가 �
 
 | 스크립트 | 상수 | 현재값 | 언제 바꾸나 |
 |---|---|---|---|
-| `check/harness.sh` | `WANT_COMMANDS` `WANT_SKILLS` | 0 / 16 | 스킬을 더 만들거나 합칠 때 |
+| `check/harness.sh` | `WANT_COMMANDS` `WANT_SKILLS` | 0 / 17 | 스킬을 더 만들거나 합칠 때 |
 | `check/assets.sh` | `WANT_ARM_TRIS` `WANT_GRIP_TRIS` | 58482 / 70102 | 유니티 원본 모델이 바뀔 때 |
 | `check/docs.sh` | `REQUIRED` 배열 | 15개 | SSOT 문서를 추가·삭제할 때 |
 | `check/fr5-unit.sh` | 상수 없음 — 테스트가 스스로 기준 | 29 케이스 | `safety.py` 조건을 더하면 테스트도 더한다 |

@@ -9,8 +9,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const BRIDGE = `http://localhost:${process.env.FR5_PORT ?? 5055}`;
 // ⚠ 이 목록은 계약을 **손으로 미러링**한다 — 라우트를 늘리고 여기를 안 고치면 dev 에서만
 // 조용히 404 가 난다 (2026-08-05 `/trajectories` 로 실제로 겪었다. 브리지는 200 인데 화면만 거부).
+// `scripts/check/consts.sh` 가 이 목록을 main.py 의 라우트와 대조한다 — 손 미러링을 게이트가 받는다
 const API_PATHS = ['/robots', '/connect', '/version', '/disconnect', '/state', '/owner',
-  '/arm', '/disarm', '/points', '/trajectories', '/preview'];
+  '/arm', '/disarm', '/points', '/trajectories', '/slots', '/preview'];
 
 export default defineConfig({
   // 정적 자산은 Shared/assets 하나뿐이다. 복사하지 않는다 (AR 규칙 미러).

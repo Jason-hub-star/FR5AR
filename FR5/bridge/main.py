@@ -23,6 +23,7 @@ from commands import GRIPPER_FORCE_PCT, Commands
 from owner import Owner
 from robot_adapter import make_adapter
 from session import RobotSession
+from slots import SlotStore
 from teach import TeachService, frame_mismatch, run_recording
 
 HERE = Path(__file__).parent
@@ -49,6 +50,7 @@ def log(event, detail=""):
 session = RobotSession(SAMPLE_MS, log)
 cmds = Commands(session, log)
 teach = TeachService(DATA_DIR, REC_FPS, log)
+slots = SlotStore(DATA_DIR)
 recordTask = None
 
 
@@ -238,9 +240,9 @@ async def points_capture(body: dict):
 async def points_delete(name: str, body: dict | None = None):
     if (bad := owner_gate(body)) is not None:
         return bad
-    # 참조 슬롯 조회 자리 — 슬롯은 사다리 3 이라 지금은 항상 빈 목록이다.
-    # 훅을 미리 둔 이유: 슬롯이 생긴 뒤 여기를 못 찾으면 참조 검사가 통째로 빠진다
-    ok, blocked = await asyncio.to_thread(teach.points.delete, name, ())
+    # 사다리 3 이 이 훅을 채웠다 — 참조하는 슬롯이 있으면 지우지 않는다 (감사 P1)
+    refs = await asyncio.to_thread(slots.refs_to_point, name)
+    ok, blocked = await asyncio.to_thread(teach.points.delete, name, refs)
     if blocked:
         return refuse([f"참조하는 슬롯이 있다 — {', '.join(blocked)}"], 409)
     if not ok:
@@ -249,27 +251,36 @@ async def points_delete(name: str, body: dict | None = None):
     return {"ok": True, "reasons": []}
 
 
+async def goto_point(name):
+    """지점으로 이동. **`moveJ` 로 번역해 같은 게이트를 처음부터 다시 태운다** —
+    실기 명령 허용목록에 새 이름을 더하지 않는다 (VISION-CONTRACT 의 제안과 같은 규약).
+
+    반환: `(사유목록, 상태코드)`. 비면 보냈다. **슬롯 실행도 이 함수를 지난다** —
+    복붙하면 한쪽만 고쳐진다 (계약 `PROGRAM-CONTRACT.md` §step 4번).
+    """
+    point = await asyncio.to_thread(teach.points.get, name)
+    if not point:
+        return [f"없는 지점 — {name}"], 404
+    here = (session.profile or {}).get("robotId")
+    if point.get("capturedRobotId") != here:
+        return [f"다른 개체에서 잰 지점이다 — {point.get('capturedRobotId')} · 지금 {here}"], 409
+    reasons = frame_mismatch(point, (session.lastState or {}).get("coord"))
+    if reasons:
+        return reasons, 409
+    # **경로를 먼저 훑는다** (D75) — 조그용 5° 상한을 빼는 대신 가는 길을 검사한다
+    reasons = await asyncio.to_thread(cmds.motion, point["jointsDeg"], safety.SPEED_CAP_PCT, True)
+    return reasons, 409
+
+
 @app.post("/points/{name}/goto")
 async def points_goto(name: str, body: dict):
-    """지점으로 이동. **`moveJ` 로 번역해 같은 게이트를 처음부터 다시 태운다** —
-    실기 명령 허용목록에 새 이름을 더하지 않는다 (VISION-CONTRACT 의 제안과 같은 규약)."""
     if (bad := owner_gate(body)) is not None:
         return bad
     if not session.armed:
         return refuse([f"ARMED 가 아니다 — phase={session.current_phase(owner.get())}"])
-    point = await asyncio.to_thread(teach.points.get, name)
-    if not point:
-        return refuse([f"없는 지점 — {name}"], 404)
-    here = (session.profile or {}).get("robotId")
-    if point.get("capturedRobotId") != here:
-        return refuse([f"다른 개체에서 잰 지점이다 — {point.get('capturedRobotId')} · 지금 {here}"])
-    reasons = frame_mismatch(point, (session.lastState or {}).get("coord"))
+    reasons, code = await goto_point(name)
     if reasons:
-        return refuse(reasons)
-    # **경로를 먼저 훑는다** (D75) — 조그용 5° 상한을 빼는 대신 가는 길을 검사한다
-    reasons = await asyncio.to_thread(cmds.motion, point["jointsDeg"], safety.SPEED_CAP_PCT, True)
-    if reasons:
-        return refuse(reasons)
+        return refuse(reasons, code)
     return {"ok": True, "phase": session.current_phase(owner.get()), "reasons": []}
 
 
@@ -327,6 +338,87 @@ async def traj_stop(body: dict):
     if not traj:
         return refuse(["녹화를 저장하지 못했다"])
     return {"ok": True, "trajectory": TeachService.summary(traj), "reasons": []}
+
+
+# ── 프로그램 슬롯 (PROGRAM-CONTRACT.md · 사다리 3) ───────────────────────────
+def session_identity():
+    """승인 당시와 지금을 대조할 정체. 슬롯은 이 셋이 다르면 실행하지 않는다."""
+    coord = (session.lastState or {}).get("coord") or {}
+    return {"robotId": (session.profile or {}).get("robotId"),
+            "toolId": coord.get("toolId"), "userId": coord.get("userId"),
+            "firmware": (session.version or {}).get("controller")}
+
+
+@app.get("/slots")
+async def slots_list():
+    return await asyncio.to_thread(slots.list)
+
+
+@app.post("/slots")
+async def slots_save(body: dict):
+    """만들거나 덮어쓴다. **항상 draft 로 돌아간다** — 목록이 바뀌면 옛 승인은 다른 프로그램의 승인이다."""
+    if (bad := owner_gate(body)) is not None:
+        return bad
+    known = {p["name"] for p in await asyncio.to_thread(teach.points.list)}
+    slot, reasons = await asyncio.to_thread(
+        slots.save, body.get("name"), body.get("steps"), known)
+    if reasons:
+        return refuse(reasons)
+    log("slot-save", f"{slot['name']} 단계={len(slot['steps'])}")
+    return {"ok": True, "slot": slot, "reasons": []}
+
+
+@app.delete("/slots/{name}")
+async def slots_delete(name: str, body: dict | None = None):
+    if (bad := owner_gate(body)) is not None:
+        return bad
+    if not await asyncio.to_thread(slots.delete, name):
+        return refuse([f"없는 슬롯 — {name}"], 404)
+    log("slot-delete", name)
+    return {"ok": True, "reasons": []}
+
+
+@app.post("/slots/{name}/approve")
+async def slots_approve(name: str, body: dict):
+    """**로봇을 움직이지 않는다** — 그래서 ARMED 를 요구하지 않는다.
+    `arm` 과 같은 현장확인 관문을 지난다 (계획 §확인 절차는 한 모양으로)."""
+    if (bad := owner_gate(body)) is not None:
+        return bad
+    if body.get("confirm") != "현장확인":
+        return refuse(["현장확인이 없다 — 승인하면 이 목록이 실기에서 실행된다"])
+    # **정체를 못 박으면 승인하지 않는다.** 미연결이면 tool/user 가 None 으로 박히고,
+    # 나중에 연결해 실행할 때 전부 불일치가 돼 그 승인이 영영 안 먹는다 (제1원칙)
+    ident = session_identity()
+    if any(ident.get(k) is None for k in ("robotId", "toolId", "userId")):
+        return refuse([f"연결하고 상태를 읽은 뒤에 승인한다 — 지금 정체를 못 박는다 {ident}"])
+    slot, reasons = await asyncio.to_thread(
+        slots.approve, name, body.get("who"), ident)
+    if reasons:
+        return refuse(reasons, 404)
+    log("slot-approve", f"{name} by={body.get('who')} 정체={slot['approvedWith']}")
+    return {"ok": True, "slot": slot, "reasons": []}
+
+
+@app.post("/slots/{name}/step")
+async def slots_step(name: str, body: dict):
+    """**한 요청이 한 단계다.** 서버는 "다음 단계" 를 모른다 — 화면이 몇 번째인지 보낸다.
+    그래서 중단해도 재개할 상태가 없고, 처음부터 다시 도는 사고도 구조적으로 없다 (D78)."""
+    if (bad := owner_gate(body)) is not None:
+        return bad
+    # ARMED 를 여기서 명시적으로 본다 — 안쪽 게이트가 어차피 막지만, 사유가 phase 로 나와야
+    # 화면이 "ARM 하세요" 를 말할 수 있다 (계약 §step 0번)
+    if not session.armed:
+        return refuse([f"ARMED 가 아니다 — phase={session.current_phase(owner.get())}"])
+    point_name, reasons = await asyncio.to_thread(
+        slots.step_target, name, body.get("index"), session_identity())
+    if reasons:
+        return refuse(reasons)
+    reasons, code = await goto_point(point_name)      # goto 와 **같은 함수** — 게이트 전부 다시 탄다
+    if reasons:
+        return refuse(reasons, code)
+    log("slot-step", f"{name}[{body.get('index')}] → {point_name}")
+    return {"ok": True, "pointName": point_name,
+            "phase": session.current_phase(owner.get()), "reasons": []}
 
 
 # ── 명령 (API-CONTRACT §명령) — 실기에 닿는 이름은 다섯뿐이다 ────────────────

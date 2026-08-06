@@ -8,8 +8,8 @@ import time
 import unittest
 from pathlib import Path
 
-from teach import (MAX_DURATION_S, PointStore, Recorder, TrajectoryStore,
-                    frame_mismatch)
+from teach import (MAX_DURATION_S, PointStore, Recorder, TeachService,
+                    TrajectoryStore, frame_mismatch, safe_name)
 
 HOME = [-80.85, -98.35, 91.25, -89.07, -89.75, 6.90]
 
@@ -213,6 +213,53 @@ class Storage(unittest.TestCase):
         self.store.save(r.finish())
         raw = (Path(self.tmp.name) / "trajectories" / "d1.json").read_text()
         self.assertEqual(json.loads(raw)["name"], "d1")
+
+
+class TrajectoryNameIsAFileName(unittest.TestCase):
+    """궤적 이름이 그대로 파일 경로가 됐다 (감사 2026-08-05 P0-2).
+
+    `pathlib` 은 오른쪽이 절대경로면 왼쪽을 버린다. 조종권만 있으면 ARM 없이
+    브리지 계정이 쓸 수 있는 아무 파일이나 `.json` 내용으로 덮어썼다."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.store = TrajectoryStore(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    BAD = ["/etc/cron.d/pwn", "../../.ssh/authorized_keys", "..", "a/b",
+           "a\\b", ".", "x" * 65, "sp ace", "d1.json", ""]
+
+    def test_경로가_되는_이름은_전부_거부(self):
+        for bad in self.BAD:
+            with self.subTest(name=bad):
+                self.assertTrue(safe_name(bad)[1], f"{bad!r} 이 통과했다")
+
+    def test_평범한_이름은_통과(self):
+        for ok in ["d1", "demo-01", "trayPick", "왼쪽_집기", "A_b-9"]:
+            with self.subTest(name=ok):
+                self.assertEqual(safe_name(ok), (ok, []))
+
+    def test_폴더_밖으로는_한_글자도_안_쓴다(self):
+        """`save` 는 마지막 방어선이다 — 호출처가 검사를 빠뜨려도 파일이 안 새어 나간다."""
+        outside = Path(self.tmp.name) / "outside.json"
+        with self.assertRaises(ValueError):
+            self.store.save({"name": "../outside", "frames": []})
+        self.assertFalse(outside.exists())
+
+    def test_읽기도_폴더_밖을_안_본다(self):
+        target = Path(self.tmp.name) / "secret.json"
+        target.write_text(json.dumps({"name": "secret"}))
+        self.assertIsNone(self.store.get("../secret"))
+
+    def test_녹화는_시작에서_막힌다(self):
+        """끝에서 막으면 120초를 녹화하고 저장에서 버리게 된다."""
+        svc = TeachService(self.tmp.name, 10, lambda *a: None)
+        rec, reasons = svc.start("/etc/cron.d/pwn", "measure", "demo", {}, state())
+        self.assertIsNone(rec)
+        self.assertTrue(reasons)
+        self.assertIsNone(svc.recording)
 
 
 if __name__ == "__main__":

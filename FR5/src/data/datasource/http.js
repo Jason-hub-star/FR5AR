@@ -16,6 +16,21 @@ const TOKEN_KEY = 'fr5.ownerToken';
 const store = (() => { try { return window.sessionStorage; } catch { return null; } })();
 let ownerToken = store?.getItem(TOKEN_KEY) || null;
 
+// ── 글로벌 카메라 주소. **빌드에 박지 않는다** — 폰이 DHCP 라 IP 가 바뀐다
+// (2026-08-06 실측: USB 세션의 폰이 WiFi 로 붙으며 `.10` 을 새로 받았다).
+// `?cam=192.168.30.10:8080` 를 한 번 주면 기억한다. `?cam=` (빈 값) 이면 잊는다.
+// **탭 저장소가 아니라 localStorage 다** — 조종권 토큰과 달리 이건 비밀이 아니고,
+// 새로고침마다 주소를 다시 치게 만들 이유가 없다 (`AR/src/screens/cam.js` 와 같은 규약).
+const CAM_KEY = 'fr5.camHost';
+const camStore = (() => { try { return window.localStorage; } catch { return null; } })();
+let camHost = (() => {
+  const q = new URLSearchParams(location.search).get('cam');
+  if (q === null) return camStore?.getItem(CAM_KEY) || null;
+  const v = q.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  if (v) camStore?.setItem(CAM_KEY, v); else camStore?.removeItem(CAM_KEY);
+  return v || null;
+})();
+
 function setToken(v) {
   ownerToken = v || null;
   if (ownerToken) store?.setItem(TOKEN_KEY, ownerToken);
@@ -79,6 +94,12 @@ export const datasource = {
   },
   wsReconnects: () => Math.max(0, reconnects),   // 재연결 기록 — V0 완료 증거의 일부
 
+  // 글로벌 카메라 MJPEG. **브리지를 거치지 않는다** — 중계를 만들면 계약·라우트·vite proxy
+  // 세 곳이 늘고(`vite.config.js` §API_PATHS 는 손으로 미러링한다), 얻는 게 없다.
+  // 브라우저가 폰을 직접 본다. 화면은 주소를 모르고 이 함수만 부른다 (`FR5/AGENTS.md`).
+  cameraFeedUrl: () => (camHost ? `http://${camHost}/video` : null),
+  cameraHost: () => camHost,
+
   getRobots: () => api('GET', '/robots'),
   getVersion: () => api('GET', '/version'),
   connect: (robotId) => api('POST', '/connect', { robotId, observeOnly: true }),
@@ -114,6 +135,20 @@ export const datasource = {
   startRecording: (w, name, purpose = 'measure', source = 'demo') =>
     api('POST', '/trajectories/start', { who: w, token: ownerToken, name, purpose, source }),
   stopRecording: (w) => api('POST', '/trajectories/stop', { who: w, token: ownerToken }),
+
+  // Program — 지점을 순서로 엮어 승인한 것만 실행 (PROGRAM-CONTRACT.md).
+  // **슬롯은 좌표를 안 보낸다** — 지점 이름만 올린다 (D78). step 은 서버가 goto 로 번역해
+  // 같은 게이트를 처음부터 다시 태우므로, 실기 cmd 허용목록은 그대로다.
+  getSlots: () => api('GET', '/slots'),
+  saveSlot: (w, name, steps) => api('POST', '/slots', { who: w, token: ownerToken, name, steps }),
+  deleteSlot: (w, name) =>
+    api('DELETE', `/slots/${encodeURIComponent(name)}`, { who: w, token: ownerToken }),
+  // 승인은 arm 과 같은 현장확인 관문을 탄다 (계획 §확인 절차는 한 모양으로)
+  approveSlot: (w, name) => api('POST', `/slots/${encodeURIComponent(name)}/approve`,
+    { who: w, token: ownerToken, confirm: '현장확인' }),
+  // **한 요청이 한 단계다.** 몇 번째인지는 화면이 보낸다 — 서버는 커서를 안 든다
+  slotStep: (w, name, index) => api('POST', `/slots/${encodeURIComponent(name)}/step`,
+    { who: w, token: ownerToken, index }),
 
   jog: (joint, deltaDeg) => sendCmd({ cmd: 'jog', joint, deltaDeg }),
   gripper: (pct) => sendCmd({ cmd: 'gripper', pct }),

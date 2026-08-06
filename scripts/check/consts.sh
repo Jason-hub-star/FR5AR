@@ -56,5 +56,29 @@ else
 fi
 
 echo
+echo "== 브리지 라우트 ↔ vite dev 프록시 =="
+# 손으로 미러링하는 목록이라 라우트를 늘리고 vite.config.js 를 안 고치면 **dev 에서만** 조용히
+# 404 가 난다. 브리지는 200 인데 화면만 거부한다 — 2026-08-05 `/trajectories`,
+# 2026-08-06 `/slots` 로 두 번 겪었다. 세 번째는 이 게이트가 받는다.
+if command -v python3 >/dev/null 2>&1; then
+  miss="$(python3 - "$ROOT" <<'PY'
+import re, sys
+from pathlib import Path
+root = Path(sys.argv[1])
+routes = {"/" + m.group(1) for m in re.finditer(
+    r'@app\.(?:get|post|put|delete|websocket)\("/([^/"{]+)', (root / "FR5/bridge/main.py").read_text())}
+proxied = set(re.search(r"const API_PATHS = \[(.*?)\]",
+    (root / "FR5/vite.config.js").read_text(), re.S).group(1).replace("'", "").replace("\n", "").split(","))
+proxied = {p.strip() for p in proxied if p.strip()} | {"/ws"}
+print(" ".join(sorted(routes - proxied)))
+PY
+)"
+  if [ -z "$miss" ]; then note "브리지 라우트가 전부 프록시된다"
+  else bad "vite dev 프록시에 없는 라우트: $miss  (FR5/vite.config.js 의 API_PATHS 에 더해라)"; fi
+else
+  note "python3 없음 — 대조를 건너뛴다"
+fi
+
+echo
 [ "$FAIL" -eq 0 ] && echo "기준값 OK" || echo "기준값 불일치"
 exit "$FAIL"

@@ -19,6 +19,7 @@
 | `docs/ref/contract/API-CONTRACT.md` | REST/WS 계약. 상태·명령·조종권·이동지점·**배치안·지표 요구 모양** | SSOT | 서버·프론트·AR가 맞출 때 |
 | `docs/ref/contract/LAYOUT-METRICS-CONTRACT.md` | 배치안·생산성 지표 계약 — 관제화면이 편집하고 AR이 읽는다 | SSOT | 배치안 데이터·지표 모양을 맞출 때 |
 | `docs/ref/contract/VISION-CONTRACT.md` | 비전 제안 계약 — `/proposal` 판정 3단·거부 사유·앵커 봉인 | SSOT | 비전이 로봇에 무엇을 제안할 수 있는지 정할 때 |
+| `docs/ref/contract/PROGRAM-CONTRACT.md` | 프로그램 슬롯 계약 — 지점을 순서로 엮어 `draft→approve→step`, 한 단계씩 | SSOT | Program 화면·슬롯 실행을 짤 때 |
 | `docs/ref/contract/TB-CONTRACT.md` | **터틀봇 관제 계약** — 상태·teleop·슬롯·맵·기록·미래 접점 5 | SSOT | 터틀봇 브리지·웹을 짤 때 |
 | `docs/ref/arch/CODING-CONVENTIONS.md` | 단위·좌표계·안전·네이밍 규칙 | SSOT | 코드를 쓰기 전에 |
 | `docs/ref/contract/SAFETY-RULES.md` | 안전 판정 조건 19개와 SDK 필드 매핑, fail-closed 원칙 | SSOT | **로봇에 명령 보내는 코드 쓰기 전** |
@@ -34,7 +35,6 @@
 | `docs/status/DECISION-LOG.md` | 결정 기록 | 상태 | "왜 이렇게 됐나" 할 때 |
 | `docs/status/DECISION-LOG-CURRENT.md` | **최신 13건** 의 결정 원문 — 먼저 여기를 본다 | 상태 | 최근에 왜 그렇게 정했나 |
 | `docs/status/GAP-MATRIX.md` | 스펙과 구현 사이 갭 감시판 | 상태 | 막힌 게 뭔지 볼 때 |
-| `docs/evidence/2026-07-29/urdf-web-render.md` | 실렌더 검증 기록 | 증거 | 주장의 근거가 필요할 때 |
 | `docs/evidence/2026-07-29/v3-feature-survey-limits.md` | v3 기능 조사의 **확인 범위와 한계** | 증거 | v3 기능을 옮기기 전에 |
 | `docs/evidence/2026-07-30/sdk-state-fields.md` | SDK 상태 필드 150개 전수 — 비상정지·그리퍼·드리프트 확정 | 증거 | 안전 조건을 구현할 때 |
 | `docs/evidence/2026-07-30/gripper-mount.md` | 그리퍼 장착값 실측 — 플랜지 간격 0.00mm 확인, 함정 4개 | 증거 | 그리퍼·URDF 확장을 건드릴 때 |

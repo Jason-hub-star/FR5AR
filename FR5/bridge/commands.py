@@ -40,7 +40,8 @@ class Commands:
         state = s.read_fresh_state()
         reasons = safety.check_motion(state, self._age(), target_deg, speed_pct,
                                       s.appliedSettings,
-                                      delta_cap=None if scan_path else safety.JOINT_DELTA_CAP_DEG)
+                                      delta_cap=None if scan_path else safety.JOINT_DELTA_CAP_DEG,
+                                      commanded_deg=s.lastCommandedDeg)
         if reasons:
             return reasons
         coord = state.get("coord") or {}
@@ -59,6 +60,9 @@ class Commands:
             # 검사할 수단이 없는데 상한만 푸는 것이 제일 위험하다 (계약 §경로 검사)
             return ["작업영역이 등재되지 않아 경로를 검사할 수 없다 — 지점 이동을 열지 않는다"]
         s.adapter.move_j(target_deg, speed_pct, coord.get("toolId", 0), coord.get("userId", 0))
+        # 보낸 목표가 곧 다음 판정의 드리프트 기준이다 (계약 §드리프트 기준).
+        # **보낸 뒤에** 적는다 — 게이트에서 거부된 목표는 기준이 될 수 없다.
+        s.lastCommandedDeg = [float(v) for v in target_deg]
         self._log("moveJ", f"target={[round(v, 3) for v in target_deg]} speed={speed_pct}")
         time.sleep(0.25)                 # 컨트롤러가 지령을 등록했는지 — 실기 진단 (2026-07-31)
         after = s.read_fresh_state()
@@ -140,6 +144,8 @@ class Commands:
             self._log("mode-거부", " · ".join(reasons))
             return reasons
         self._s.adapter.set_mode(1 if manual else 0)
+        # 수동으로 넘기면 펜던트가 팔을 옮길 수 있다 — 우리 지령은 기준 자격을 잃는다
+        self._s.lastCommandedDeg = None
         self._log("mode", f"{'수동 — 펜던트가 조작한다' if manual else '자동 — 우리가 조작한다'}")
         return []
 
@@ -168,6 +174,8 @@ class Commands:
         a.set_sample_period(sample_ms)
         a.exit_drag_teach()
         a.set_mode(0)
+        s.lastCommandedDeg = None        # ARM 직전까지 팔이 어디를 지났는지 우리는 모른다
+
         return self._check_frame()
 
     def _check_frame(self):

@@ -24,6 +24,18 @@ UNVERIFIABLE_SETTINGS = ["collisionLevel", "collisionStrategy", "collisionMode",
 SETTING_TOL = {"payloadKg": 0.05, "cogMm": 1.0}     # 되읽기 허용 오차 (kg · mm)
 
 
+def _within(got, want, tol):
+    """되읽은 값이 기대값 근처인가. **NaN 은 통과가 아니라 불일치다** (감사 2026-08-05 P0-3).
+
+    `abs(nan - 0.6) > 0.05` 은 파이썬에서 `False` 라 부등호만 쓰면 NaN 이 조용히 통과한다.
+    그러면 말단 하중·무게중심이 로봇에 안 들어간 채 ARM 된다 — 그 둘이 없으면 충돌 감지가
+    오작동한다(`fairino.py` §하중이 먼저다). 제1원칙 그대로 **못 읽으면 차단**이다.
+    """
+    if isinstance(got, bool) or not isinstance(got, (int, float)) or not math.isfinite(got):
+        return False
+    return abs(float(got) - float(want)) <= tol
+
+
 class RobotSession:
     def __init__(self, sample_ms, on_log):
         self._sample_ms = sample_ms
@@ -44,6 +56,9 @@ class RobotSession:
         self.badReads = 0
         self.appliedSettings = None
         self.workspace = None
+        # 드리프트 기준 — **우리가 마지막으로 보낸 MoveJ 목표** (계약 §드리프트 기준).
+        # None 이면 검사하지 않는다. 컨트롤러의 lastServoTarget 을 쓰지 않는 이유는 계약에.
+        self.lastCommandedDeg = None
 
     def open(self, profile, adapter, version, state):
         """preflight 를 통과한 연결을 세션에 앉힌다."""
@@ -60,6 +75,7 @@ class RobotSession:
         self.lastState = state
         self.lastStateAt = now
         self.badReads = 0
+        self.lastCommandedDeg = None
 
     # ── 상태 ────────────────────────────────────────────────────────────────
     def current_phase(self, owner_who):
@@ -87,6 +103,12 @@ class RobotSession:
                 return self.lastState
             raise ConnectionError("첫 상태부터 비정상 수치 — fail-closed")
         self.badReads = 0
+        # 사람이 팔을 잡으면 우리 지령은 더 이상 실측의 기준이 아니다 (계약 §드리프트 기준).
+        # 여기서 비우는 이유 — 펜던트가 직접 티칭을 켠 경우까지 한 곳에서 잡힌다.
+        if ((state.get("safety") or {}).get("inDragTeach")
+                and self.lastCommandedDeg is not None):
+            self.lastCommandedDeg = None
+            self._log("드리프트-기준-해제", "드래그 티칭 — 사람이 팔을 옮긴다")
         self.lastState = state
         self.lastStateAt = time.time()
         return state
@@ -162,11 +184,13 @@ class RobotSession:
         back = self.adapter.read_settings() or {}
         mismatch = []
         got = back.get("payloadKg")
-        if got is None or abs(got - float(settings["payloadKg"])) > SETTING_TOL["payloadKg"]:
+        if not _within(got, settings["payloadKg"], SETTING_TOL["payloadKg"]):
             mismatch.append(f"payloadKg 기대 {settings['payloadKg']} · 실제 {got}")
         got = back.get("cogMm")
-        if got is None or any(abs(g - float(w)) > SETTING_TOL["cogMm"]
-                              for g, w in zip(got, settings["cogMm"])):
+        want = settings["cogMm"]
+        # 길이도 본다 — `zip` 은 짧은 쪽에서 조용히 멈춘다. 빈 목록이면 비교가 0회라 통과한다
+        if not isinstance(got, (list, tuple)) or len(got) != len(want) \
+                or not all(_within(g, w, SETTING_TOL["cogMm"]) for g, w in zip(got, want)):
             mismatch.append(f"cogMm 기대 {settings['cogMm']} · 실제 {got}")
         applied = {"appliedAt": time.time(), "sent": dict(settings), "readback": back,
                    "unverifiable": list(UNVERIFIABLE_SETTINGS), "mismatch": mismatch}

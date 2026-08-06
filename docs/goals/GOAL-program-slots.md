@@ -2,7 +2,8 @@
 
 FR5 사다리 3/6. 앞: [GOAL-teach-points.md](GOAL-teach-points.md) ·
 다음: [GOAL-run-history.md](GOAL-run-history.md).
-계약은 `docs/ref/contract/API-CONTRACT.md` §프로그램 슬롯.
+계약은 [`docs/ref/contract/PROGRAM-CONTRACT.md`](../ref/contract/PROGRAM-CONTRACT.md)
+(2026-08-06 신설 — `API-CONTRACT.md` 가 450줄 상한에 닿아 별 문서로 갔다).
 
 ## 골 한 줄
 

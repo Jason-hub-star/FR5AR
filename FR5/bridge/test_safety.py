@@ -33,10 +33,12 @@ def blocked(reasons, needle):
 
 
 class MotionGate(unittest.TestCase):
-    def gate(self, st=None, age=0.0, target=None, speed=None, applied=OK_SETTINGS):
+    def gate(self, st=None, age=0.0, target=None, speed=None, applied=OK_SETTINGS,
+             commanded=None):
         return safety.check_motion(st if st is not None else state(), age,
                                    target if target is not None else [0.0] * 6,
-                                   safety.SPEED_CAP_PCT if speed is None else speed, applied)
+                                   safety.SPEED_CAP_PCT if speed is None else speed, applied,
+                                   commanded_deg=commanded)
 
     def test_기준_상태는_통과한다(self):
         self.assertEqual(self.gate(), [])
@@ -94,12 +96,25 @@ class MotionGate(unittest.TestCase):
     def test_목표가_6축_숫자가_아니면_차단(self):
         self.assertTrue(blocked(self.gate(target=[0.0] * 5), "6축"))
 
-    def test_드리프트_초과_차단(self):
-        st = state(lastServoTargetDeg=[safety.DRIFT_CAP_DEG + 1.0] + [0.0] * 5)
-        self.assertTrue(blocked(self.gate(st), "괴리"))
+    # ── 드리프트 (조건 8 대안 · 계약 §드리프트 기준) ──────────────────────────
+    # 기준은 **우리가 보낸 MoveJ 목표**다. 컨트롤러의 lastServoTarget 이 아니다.
 
-    def test_지령_이력이_전부_0이면_드리프트를_건너뛴다(self):
-        st = state(lastServoTargetDeg=[0.0] * 6)
+    def test_우리_지령을_안_따라오면_차단(self):
+        cmd = [safety.DRIFT_CAP_DEG + 1.0] + [0.0] * 5   # 실측은 전 축 0
+        self.assertTrue(blocked(self.gate(commanded=cmd), "괴리"))
+
+    def test_지령_이력이_없으면_드리프트를_건너뛴다(self):
+        self.assertEqual(self.gate(commanded=None), [])
+
+    def test_지령이_전부_0이어도_기준으로_쓴다(self):
+        """옛 구현은 '전부 0 = 이력 없음'으로 뭉갰다. 원점 지령은 **실제 지령**이다."""
+        st = state(jointsDeg=[safety.DRIFT_CAP_DEG + 1.0] + [0.0] * 5)
+        self.assertTrue(blocked(self.gate(st, target=st["jointsDeg"], commanded=[0.0] * 6),
+                                "괴리"))
+
+    def test_컨트롤러_lastServoTarget_은_판정에_안_쓴다(self):
+        """티치모드가 채워 넣은 값이 우리 명령을 영구히 잠그던 자리 (2026-08-06 실기 31.52°)."""
+        st = state(lastServoTargetDeg=[31.52] + [0.0] * 5)
         self.assertEqual(self.gate(st), [])
 
 

@@ -8,6 +8,7 @@
 import asyncio
 import json
 import math
+import re
 import time
 from pathlib import Path
 
@@ -16,6 +17,23 @@ MAX_DURATION_S = 120.0
 MAX_FRAMES = 6000
 # 이 안이면 "같은 자세" 로 본다. 지점 이름을 궤적의 startPose 에 붙일 때만 쓴다
 SAME_POSE_DEG = 0.5
+
+# 궤적 이름은 **파일 이름이 된다.** 그래서 이름 자체를 좁힌다 (감사 2026-08-05 P0-2).
+# `pathlib` 은 오른쪽이 절대경로면 왼쪽을 버린다 — `Path("~/fr5-data") / "/etc/cron.d/x"`
+# 가 `/etc/cron.d/x` 다. 조종권만 있으면 ARM 없이 브리지 계정의 아무 파일이나 덮어썼다.
+# **거르지 않고 자르지 않는다** — 잘라 주면 두 이름이 한 파일이 되어 조용히 덮어쓴다.
+SAFE_NAME = re.compile(r"^[A-Za-z0-9가-힣_-]{1,64}$")
+
+
+def safe_name(name):
+    """파일 이름이 될 수 있는 이름만 통과. 반환: (이름, 사유목록)."""
+    name = str(name or "").strip()
+    if not name:
+        return None, ["이름이 비어 있다"]
+    if not SAFE_NAME.match(name):
+        return None, ["이름은 한글·영문·숫자·`_`·`-` 만 쓰고 64자를 넘지 않는다 "
+                      f"(받은 것: {name[:80]!r})"]
+    return name, []
 
 
 def _finite_list(v, n):
@@ -133,15 +151,31 @@ class TrajectoryStore:
                        | {"frameCount": len(t.get("frames") or [])})
         return out
 
+    def _path(self, name):
+        """이름 → 파일 경로. **폴더 밖으로 나가면 None 이다** (감사 P0-2).
+
+        이름 검사(`safe_name`)만으로 이미 막히지만, 여기서 `resolve()` 로 한 번 더 본다 —
+        이 두 줄이 마지막 방어선이라 호출처가 검사를 빠뜨려도 파일이 안 새어 나간다."""
+        ok, _ = safe_name(name)
+        if not ok:
+            return None
+        path = (self._dir / f"{ok}.json").resolve()
+        return path if path.parent == self._dir.resolve() else None
+
     def get(self, name):
+        path = self._path(name)
+        if path is None:
+            return None
         try:
-            return json.loads((self._dir / f"{name}.json").read_text())
+            return json.loads(path.read_text())
         except (FileNotFoundError, json.JSONDecodeError, OSError):
             return None
 
     def save(self, traj):
         self._dir.mkdir(parents=True, exist_ok=True)
-        path = self._dir / f"{traj['name']}.json"
+        path = self._path(traj.get("name"))
+        if path is None:            # 여기까지 왔으면 호출처가 검사를 빠뜨린 것이다
+            raise ValueError(f"궤적 이름을 파일로 쓸 수 없다 — {traj.get('name')!r}")
         tmp = path.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(traj, ensure_ascii=False))
         tmp.replace(path)
@@ -270,11 +304,13 @@ class TeachService:
         return self._rec.name if self._rec else None
 
     def start(self, name, purpose, source, stamp, state):
-        name = str(name or "").strip()
         if self._rec is not None:
             return None, [f"이미 녹화 중 — {self._rec.name}. 먼저 stop"]
-        if not name:
-            return None, ["이름이 비어 있다"]
+        # 이름이 파일 이름이 된다 — 녹화를 **시작하기 전에** 거른다. 끝날 때 거르면
+        # 120초를 녹화하고 저장에서 버리게 된다 (감사 P0-2)
+        name, reasons = safe_name(name)
+        if reasons:
+            return None, reasons
         start_name = self.points.name_of_pose(state.get("jointsDeg"))
         self._rec = Recorder(name, purpose, source, self.fps, stamp, start_name)
         self._rec.push(state)

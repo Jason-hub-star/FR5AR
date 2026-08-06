@@ -47,9 +47,10 @@ try {
   check('패널 탭 4개', true);
   check('Optimize 탭이 없다 (D74)',
     !(await p.eval(`[...document.querySelectorAll('nav button')].some(b => /optimize/i.test(b.textContent))`)));
-  check('Teach 는 열려 있고 Program·History 는 아직 비활성 (사다리 3~4 예정)',
-    (await p.eval(`document.querySelectorAll('nav button:disabled').length`)) === 2
-    && (await p.eval(`[...document.querySelectorAll('nav button')].find(b => b.textContent === 'Teach')?.disabled`)) === false);
+  check('Live·Teach·Program 은 열려 있고 History 만 아직 비활성 (사다리 4 예정)',
+    (await p.eval(`document.querySelectorAll('nav button:disabled').length`)) === 1
+    && (await p.eval(`[...document.querySelectorAll('nav button')]
+        .filter(b => ['Teach', 'Program'].includes(b.textContent)).every(b => b.disabled === false)`)) === true);
   check('상시 안전 바 8항목',
     (await p.eval(`document.querySelectorAll('[data-t="safeitem"]').length`)) === 8);
   check('미연결 phase 표시 DISCONNECTED',
@@ -170,6 +171,13 @@ try {
   check('탭을 옮겨도 STOP·모드 토글은 그대로다 (상시 안전 바)',
     !!(await p.eval(`!!document.querySelector('[data-t="safetybar"] [data-t="estop"]')
       && !!document.querySelector('[data-t="safetybar"] [data-t="mode-toggle"]')`)));
+  // 조작대도 상시다 — Teach 는 조그하며 쓰는 화면이라 Live 로 왕복하면 흐름이 끊긴다
+  // (계획 §레이아웃 · 2026-08-06 실기 지적). 그리퍼는 캡처가 굳히는 값이라 특히 그렇다.
+  check('Teach 에서도 조그·그리퍼 조작대가 그대로다 (Live 왕복 없음)',
+    !!(await p.eval(`!!document.querySelector('[data-t="dock"] [data-t="gripper"]')
+      && document.querySelectorAll('[data-t="dock"] [data-t="jogrow"]').length === 6`)));
+  check('3D 쌍둥이는 탭을 옮겨도 한 인스턴스다 (카메라 각도 유지)',
+    (await p.eval(`document.querySelectorAll('[data-t="twin"]').length`)) === 1);
   check('지점이 없을 때 화면이 그렇게 말한다',
     !!(await p.eval(`!!document.querySelector('[data-t="points-empty"]')`)));
   check('3D 가 "실물 자세" 라고 말한다 (미리보기 아님)',
@@ -178,8 +186,19 @@ try {
   await p.eval(`document.querySelector('[data-t="point-capture"]').click()`);
   check('캡처 → 목록에 지점이 생긴다',
     !!(await p.waitFor(`document.querySelector('[data-t="point-row"]')?.dataset.name === 'trayPick'`, { timeoutMs: 6000 })));
+  // 삭제는 되돌릴 수 없고 바로 옆이 실기를 움직이는 "이동" 이다 (감사 2026-08-05 P0-4).
+  // **한 번에 안 지워지는 것**이 이 검사의 핵심이다 — 확인 단계가 사라지면 여기서 깨진다.
+  await p.eval(`document.querySelector('[data-t="point-delete"]').click()`);
+  check('삭제는 한 번 더 묻는다 (되돌리기가 없다)',
+    !!(await p.waitFor(`!!document.querySelector('[data-t="point-delete-ask"]')`, { timeoutMs: 4000 })));
+  await p.eval(`document.querySelector('[data-t="point-delete-cancel"]').click()`);
+  check('취소하면 지점이 그대로 남는다',
+    !!(await p.waitFor(`document.querySelector('[data-t="point-row"]')?.dataset.name === 'trayPick'
+      && !document.querySelector('[data-t="point-delete-ask"]')`, { timeoutMs: 4000 })));
+
   // 미리보기는 **로봇에 아무것도 안 보낸다** — 이동 전에 어디로 가는지 화면에서 먼저 본다
-  const jBeforePv = await p.eval(`document.querySelector('[data-t="joints"] td')?.textContent`);
+  // 관절 표는 Live 에만 있다 — Teach 에 선 채로는 상태 훅에서 읽는다
+  const jBeforePv = await p.eval(`window.FR5_STATE.jointsDeg[0].toFixed(3)`);
   await p.eval(`document.querySelector('[data-t="point-preview"]').click()`);
   check('미리보기 → 3D 가 "실물이 아니다" 를 말한다',
     !!(await p.waitFor(`document.querySelector('[data-t="twin-note"]')?.dataset.live === 'false'
@@ -188,6 +207,14 @@ try {
   check('미리보기 중에도 실물은 안 움직였다 (읽기 전용)',
     (await p.eval(`document.querySelector('[data-t="teach-refusal"]')`)) === null, `실물 j1 ${jBeforePv}`);
   await p.eval(`document.querySelector('[data-t="point-preview"]').click()`);
+
+  // 궤적 이름은 그대로 파일 이름이 된다 — 경로가 되는 이름은 녹화 **시작에서** 막힌다
+  // (감사 2026-08-05 P0-2. 끝에서 막으면 120초를 녹화하고 저장에서 버리게 된다)
+  await setInput('[data-t="traj-name"]', '/etc/cron.d/pwn');
+  await p.eval(`document.querySelector('[data-t="traj-start"]').click()`);
+  check('경로가 되는 궤적 이름은 거부된다 (임의 파일 덮어쓰기 차단)',
+    !!(await p.waitFor(`document.querySelector('[data-t="teach-refusal"]')?.textContent.includes('이름은')
+      && !document.querySelector('[data-t="traj-live"]')`, { timeoutMs: 5000 })));
 
   // 궤적 — 녹화는 읽기만 한다
   await setInput('[data-t="traj-name"]', 'demo-01');
@@ -210,6 +237,61 @@ try {
       && document.querySelector('[data-t="twin-note"]').dataset.live === 'false'`, { timeoutMs: 8000 })));
   check('되감기 스크럽이 있다',
     !!(await p.eval(`!!document.querySelector('[data-t="play-scrub"]')`)));
+  // Teach 에서 그리퍼를 직접 조작한다 — 이게 되면 캡처 전에 Live 로 건너갈 이유가 없다
+  await p.eval(`document.querySelector('[data-t="dock"] [data-t="gripper-open"]').click()`);
+  check('Teach 를 떠나지 않고 그리퍼가 움직인다',
+    !!(await p.waitFor(`document.querySelector('[data-t="gripper-raw"]')?.textContent === '100%'`, { timeoutMs: 5000 })),
+    '탭 이동 0회');
+  // 9. Program — 지점을 순서로 엮어 승인한 것만 한 단계씩 (PROGRAM-CONTRACT.md · 사다리 3)
+  await p.eval(`[...document.querySelectorAll('nav button')].find(b => b.textContent === 'Program').click()`);
+  check('Program 탭이 열린다 (사다리 3)',
+    !!(await p.waitFor(`!!document.querySelector('[data-t="program"]')`, { timeoutMs: 5000 })));
+  await setInput('[data-t="slot-name"]', '집기시연');
+  // 지점 목록이 도착해야 만들 수 있다 — 그 전에는 버튼이 잠겨 있고 화면이 이유를 말한다
+  check('지점이 도착하면 만들기가 열린다',
+    !!(await p.waitFor(`document.querySelector('[data-t="slot-create"]')?.disabled === false`, { timeoutMs: 6000 })));
+  await p.eval(`document.querySelector('[data-t="slot-create"]').click()`);
+  const madeSlot = await p.waitFor(`document.querySelector('[data-t="slot-row"]')?.dataset.name === '집기시연'
+      && document.querySelector('[data-t="slot-row"]').textContent.includes('작성 중')`, { timeoutMs: 6000 });
+  check('프로그램을 만들면 작성 중(draft) 으로 선다', !!madeSlot,
+    madeSlot ? '' : String(await p.eval(`(() => {
+      const r = document.querySelector('[data-t="program-refusal"]')?.textContent;
+      const rows = document.querySelectorAll('[data-t="slot-row"]').length;
+      const err = document.querySelector('[data-t="program"]') ? '패널 살아있음' : '패널 사라짐';
+      return \`거부=\${r ?? '없음'} · 행수=\${rows} · \${err}\`;
+    })()`)));
+  // 승인 전에는 실행 버튼이 아예 없고 **왜인지 문장으로** 나온다 (회색 비활성 금지)
+  check('승인 전에는 실행 버튼이 없다',
+    (await p.eval(`document.querySelector('[data-t="step-run"]')`)) === null);
+  check('현장확인 전 승인 버튼 비활성',
+    (await p.eval(`document.querySelector('[data-t="slot-approve"]').disabled`)) === true);
+  await p.eval(`document.querySelector('[data-t="approve-confirm"] input').click()`);
+  await p.eval(`document.querySelector('[data-t="slot-approve"]').click()`);
+  check('승인 → 1단계가 "지금 여기" 로 짚힌다',
+    !!(await p.waitFor(`document.querySelector('[data-t="step-row"]')?.dataset.at === 'true'
+      && document.querySelector('[data-t="step-row"]').textContent.includes('지금 여기')`, { timeoutMs: 6000 })));
+  check('다음에 갈 자세를 3D 가 미리 보여준다 (아직 안 보냈다)',
+    (await p.eval(`document.querySelector('[data-t="twin-note"]')?.dataset.live`)) === 'false');
+  const runBtn = await p.eval(`document.querySelector('[data-t="step-run"]')?.textContent`);
+  check('버튼이 지금 할 한 가지만 말한다', runBtn?.includes('1단계 실행'), runBtn);
+  // **일부러 자세를 옮겨 두고** 실행한다 — 이미 그 자세면 "도달했다" 가 공허하다.
+  // 조작대는 어느 탭에서도 살아 있으므로 Program 에 선 채로 조그할 수 있다.
+  // **관절 표는 Live 패널에만 있다** — 다른 탭에서는 `[data-t="joints"]` 가 null 이라
+  // 값 비교가 조용히 NaN 이 된다. 여기서는 페이지가 브리지를 직접 읽는다.
+  const j1Now = `window.FR5_STATE.jointsDeg[0]`;
+  await p.eval(`[...document.querySelectorAll('[data-t="dock"] [data-t="jogrow"]')][0].querySelectorAll('button')[0].click()`);
+  check('조작대는 Program 탭에서도 산다 — 여기서 자세를 옮긴다',
+    !!(await p.waitFor(`Math.abs(${j1Now} - ${j1Before}) < 0.01`, { timeoutMs: 8000 })));
+  await p.eval(`document.querySelector('[data-t="step-run"]').click()`);
+  check('한 단계 실행 → 옮겨 둔 자세에서 그 지점으로 되돌아온다',
+    !!(await p.waitFor(`Math.abs(${j1Now} - ${j1Before + 1}) < 0.05`, { timeoutMs: 9000 })),
+    `j1 ${j1Before.toFixed(2)}→${(j1Before + 1).toFixed(2)} (trayPick)`);
+  check('한 칸만 간다 — 마지막까지 끝나면 그렇게 말한다',
+    !!(await p.waitFor(`document.querySelector('[data-t="step-blocked"]')?.textContent.includes('마지막 단계까지 끝났습니다')`, { timeoutMs: 5000 })));
+  await p.screenshot(`${OUT}/fr5-program.png`);
+
+  await p.eval(`[...document.querySelectorAll('nav button')].find(b => b.textContent === 'Teach').click()`);
+  await p.waitFor(`!!document.querySelector('[data-t="teach"]')`, { timeoutMs: 5000 });
   await p.screenshot(`${OUT}/fr5-teach.png`);
   await p.eval(`[...document.querySelectorAll('nav button')].find(b => b.textContent === 'Live').click()`);
   await p.waitFor(`!!document.querySelector('[data-t="gripper"]')`, { timeoutMs: 5000 });

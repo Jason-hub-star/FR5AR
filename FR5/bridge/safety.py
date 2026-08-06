@@ -6,7 +6,7 @@ import math
 SPEED_CAP_PCT = 10.0            # v3 DefaultLiveSpeedCapPercent (SAFETY-RULES §상한)
 JOINT_DELTA_CAP_DEG = 5.0       # v3 tiny-MoveJ 상한
 STATE_FRESH_S = 0.5             # 조건 10 — 최신 상태 신선도 (33ms 폴링 기준 넉넉히)
-DRIFT_CAP_DEG = 5.0             # 조건 8 대안(#9) — lastServoTarget vs 실측 차이
+DRIFT_CAP_DEG = 5.0             # 조건 8 대안(#9) — 우리가 보낸 MoveJ 목표 vs 실측 차이
 
 # URDF fairino5_v6 <limit> 실측 추출 (라디안→도 변환, 2026-07-31) — 조건 12
 # 실기 컨트롤러가 보고한 소프트리밋과 대조해 확정 (2026-08-04 · GetJointSoftLimitDeg).
@@ -73,11 +73,14 @@ def path_samples(from_deg, to_deg, step_deg=JOINT_DELTA_CAP_DEG):
 
 
 def check_motion(state, state_age_s, target_deg, speed_pct, applied_settings=None,
-                 delta_cap=JOINT_DELTA_CAP_DEG):
+                 delta_cap=JOINT_DELTA_CAP_DEG, commanded_deg=None):
     """jog/moveJ 게이트 (SAFETY-RULES §명령별 최소 조건). 반환: 사유 목록, 비면 허용.
 
     `delta_cap=None` 은 **경로를 대신 검사했을 때만** 쓴다 (지점 이동 · 계약 §경로 검사).
     5° 상한의 근거가 "경로가 안 보인다" 이므로, 경로를 보면 그 근거가 사라진다.
+
+    `commanded_deg` 는 **브리지가 마지막으로 보낸 MoveJ 목표**다 (계약 §드리프트 기준).
+    `None` 이면 추종을 논할 게 없어 드리프트를 검사하지 않는다.
     """
     reasons = _common_safety(state, state_age_s, applied_settings)
     if state is None:
@@ -94,10 +97,14 @@ def check_motion(state, state_age_s, target_deg, speed_pct, applied_settings=Non
     if len(joints) != 6 or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in joints):
         reasons.append("현재 관절값이 비정상 (NaN/결측) — fail-closed")
 
-    # 조건 8 대안(#9) — 직전 서보 지령과 실측의 괴리. 지령 이력이 없으면(전부 0) 건너뛴다
-    servo_target = state.get("lastServoTargetDeg")
-    if servo_target and any(abs(v) > 1e-9 for v in servo_target) and len(joints) == 6:
-        drift = max(abs(a - b) for a, b in zip(servo_target, joints))
+    # 조건 8 대안(#9) — **우리가 보낸** 지령과 실측의 괴리 (계약 §드리프트 기준).
+    # 컨트롤러의 `lastServoTarget` 을 쓰면 안 된다 — ServoJ 전용이라 우리 MoveJ 로는 영영
+    # 0 이고(검사가 안 돎), 티치모드가 채우면 사람이 팔을 옮긴 것을 추종 실패로 오인해
+    # 우리 명령으로 못 푸는 잠금이 된다 (2026-08-06 실기 31.52°).
+    # `commanded_deg` 가 None 이면 아직 아무것도 안 보냈거나 티칭으로 기준을 비운 것이다.
+    if commanded_deg and len(commanded_deg) == 6 and len(joints) == 6 \
+            and all(isinstance(v, (int, float)) and math.isfinite(v) for v in commanded_deg):
+        drift = max(abs(a - b) for a, b in zip(commanded_deg, joints))
         if drift > DRIFT_CAP_DEG:
             reasons.append(f"지령·실측 괴리 {drift:.2f}° > {DRIFT_CAP_DEG}° (조건 8 대안)")
 

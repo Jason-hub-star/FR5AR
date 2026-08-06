@@ -308,7 +308,43 @@ try {
   check('녹화 중이 아닌데 stop 하면 거부',
     (await api('/trajectories/stop', { who: 'kim', token: T2 })).status === 409);
 
-  // 삭제 — 참조가 없으면 지워지고, 없는 이름은 404
+  // ── 프로그램 슬롯 (PROGRAM-CONTRACT.md · 사다리 3) ─────────────────────────
+  check('없는 지점을 가리키는 슬롯은 저장에서 거부된다 (실행 시점에 알면 늦다)',
+    (await api('/slots', { who: 'kim', token: T2, name: 's1',
+      steps: [{ type: 'move', pointName: '없음' }] })).status === 409);
+  const saved = await api('/slots', { who: 'kim', token: T2, name: 's1',
+    steps: [{ type: 'move', pointName: 'P1' }] });
+  check('슬롯 저장 → draft · 좌표가 아니라 지점 이름만 든다 (D78)',
+    saved.json.slot?.status === 'draft'
+    && Object.keys(saved.json.slot.steps[0]).sort().join() === 'pointName,type');
+  check('승인 전 실행은 거부된다',
+    (await api('/slots/s1/step', { who: 'kim', token: T2, index: 0 })).status === 409);
+  check('현장확인 없는 승인은 거부된다',
+    (await api('/slots/s1/approve', { who: 'kim', token: T2 })).status === 409);
+  const appr = await api('/slots/s1/approve', { who: 'kim', token: T2, confirm: '현장확인' });
+  check('승인 → approved · 그때의 정체가 박힌다',
+    appr.json.slot?.status === 'approved'
+    && appr.json.slot.approvedWith?.robotId === 'fr5-mock-a'
+    && appr.json.slot.approvedWith.toolId !== null);
+  const stepped = await api('/slots/s1/step', { who: 'kim', token: T2, index: 0 });
+  check('승인된 슬롯의 한 단계 실행 → 그 지점으로 간다',
+    stepped.json.ok === true && stepped.json.pointName === 'P1', stepped.json.reasons?.join(' · '));
+  check('범위 밖 단계 번호는 거부',
+    (await api('/slots/s1/step', { who: 'kim', token: T2, index: 5 })).status === 409);
+  check('조종권 없는 사람은 슬롯을 못 고친다',
+    (await api('/slots', { who: 'lee', token: T2, name: 's1', steps: [] })).status === 403);
+  // 고치면 승인이 풀린다 — 목록이 바뀌면 그 승인은 다른 프로그램의 승인이다
+  await api('/slots', { who: 'kim', token: T2, name: 's1',
+    steps: [{ type: 'move', pointName: 'P1' }, { type: 'move', pointName: 'P1' }] });
+  check('단계를 고치면 승인이 풀려 다시 draft 다',
+    (await api('/slots')).json.find(s => s.name === 's1')?.status === 'draft');
+
+  // 삭제 — **참조하는 슬롯이 있으면 지점을 못 지운다** (감사 P1 · main.py 의 훅이 이제 산다)
+  check('참조하는 슬롯이 있으면 지점 삭제가 409 로 막힌다',
+    (await del('/points/P1', { who: 'kim', token: T2 })).status === 409);
+  check('슬롯을 지우면 참조가 풀린다',
+    (await del('/slots/s1', { who: 'kim', token: T2 })).json.ok === true);
+
   check('지점 삭제', (await del('/points/P1', { who: 'kim', token: T2 })).json.ok === true);
   check('삭제 뒤 목록에서 사라진다', !(await api('/points')).json.some(p => p.name === 'P1'));
   check('없는 지점 삭제는 404',
