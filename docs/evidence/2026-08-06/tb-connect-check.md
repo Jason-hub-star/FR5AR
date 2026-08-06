@@ -99,9 +99,45 @@ config.yaml 값 하나만 바뀐다"** 가 포트에는 거짓이었던 것이�
 `fetch('/api/runs')` 가 `travelMm` 을 받아 PASS 하는데, 같은 데이터를 그리는 표는
 `기록이 없어요` 다. 2026-07-31 P2 는 20/20 이었으니 그 뒤 회귀다 → GAP-MATRIX 로 세웠다.
 
+---
+
+# 3부 — 실기 배포 (같은 날)
+
+**`http://192.168.30.240:5056` 에서 돈다. 실렌더 6/6 PASS · FR5 는 5055 그대로.**
+
+```
+PASS  우분투 브리지가 웹앱 서빙 (탭 3)
+PASS  adapter 배지 = real (실기 어댑터 물림)
+PASS  로봇 카드 2대 (config: tb3_1·tb3_2)
+PASS  로봇 fail-safe 표시 (bringup 전 → disconnected)   ← 로봇이 꺼져 있으니 이게 정답이다
+PASS  슬롯 목록 로드 · 콘솔 에러 0
+```
+
+## 배포하다 넘어진 것 여섯 — 전부 저장소에 굳혔다
+
+손으로 rsync 하며 하나씩 터졌다. **여섯 다 "설치 검사는 통과하고 실행할 때만 죽는" 모양**이라,
+고친 자리를 코드에 남기지 않으면 다음 사람이 같은 순서로 다시 밟는다.
+
+| # | 증상 | 뿌리 | 고친 곳 |
+|---|---|---|---|
+| ① | ROS 소싱에서 즉사 | `setup.bash` 가 `AMENT_TRACE_SETUP_FILES` 를 **검사만** 하는데 우리가 `set -u` 로 태웠다 | `tb-run.sh` — 남의 스크립트는 `set +u` 로 감싼다 |
+| ② | `No module named numpy` | venv 가 깨끗해서. rclpy 는 PYTHONPATH 로 오는데 **그 안의 메시지 패키지가 시스템 numpy 를 import** 한다 | `tb-setup.sh` — `--system-site-packages` (2026-08-03 에 돌던 venv 도 이거였다) |
+| ③ | 브리지는 뜨는데 **로봇 0대** | `requirements.txt` 가 `uvicorn` — `/ws/state` 만 404. 상태가 WS 로만 와서 화면이 조용히 빈다. **dev 는 `uv run --with 'uvicorn[standard]'` 라 안 보였다** | `requirements.txt` — `uvicorn[standard]` |
+| ④ | venv 가 **통째로 사라졌다** | `fr5-ubuntu.sh` 의 `rsync --delete` — 보낸 적 없는 것도 지운다. **FR5 배포가 터틀봇을 죽인다** | `fr5-ubuntu.sh` — `.venv` · `TurtleBot/bridge/data` 제외 |
+| ⑤ | 배포 스크립트가 ssh 255 | `pkill -f 'uvicorn …--port 5056'` 패턴이 **원격 셸 자신의 명령줄**에 걸려 스스로를 죽였다 | `[u]vicorn` (그리고 ⑥ 으로 pkill 자체를 없앴다) |
+| ⑥ | 배포가 **몇 분씩 매달린다** | `ssh host "… &"` 로 데몬을 만들려 했다. 끊으면 exec 전에 죽고, 붙잡으면 채널이 안 닫힌다 | **systemd `--user tb-bridge` 신설** (`tb-service.sh`) — FR5 가 systemd 인 이유와 같은 자리. GAP 의 "tb-bridge 감시 없음" 도 같이 닫힌다 |
+
+`scripts/deploy/tb-ubuntu.sh` 를 새로 만들어 위를 전부 담았다 — **8.8초**에 끝난다.
+호스트의 `~/start-bridge.sh` 도 갈아 끼웠다: 옛 판은 `pkill -f 'uvicorn main:app'` 로
+**FR5 브리지까지 죽이고** 5055 를 손으로 박고 있었다 (옛 판은 `.old-5055` 로 남겼다).
+
+## 치운 것
+
+맥에서 mock 을 돌린 실험 기록 3건이 rsync 를 타고 실기 기록에 섞였다(`source: mock`).
+호스트·맥 양쪽에서 지우고, 배포 스크립트가 `bridge/data` 를 아예 안 보내게 했다.
+
 ## 다음
 
 1. **팀 공지** — 여는 주소가 `:5055` → **`:5056`**
-2. **우분투 반영** — 커밋 후 `git pull` + `bash scripts/robot/tb-run.sh` (아직 안 했다)
-3. 로봇 2대 bringup (사람·현장) → `ros_domain_id` 실기 대조
-4. 위 빨강 2건 — 화면이 왜 안 채우는지
+2. 로봇 2대 bringup (사람·현장) → `ros_domain_id` 실기 대조
+3. 위 빨강 2건 — 화면이 왜 안 채우는지

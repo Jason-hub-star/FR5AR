@@ -1,8 +1,13 @@
 // 수동 검증용 — 우분투 real 브리지가 떠 있을 때. IP·포트는 TB_REAL 로 덮어쓴다.
 // 포트 5056 은 `TurtleBot/bridge/config.yaml` 이 정본이다 — 5055 는 같은 PC 의 FR5 브리지 (D80).
+// 스크린샷 폴더는 **끝난 세션의 스크래치패드를 기본값으로 두지 않는다** — 그 폴더는 사라져
+// 있고 `cdp-harness` 의 screenshot 은 writeFileSync 뿐이라 만들지 않는다. 검사가 전부 PASS
+// 해도 마지막 줄에서 ENOENT 로 죽어 결과를 못 본다 (2026-08-06 실기 · GAP `OUT` 행과 같은 뿌리).
+import { mkdirSync } from 'node:fs';
 import { openPage } from '/Users/family/jason/FR5Web/.claude/skills/검증/references/cdp-harness.mjs';
 const URL = process.env.TB_REAL ?? 'http://192.168.30.240:5056/';
-const OUT = '/private/tmp/claude-501/-Users-family-jason-FR5Web/481290f3-2055-4026-8046-4063d229057d/scratchpad/tb-mockup';
+const OUT = process.env.TB_OUT ?? `${import.meta.dirname}/../../.diag/tb-real`;
+mkdirSync(OUT, { recursive: true });
 const R=[]; const ck=(n,ok,d='')=>R.push([ok?'PASS':'FAIL',n,d]);
 const p = await openPage(URL, { port: 9350, windowSize: '1280,900' });
 try {

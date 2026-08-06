@@ -6,10 +6,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/../../TurtleBot/bridge"
 
-# rclpy 는 ROS 환경에서 온다 — venv 는 --system-site-packages 가 아니므로 PYTHONPATH 로 잇는다
+# rclpy 는 ROS 환경에서 온다 — venv 는 --system-site-packages 가 아니므로 PYTHONPATH 로 잇는다.
+# ROS 의 setup.bash 는 `AMENT_TRACE_SETUP_FILES` 를 검사만 하고 안 만든다 — `set -u` 아래서
+# 그 줄이 곧바로 죽는다(2026-08-06 실기). 남의 스크립트를 우리 엄격 모드에 태우지 않는다.
 if [ -f /opt/ros/jazzy/setup.bash ]; then
+  set +u
   # shellcheck disable=SC1091
   source /opt/ros/jazzy/setup.bash
+  set -u
 fi
 
 # 포트 정본은 config.yaml 하나다 (D80) — 파서를 들이지 않고 그 한 줄만 읽는다

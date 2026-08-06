@@ -8,7 +8,12 @@ HOST=${FR5_HOST:-ej@192.168.30.240}
 IP=${HOST#*@}
 
 npm run build:fr5
-rsync -az --delete --exclude node_modules --exclude .claude ./ "$HOST":~/FR5Web/
+# `--delete` 는 **보낸 적 없는 것도 지운다.** 호스트에만 사는 둘을 명시로 지킨다 (2026-08-06):
+#   .venv            — tb-bridge 파이썬 환경. 지워지면 FR5 배포가 **터틀봇을 조용히 죽인다**
+#   TurtleBot/…/data — 맵·주행 기록(gitignore). 실험 데이터라 되살릴 길이 없다
+# FR5 데이터가 배포 트리 밖(`~/fr5-data`)에 사는 것과 같은 이유인데, 터틀봇은 트리 안이라 막아야 한다.
+rsync -az --delete --exclude node_modules --exclude .claude \
+  --exclude '.venv' --exclude 'TurtleBot/bridge/data' ./ "$HOST":~/FR5Web/
 # 데이터는 배포 트리 **밖**에 산다 (D45) — 그 밖을 아무도 안 만들면 배포는 성공하고
 # **저장만 조용히 실패**한다. rsync 대상이 ~/FR5Web/ 이라 --delete 가 여기 못 닿는다.
 # 지점은 **파일 하나**라 폴더가 없다 (`~/fr5-data/points.json` · 브리지가 스스로 만든다).
