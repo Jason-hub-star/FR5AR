@@ -369,6 +369,11 @@ async function startAR(layout) {
   // **바닥 슬래브는 숨긴다** — 진짜 바닥이 카메라 영상에 이미 있다 (cam.js 와 같은 이유).
   const slab = view.root.getObjectByName('slab');
   if (slab) slab.visible = false;
+  // **놓기 전에는 맵을 안 그린다.** 예전엔 세션이 열리자마자 `local-floor` 원점 —
+  // 즉 **시작할 때 서 있던 자리** — 에 맵이 통째로 떠 있었다. 겨냥한 곳과 아무 상관없는
+  // 자리라, 사람은 "이미 놓였나?" 로 읽고 탭하면 거기서 점프한다 (폰에서 잡혔다).
+  // 링만 보이는 게 맞다 — 링이 곧 "여기에 놓인다" 다.
+  view.root.visible = false;
 
   // **벽을 유령으로.** 근거와 규약은 `features/place/place.js` 에 있다.
   const { walls, ghost, edge } = ghostWalls(view.root, slab);
@@ -422,12 +427,19 @@ async function startAR(layout) {
   // 촬영의 `보정` 은 이것과 다르다. 그건 **1:1 을 맞추려고** 곱한 값이다.
   let zoomed = false;
   const pct = (s) => `${s >= 1 ? '+' : ''}${((s - 1) * 100).toFixed(1)}%`;
+  // **`평소` 만 맵의 중심을 앵커에 맞춘다.** `layout-view.js:102` 의 root 원점은 맵의
+  // **모서리**라, 그대로 두면 탭한 곳에서 옆으로 뻗는다. 답사·촬영은 그게 의도지만
+  // (구석을 맞추는 모드다) 책상 위 모형은 "여기 놔라" 라는 뜻이다.
+  const centered = mode === 'fit';
   const apply = () => {
     view.root.scale.setScalar(scale);
     anchor.rotation.y = yaw;
+    // 중심 이동을 **여기서** 한다 — 탭할 때 좌표를 옮겨 두면 확대할 때마다 중심이
+    // 모서리 쪽으로 밀린다. 배율이 바뀔 때 같이 다시 잡아야 제자리에 머문다.
+    if (centered) view.root.position.set(-(W * scale) / 2, 0, (D * scale) / 2);
     // 라이트는 앵커 공간(=배율 없는 미터)에 있으므로 배율을 곱해 따라가게 한다
-    const cx = (W * scale) / 2;
-    const cz = -(D * scale) / 2;
+    const cx = centered ? 0 : (W * scale) / 2;
+    const cz = centered ? 0 : -(D * scale) / 2;
     key.target.position.set(cx, 0, cz);
     key.position.set(cx + 2.5 * scale, 5 * scale, cz + 2.5 * scale);
     fitShadow(key, Math.max(W, D) * scale * 0.8);
@@ -463,6 +475,8 @@ async function startAR(layout) {
   // 법선을 뽑는 임시 그릇. 렌더 루프 안이라 매 프레임 새로 만들지 않는다.
   const NORMAL = new THREE.Vector3();
   const QUAT = new THREE.Quaternion();
+  const FWD = new THREE.Vector3();
+  let eyeFwd = null;               // 사람이 보는 방향 (바닥 성분). `평소` 가 맵을 이쪽으로 돌린다
 
   // ── 준비도 계측. **판정은 `place.js` 가 하고 여기서는 재기만 한다** — 그래야 폰 없이
   // 게이트가 판정을 검사할 수 있다. 예전의 `WARMUP_MS` 타이머가 이 자리에 있었다.
@@ -545,14 +559,26 @@ async function startAR(layout) {
       // 촬영 모드는 놓는 순간 계기를 끈다. **로그에는 남으므로 `결과 복사`로 회수된다.**
       $('hud').hidden = true;
       $('fps').hidden = true;
-    } else {
+    } else if (mode === 'walk') {
       // **벽을 잡았으면 그 벽에 나란히 놓는다.** ±15° 손 크랭크는 최선을 다해도 ±7.5° 가
       // 남고, 12m 지점에서 그게 157cm 다 — 축척 오차(24cm)의 6배였다.
       // 못 잡았으면 지금 각도를 그대로 둔다: 없는 값을 지어내지 않는다.
+      // **모서리 기준인 것은 의도다** — 안내가 "그 자리가 맵의 모서리가 된다" 이고,
+      // 걸어 들어가려면 방 구석과 맵 구석이 맞아야 한다.
       if (wallYaw !== null) {
         yaw = wallYaw;
         say(`벽에 맞춤 — ${Math.round((yaw * 180) / Math.PI)}°`, 'ok');
       }
+    } else {
+      // **`평소` 만 탭한 곳이 중심이고, 맵이 사람 쪽을 본다.**
+      //
+      // 책상 위 모형이라 탭의 뜻은 "여기 놔라" 지 "여기가 모서리다" 가 아니다. 그런데
+      // `layout-view.js:102` 의 root 원점은 맵의 **모서리**라, 그대로 놓으면 겨냥한 데가
+      // 아니라 옆으로 뻗어 나간다 — 폰에서 "화면 오른쪽에 생긴다" 로 잡혔다.
+      // 각도도 마찬가지다: `yaw = 0` 은 사람이 보는 쪽과 아무 상관이 없었다.
+      // 중심 맞추기 자체는 `apply()` 가 한다 — 확대해도 중심이 안 밀리게.
+      const face = eyeFwd ? yawFromWallNormal({ x: -eyeFwd.x, z: -eyeFwd.z }) : null;
+      if (face !== null) yaw = face;          // 맵의 +Z 면이 사람을 마주 본다
       say(`놓음 — 겨냥 높이 ${(aimed.y * 1000).toFixed(0)}mm · `
         + `바닥 ${((floorY ?? aimed.y) * 1000).toFixed(0)}mm · 1:${(1 / scale).toFixed(1)}`, 'ok');
     }
@@ -571,6 +597,7 @@ async function startAR(layout) {
     placeGen += 1;                   // 이전 세대의 앵커 프로미스를 무효로 만든다 (F1)
     anchorReq = at.clone();
     placed = true;
+    view.root.visible = true;        // 이제야 맵을 그린다
     reticle.visible = false;
     arc.visible = false;
     drop.visible = false;
@@ -636,6 +663,8 @@ async function startAR(layout) {
   $('rotR').onclick = () => { yaw += Math.PI / 2; apply(); };
   $('again').onclick = () => {
     placed = false;
+    view.root.visible = false;     // 다시 링만 보이는 상태로
+
     cornerA = null;
     anchorReq = null;
     // **세대를 올리는 것이 핵심이다.** 아직 안 붙은 앵커는 여기서 지울 수가 없어
@@ -678,6 +707,9 @@ async function startAR(layout) {
         }
         lastEye = { x: p.x, y: p.y, z: p.z };
         lastEyeT = t;
+        // 카메라는 로컬 −Z 를 본다. 바닥 성분만 쓴다 — 고개를 숙여도 방위는 안 변해야 한다.
+        FWD.set(0, 0, -1).applyQuaternion(QUAT.copy(eye.transform.orientation));
+        eyeFwd = { x: FWD.x, z: FWD.z };
       }
 
       const r = hits ? frame.getHitTestResults(hits) : [];
