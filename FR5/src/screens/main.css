@@ -11,7 +11,9 @@ header { display: flex; align-items: baseline; gap: var(--s-3);
          padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--c-line); }
 header h1 { margin: 0; font-size: 16px; }
 header .sub { color: var(--c-fg-mute); font-size: 12px; }
-header .source { margin-left: auto; padding: 3px 8px; border-radius: 99px; font-size: 11px;
+/* 자리는 `.who` 의 margin-left:auto 가 잡는다 — 여기 auto 를 또 쓰면 아래에서 0 으로
+ * 덮이는 죽은 규칙이 된다 (감사 2026-08-06 P2) */
+header .source { padding: 3px 8px; border-radius: 99px; font-size: 11px;
                  font-family: ui-monospace, monospace; }
 header .source[data-src="mock"] { background: var(--c-warn-soft); color: var(--c-warn); }
 header .source[data-src="real"] { background: var(--c-ok-soft); color: var(--c-ok); }
@@ -49,7 +51,11 @@ header .who { margin-left: auto; font-size: 12px; color: var(--c-fg-mute);
 header .who input { width: 9em; padding: 3px 8px; border: 1px solid var(--c-input);
                     border-radius: var(--r-ctl); background: var(--c-sunken); color: var(--c-fg);
                     font: inherit; }
-header .source { margin-left: 0; }
+/* 이름이 비면 그 뒤 전부가 막힌다 — 칸이 스스로 말한다 (감사 2026-08-06 P1).
+ * 안전색이 아니라 테두리만 굵힌다: 위험이 아니라 순서 안내다 (D38) */
+header .who[data-need="true"] { color: var(--c-fg); }
+header .who[data-need="true"] input { border-color: var(--c-line-strong); border-width: 2px;
+                                      background: var(--c-bg); }
 
 .control button { width: 100%; padding: 8px; border: 1px solid var(--c-line-strong);
                   border-radius: var(--r-ctl); background: var(--c-btn); color: var(--c-btn-fg);
@@ -102,10 +108,11 @@ main.workspace { flex: 1; min-height: 0; display: flex; }
 
 /* 글로벌 카메라 PiP — 3D 를 줄이지 않는 것이 이 배치의 요점이라 흐름 밖(absolute)에 띄운다.
  * 우상단인 이유: 아래는 .twinnote 가 쓰고, 3D 궤도 조작은 화면 가운데서 일어난다 */
-.camview { position: absolute; top: var(--s-3); right: var(--s-3); z-index: 2; width: 340px;
+.camview { position: absolute; top: var(--s-3); right: var(--s-3); z-index: 2;
+           display: flex; flex-direction: column;
            background: var(--c-bg); border: 1px solid var(--c-line); border-radius: 4px;
            overflow: hidden; box-shadow: 0 2px 8px rgb(0 0 0 / 12%); }
-.camview[data-open="false"] { width: auto; }
+.camview[data-open="false"] { width: auto; height: auto; }
 .camhead { display: flex; align-items: center; gap: 6px; padding: 4px 6px; font-size: 11px; }
 .camhead b { font-size: 11px; }
 .camhead .camstat { color: var(--c-fg-mute); font-family: ui-monospace, monospace;
@@ -115,7 +122,7 @@ main.workspace { flex: 1; min-height: 0; display: flex; }
 .camview[data-live="false"] .camhead .camstat { color: var(--c-warn); font-weight: 600; }
 .camtoggle { margin-left: auto; border: 0; background: none; cursor: pointer; padding: 0 2px;
              color: var(--c-fg-dim); font-size: 11px; }
-.cambody { position: relative; aspect-ratio: 9 / 16; overflow: hidden;
+.cambody { position: relative; flex: 1; min-height: 0; overflow: hidden;
            border-top: 1px solid var(--c-line); background: var(--c-sunken); }
 /* 폰 원본은 16:9 가로 프레임이지만 장착 방향이 90° 돌아가 있다. 시계 방향으로 세워
  * 9:16 칸을 채운다 — width 177.78% 는 회전 전의 세로 길이가 칸 너비가 되게 한다. */
@@ -124,6 +131,13 @@ main.workspace { flex: 1; min-height: 0; display: flex; }
                transform: translate(-50%, -50%) rotate(90deg); }
 .camretry { position: absolute; inset: 0; margin: auto; width: fit-content; height: fit-content;
             font-size: 11px; padding: 3px 8px; }
+/* 우측 하단 드래그 핸들 — width/height 를 임의로 늘이고 줄인다. localStorage 에 기억한다 */
+.camresize { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; z-index: 3;
+              cursor: nwse-resize; }
+.camresize::after { content: ''; position: absolute; right: 4px; bottom: 4px;
+                    width: 6px; height: 6px;
+                    border-right: 2px solid var(--c-fg-dim);
+                    border-bottom: 2px solid var(--c-fg-dim); }
 
 .side { width: 340px; display: flex; flex-direction: column; min-height: 0;
         border-left: 1px solid var(--c-line); }
@@ -150,6 +164,17 @@ main.workspace { flex: 1; min-height: 0; display: flex; }
 .dock .jogrow { margin-bottom: 0; }
 
 .live { padding: var(--s-3); display: flex; flex-direction: column; gap: var(--s-3); }
+
+/* 시작 순서 — 처음 온 사람은 「이름 → 연결 → 조종권 → ARM」 을 모른다. 회색 버튼은 순서를
+ * 안 알려준다 (감사 2026-08-06 P1). 연결 전 관절·TCP 표가 `—` 12행으로 먹던 자리다. */
+.startguide { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap;
+              gap: 4px; font-size: 11px; }
+.startguide li { padding: 3px 8px; border-radius: var(--r-ctl); border: 1px solid var(--c-line);
+                 color: var(--c-fg-mute); }
+.startguide li[data-done="true"] { color: var(--c-fg-dim); border-color: transparent;
+                                   background: var(--c-sunken); }
+.startguide li[data-at="true"] { color: var(--c-selected-fg); background: var(--c-selected);
+                                 border-color: transparent; font-weight: 700; }
 .card { background: var(--c-card); border: 1px solid var(--c-line);
         border-radius: var(--r-card); padding: var(--s-3); }
 .card h2 { margin: 0 0 var(--s-2); font-size: 13px; color: var(--c-fg-dim); }
@@ -212,6 +237,8 @@ table.joints, table.tcp { width: 100%; border-collapse: collapse; font-size: 13p
 .teach .rowbtns button.danger { background: var(--c-danger-soft); color: var(--c-danger);
                                 border-color: var(--c-danger); font-weight: 600; }
 .teach .empty, .teach .mm { font-size: 12px; color: var(--c-fg-mute); margin: var(--s-1) 0; }
+/* 못 누르는 이유는 툴팁이 아니라 문장이다 (감사 2026-08-06 P1) — Program 과 같은 무게로 읽힌다 */
+.teach .hint, .diag .hint { font-size: 12px; color: var(--c-fg-dim); margin: var(--s-1) 0 var(--s-2); }
 .teach .refusal { margin: var(--s-2) 0 0; padding: var(--s-2); font-size: 12px;
                   background: var(--c-danger-soft); color: var(--c-danger);
                   border-radius: var(--r-ctl); }
@@ -236,6 +263,15 @@ table.joints, table.tcp { width: 100%; border-collapse: collapse; font-size: 13p
                       border-color: var(--c-warn); font-weight: 700; padding: 10px; }
 .program .confirm { display: flex; gap: 6px; align-items: flex-start; font-size: 12px;
                     color: var(--c-fg-dim); margin: var(--s-2) 0; }
+/* 삭제 확인 — 지점과 같은 모양이다 (감사 2026-08-06 P0: 프로그램만 확인 없이 지워졌다).
+ * 위험색은 확정 버튼 하나에만 쓴다 */
+.program .askdelete { border: 1px solid var(--c-line-strong); border-radius: var(--r-card);
+                      padding: var(--s-2); margin-top: var(--s-2); }
+.program .askdelete p { margin: 0; font-size: 12px; color: var(--c-fg); }
+.program .askdelete .row { margin-bottom: 0; }
+.program .askdelete button { flex: 1; }
+.program button.danger { background: var(--c-danger-soft); color: var(--c-danger);
+                         border-color: var(--c-danger); font-weight: 600; }
 
 .program .slotlist { list-style: none; margin: 0; padding: 0;
                      display: flex; flex-direction: column; gap: var(--s-1); }

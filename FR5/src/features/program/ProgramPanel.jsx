@@ -23,14 +23,24 @@ export function ProgramPanel({ state, who, onView }) {
   const [preview, setPreview] = useState(true);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
+  const [loadErr, setLoadErr] = useState(null);   // 못 읽음 ≠ 비어 있음 (감사 2026-08-06 P0)
+  const [askDelete, setAskDelete] = useState(false);
 
   const mine = !!who && state.owner === who && datasource.hasOwnerToken();
   const armed = state.phase === 'ARMED' || state.phase === 'EXECUTING';
 
+  // **읽기 실패를 삼키면 화면이 거짓말을 한다** (감사 2026-08-06 P0). 브리지가 못 답해도
+  // 예전에는 `[]` 로 남아 "아직 프로그램이 없습니다" 가 떴다 — 실제로는 서버에 멀쩡히 있다.
   const reload = useCallback(async () => {
-    const [ss, ps] = await Promise.all([datasource.getSlots(), datasource.getPoints()]);
-    setSlots(Array.isArray(ss) ? ss : []);
-    setPoints(Array.isArray(ps) ? ps : []);
+    try {
+      const [ss, ps] = await Promise.all([datasource.getSlots(), datasource.getPoints()]);
+      if (!Array.isArray(ss) || !Array.isArray(ps)) throw new Error('브리지가 목록 대신 다른 답을 줬습니다');
+      setSlots(ss);
+      setPoints(ps);
+      setLoadErr(null);
+    } catch (e) {
+      setLoadErr(e?.message || String(e));
+    }
   }, []);
   useEffect(() => { reload(); }, [reload]);
 
@@ -41,6 +51,9 @@ export function ProgramPanel({ state, who, onView }) {
       setNote(res?.ok === false ? (res.reasons || [res.reason || '거부됨']).join(' · ') : null);
       await reload();
       return res;
+    } catch (e) {
+      setNote(`브리지에 닿지 못했습니다 — ${e?.message || e}`);
+      return { ok: false };
     } finally { setBusy(false); }
   };
 
@@ -59,8 +72,10 @@ export function ProgramPanel({ state, who, onView }) {
   }, [preview, slot, done, cursor, steps, points, onView]);
   useEffect(() => () => onView(null), [onView]);
 
-  // 슬롯을 바꾸거나 단계가 바뀌면 처음으로 — 옛 칸 번호로 엉뚱한 단계를 실행하지 않는다
-  useEffect(() => { setCursor(0); setConfirmed(false); }, [pick, steps.length, slot?.status]);
+  // 슬롯을 바꾸거나 단계가 바뀌면 처음으로 — 옛 칸 번호로 엉뚱한 단계를 실행하지 않는다.
+  // 삭제 확인도 같이 접는다 — 열어 둔 채로 다른 프로그램을 고르면 엉뚱한 것을 지운다
+  useEffect(() => { setCursor(0); setConfirmed(false); setAskDelete(false); },
+    [pick, steps.length, slot?.status]);
 
   const setSteps = (next) => run(() => datasource.saveSlot(who, slot.name, next));
 
@@ -78,25 +93,34 @@ export function ProgramPanel({ state, who, onView }) {
     <div className="program" data-t="program">
       <section>
         <h3>프로그램</h3>
-        <p className="mm">지점을 순서로 엮고, 승인한 뒤 한 단계씩 실행한다.</p>
+        <p className="mm">지점을 순서로 엮고, 승인한 뒤 한 단계씩 실행합니다.</p>
         <div className="row">
           <input value={newName} placeholder="이름 (예: 집기시연)" data-t="slot-name"
             onChange={(e) => setNewName(e.target.value)} />
           <button type="button" data-t="slot-create"
             disabled={!mine || busy || !newName.trim() || !points.length}
-            title={points.length ? '' : '지점을 먼저 만든다'}
             onClick={() => run(() => datasource.saveSlot(who, newName.trim(),
               [{ type: 'move', pointName: points[0].name }]))
               .then((r) => { if (r?.ok !== false) { setPick(newName.trim()); setNewName(''); } })}>
             만들기
           </button>
         </div>
-        {!points.length && (
+        {loadErr && (
+          <p className="refusal" data-t="slots-loaderr">
+            <b>목록을 못 읽었습니다</b> {loadErr} — 프로그램이 없는 게 아니라 <b>확인을 못 했습니다.</b>
+          </p>
+        )}
+        {!mine && !loadErr && (
+          <p className="hint" data-t="write-blocked">
+            조종권을 잡으면 만들고 고칠 수 있습니다. Live 탭에서 잡으세요.
+          </p>
+        )}
+        {!loadErr && !points.length && (
           <p className="mm" data-t="no-points">
             지점이 없습니다. Teach 탭에서 자세를 캡처하면 여기서 순서로 엮을 수 있습니다.
           </p>
         )}
-        {!slots.length && points.length > 0 && (
+        {!loadErr && !slots.length && points.length > 0 && (
           <p className="empty" data-t="slots-empty">아직 프로그램이 없습니다. 이름을 짓고 만드세요.</p>
         )}
         {slots.length > 0 && (
@@ -127,7 +151,6 @@ export function ProgramPanel({ state, who, onView }) {
                   ? <span className="mm">{i < cursor ? '끝남' : i === cursor ? '지금 여기' : ''}</span>
                   : (
                     <button type="button" data-t="step-remove" disabled={!mine || busy || steps.length <= 1}
-                      title={steps.length > 1 ? '' : '단계가 하나뿐이면 못 뺀다'}
                       onClick={() => setSteps(steps.filter((_, k) => k !== i))}>빼기</button>
                   )}
               </li>
@@ -148,6 +171,9 @@ export function ProgramPanel({ state, who, onView }) {
                   뒤에 넣기
                 </button>
               </div>
+              {steps.length <= 1 && (
+                <p className="hint">단계가 하나뿐이라 뺄 수 없습니다. 먼저 하나 더 넣으세요.</p>
+              )}
               {/* 확인 절차는 한 모양이다 — 체크박스 + 실행 버튼 (계획 §확인 절차) */}
               <label className="confirm" data-t="approve-confirm">
                 <input type="checkbox" checked={confirmed}
@@ -185,24 +211,49 @@ export function ProgramPanel({ state, who, onView }) {
                 다음에 갈 자세를 3D 로 미리 보기
               </label>
               <div className="row">
-                {/* 커서만 되돌린다 — 로봇은 안 움직인다 (서버는 커서를 안 든다 · D78) */}
+                {/* 커서만 되돌린다 — 로봇은 안 움직인다 (서버는 커서를 안 든다 · D78).
+                    **버튼 이름이 그 사실을 말해야 한다** — 「1단계로 돌아가기」 만 적으면
+                    로봇이 1단계 자세로 간다고 읽힌다. 이 프로젝트에서 제일 비싼 오해가
+                    실물과 화면을 헷갈리는 것이다 (감사 2026-08-06 P1) */}
                 <button type="button" data-t="cursor-reset" disabled={busy || cursor === 0}
-                  onClick={() => setCursor(0)}>1단계로 돌아가기</button>
+                  onClick={() => setCursor(0)}>세는 자리만 1단계로</button>
                 {/* 같은 목록을 다시 저장해 draft 로 되돌린다 — 버튼 이름이 그 일을 말한다.
                     "고치기" 라고 적으면 단계가 바뀐 줄 알고, 승인이 풀린 것을 못 본다 */}
                 <button type="button" data-t="slot-unapprove" disabled={!mine || busy}
                   onClick={() => setSteps(steps)}>승인 풀기</button>
               </div>
+              <p className="hint">
+                「세는 자리만 1단계로」는 <b>로봇을 움직이지 않습니다.</b> 화면이 세는 칸만
+                처음으로 돌립니다.
+              </p>
             </>
           )}
 
-          <div className="row">
-            <button type="button" data-t="slot-delete" disabled={!mine || busy}
-              onClick={() => run(() => datasource.deleteSlot(who, slot.name))
-                .then(() => setPick(''))}>
-              이 프로그램 지우기
-            </button>
-          </div>
+          {/* **확인 없이 지워지고 있었다** (감사 2026-08-06 P0). 지점 삭제는 확인을 붙였는데
+              프로그램만 한 번에 사라졌다 — 계획 §확인 절차는 「삭제가 모두 이 형태다」 다.
+              `window.confirm` 은 안 쓴다: 브라우저 모달은 실렌더 검증을 그 자리에서 멈춘다 */}
+          {askDelete ? (
+            <div className="askdelete" data-t="slot-delete-ask">
+              <p>{slot.name} 과 그 {steps.length}단계를 지웁니다. 되돌릴 수 없습니다.</p>
+              <div className="row">
+                <button type="button" data-t="slot-delete-cancel"
+                  onClick={() => setAskDelete(false)}>취소</button>
+                <button type="button" className="danger" data-t="slot-delete-confirm"
+                  disabled={!mine || busy}
+                  onClick={() => { setAskDelete(false);
+                    run(() => datasource.deleteSlot(who, slot.name)).then(() => setPick('')); }}>
+                  지웁니다
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="row">
+              <button type="button" data-t="slot-delete" disabled={!mine || busy}
+                onClick={() => setAskDelete(true)}>
+                이 프로그램 지우기
+              </button>
+            </div>
+          )}
         </section>
       )}
 

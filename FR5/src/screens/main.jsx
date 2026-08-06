@@ -26,6 +26,14 @@ const PANELS = [
 const EMPTY = { connected: false, phase: 'DISCONNECTED', enabled: false, mode: 1,
   safety: { emergencyStop: false, collisionDetected: false }, owner: null, robotId: null };
 
+// phase 는 영문 그대로 두고 **한글을 덧붙인다** (감사 2026-08-06 P1). 지우면 처음 보는
+// 사람이 `OBSERVE_ONLY` 를 못 읽고, 실렌더 게이트도 이 enum 을 본다 — 둘 다 살린다.
+const PHASE_KO = {
+  DISCONNECTED: '연결 안 됨', PREFLIGHT: '점검 중', OBSERVE_ONLY: '보기만 함',
+  OWNER_HELD: '조종권 잡힘', ARMED: '움직일 수 있음', EXECUTING: '실행 중',
+  FAIL_CLOSED: '막혔음',
+};
+
 // 상시 안전 바 — 어느 패널에서도 사라지지 않는다 (계획 §화면). STOP 은 항상 여기 있다.
 function SafetyBar({ s, who }) {
   // 조종권은 이름이 아니라 토큰이 증명한다 (D55) — 이름만 보면 새로고침 뒤 갇힌다
@@ -33,17 +41,20 @@ function SafetyBar({ s, who }) {
   const manual = s.mode === 1;
   const items = [
     ['연결', s.connected ? s.robotId : '없음', s.connected ? 'ok' : 'off'],
-    ['phase', s.phase,
+    ['단계', `${s.phase} ${PHASE_KO[s.phase] ?? ''}`.trim(),
       s.phase === 'FAIL_CLOSED' ? 'danger'
         : s.phase === 'ARMED' || s.phase === 'EXECUTING' ? 'warn'
           : s.phase === 'OBSERVE_ONLY' || s.phase === 'OWNER_HELD' ? 'ok' : 'off'],
-    ['조종권', s.owner ?? '—', s.owner ? 'warn' : 'off'],
-    ['서보', s.enabled ? 'ON' : 'OFF', s.enabled ? 'warn' : 'off'],
+    ['조종권', s.owner ?? '아무도 안 잡음', s.owner ? 'warn' : 'off'],
+    ['서보', s.enabled ? 'ON 켜짐' : 'OFF 꺼짐', s.enabled ? 'warn' : 'off'],
     // 수동은 경고색이다 — 그 동안 우리 조그·moveJ 가 전부 거부된다
-    ['모드', manual ? 'manual' : 'auto', manual ? 'warn' : 'off'],
+    ['모드', manual ? 'manual 수동(펜던트)' : 'auto 자동(웹)', manual ? 'warn' : 'off'],
     ['비상정지', s.safety.emergencyStop ? '작동' : '정상', s.safety.emergencyStop ? 'danger' : 'ok'],
     ['충돌', s.safety.collisionDetected ? '감지' : '정상', s.safety.collisionDetected ? 'danger' : 'ok'],
-    ['기록', '—', 'off'],          // P6 에서 산다
+    // 계획 §화면이 기록을 바 항목으로 지정했다 — 칸은 지키되 `—` 대신 **사실을 적는다**
+    // (감사 2026-08-06 P2). 영구 대시는 자리만 먹고 아무 말도 안 했다. History(사다리 4)가
+    // 살면 여기가 「기록 중」 을 말한다.
+    ['기록', '안 함', 'off'],
   ];
   return (
     <div className="safetybar" data-t="safetybar">
@@ -89,8 +100,10 @@ function App() {
       <header>
         <h1>FR5 조작</h1>
         <span className="sub">FAIRINO FR5 · API-CONTRACT.md</span>
-        <label className="who" data-t="who">이름
-          <input value={who} placeholder="조종권에 쓸 이름" onChange={(e) => changeWho(e.target.value)} />
+        {/* 이름이 첫 관문이다 — 비어 있으면 그 뒤 전부가 막힌다. 그 사실이 툴팁에만 있어서
+            처음 온 사람이 헤더 구석을 못 찾았다 (감사 2026-08-06 P1). 이제 칸이 스스로 말한다 */}
+        <label className="who" data-t="who" data-need={String(!who.trim())}>이름
+          <input value={who} placeholder="여기에 이름부터" onChange={(e) => changeWho(e.target.value)} />
         </label>
         {/* 출처 배지 — 목업을 실기로 오인하는 것이 가장 비싼 사고다 (SR_24) */}
         <span className="source" data-t="source" data-src={state.robotId?.includes('mock') ? 'mock' : state.connected ? 'real' : 'none'}>
@@ -113,7 +126,8 @@ function App() {
           <nav>
             {PANELS.map(([id, label, Comp]) => (
               <button key={id} type="button" aria-selected={tab === id} disabled={!Comp}
-                title={Comp ? undefined : '예정 (골사다리 2~4)'} onClick={() => Comp && setTab(id)}>
+                title={Comp ? undefined : '아직 안 만들었습니다 (골사다리 4)'}
+                onClick={() => Comp && setTab(id)}>
                 {label}
               </button>
             ))}

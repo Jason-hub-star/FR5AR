@@ -15,7 +15,7 @@
 
 | 경로 | 책임 |
 |---|---|
-| `src/features/` | 조작·티칭·슬롯·경로·기록 화면 경계 (지금은 `live/` 만 산다) |
+| `src/features/` | 조작·티칭·슬롯·경로·기록 화면 경계. 지금 사는 것: `live/` `teach/` `program/` `control/` — `history/` 는 사다리 4 |
 | `src/data/datasource/` | 화면과 브리지·DB 사이의 유일한 데이터 경계 |
 | `bridge/` | FastAPI·안전·조종권·상태·웹 빌드 서빙 경계 |
 | `bridge/robot_adapter/` | mock과 FAIRINO SDK 교체 경계 |

@@ -2,16 +2,20 @@
 // 3D 쌍둥이 로딩·관절값 스트림·연결 진단·fail-closed 사유 표시를 실제 브라우저로 본다.
 // 실행: node scripts/check/fr5-web-verify.mjs
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { openPage, pixelChanged } from '/Users/family/jason/FR5Web/.claude/skills/검증/references/cdp-harness.mjs';
+// **레포 상대 경로다.** 절대 경로로 박으면 남의 기계에서 죽고, 게이트에 못 넣는다 (2026-08-06)
+import { openPage, pixelChanged } from '../../.claude/skills/검증/references/cdp-harness.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const BRIDGE_PORT = 5157;
 const URL = 'http://localhost:5176/';
-const OUT = process.env.FR5_VERIFY_OUT ?? '/private/tmp/claude-501/-Users-family-jason-FR5Web/0448c793-398f-4d6a-a2d6-6894765d2689/scratchpad';
+// 기본값이 **끝난 세션의 스크래치패드**였다 — `screenshot` 은 `writeFileSync` 뿐이라
+// 폴더가 없으면 그 자리에서 죽는다. 스스로 만든 임시 폴더를 기본으로 둔다.
+const OUT = process.env.FR5_VERIFY_OUT ?? mkdtempSync(join(tmpdir(), 'fr5-web-shots-'));
+mkdirSync(OUT, { recursive: true });
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push([ok ? 'PASS' : 'FAIL', name, detail]);
@@ -21,12 +25,17 @@ const check = (name, ok, detail = '') => {
 const DATA = mkdtempSync(join(tmpdir(), 'fr5-web-verify-'));
 const env = { ...process.env, FR5_PORT: String(BRIDGE_PORT) };
 
+// **자식의 자식까지 죽인다** — `uv run` 도 `npm run` 도 SIGTERM 을 안 넘긴다.
+// `.kill()` 만 하면 uvicorn 이 5157 을, vite 가 5176 을 쥔 채 살아남아 **다음 실행이
+// 통째로 무너진다.** 손으로 한 번 돌릴 때는 안 보이고 게이트에 넣는 순간 드러났다 (2026-08-06).
+const killTree = (c) => { try { process.kill(-c.pid, 'SIGKILL'); } catch { try { c.kill('SIGKILL'); } catch {} } };
 const spawnBridge = () => spawn('uv', ['run', '--with', 'fastapi', '--with', 'uvicorn[standard]', '--with', 'pyyaml',
   'uvicorn', 'main:app', '--port', String(BRIDGE_PORT)],
-  { cwd: join(ROOT, 'FR5/bridge'), stdio: 'ignore',
+  { cwd: join(ROOT, 'FR5/bridge'), stdio: 'ignore', detached: true,
     env: { ...process.env, FR5_DATA_DIR: DATA } });
 let bridge = spawnBridge();
-const web = spawn('npm', ['run', 'dev:fr5'], { cwd: ROOT, env, stdio: 'ignore' });
+const web = spawn('npm', ['run', 'dev:fr5'], { cwd: ROOT, env, stdio: 'ignore', detached: true });
+process.on('exit', () => { killTree(bridge); killTree(web); });   // 예외·중단에도 고아 0
 const waitUp = async (url) => {
   for (let i = 0; i < 150; i++) {
     if (await fetch(url).then((r) => r.ok).catch(() => false)) return true;
@@ -105,8 +114,14 @@ try {
     Object.getOwnPropertyDescriptor(${proto}.prototype, 'value').set.call(el, ${JSON.stringify(value)});
     el.dispatchEvent(new Event('input', { bubbles: true }));
   })()`);
-  const clickText = (text, scope = '[data-t="control"]') => p.eval(
-    `[...document.querySelectorAll('${scope} button')].find(b => b.textContent.includes(${JSON.stringify(text)}))?.click() ?? 'notfound'`);
+  // **버튼이 나타날 때까지 기다린다.** 전에는 `?? 'notfound'` 를 돌려주고 아무도 안 봤다 —
+  // 상태가 바뀌며 조작대가 다시 그려지는 사이에 누르면 클릭이 허공으로 가고, 실패는
+  // **그 다음 검사**에서 터져 원인이 안 보인다 (`DISARM → 서보 OFF` 가 그렇게 깜빡였다).
+  const clickText = async (text, scope = '[data-t="control"]') => {
+    const find = `[...document.querySelectorAll('${scope} button')].find(b => b.textContent.includes(${JSON.stringify(text)}))`;
+    if (!await p.waitFor(`!!(${find})`, { timeoutMs: 5000 })) throw new Error(`버튼을 못 찾았다: ${text}`);
+    return p.eval(`${find}.click()`);
+  };
 
   check('상시 STOP 버튼 존재', !!(await p.eval(`!!document.querySelector('[data-t="safetybar"] [data-t="estop"]')`)));
   // 모드 토글도 상시다 — 잠긴 펜던트를 푸는 유일한 길이라 탭을 옮겨도 사라지면 안 된다 (D72)
@@ -290,6 +305,17 @@ try {
     !!(await p.waitFor(`document.querySelector('[data-t="step-blocked"]')?.textContent.includes('마지막 단계까지 끝났습니다')`, { timeoutMs: 5000 })));
   await p.screenshot(`${OUT}/fr5-program.png`);
 
+  // 프로그램 삭제는 **한 번 더 묻는다** (2026-08-06 `/감사` P0 — 지점만 확인이 있었다).
+  // 취소하면 슬롯이 그대로 남는 것까지 본다. 이 검사가 없으면 확인 단계가 조용히 사라진다
+  await p.eval(`document.querySelector('[data-t="slot-delete"]').click()`);
+  check('프로그램 삭제는 곧장 안 지운다 — 한 번 더 묻는다',
+    !!(await p.waitFor(`!!document.querySelector('[data-t="slot-delete-ask"]')
+      && document.querySelector('[data-t="slot-delete-confirm"]') !== null`, { timeoutMs: 4000 })));
+  await p.eval(`document.querySelector('[data-t="slot-delete-cancel"]').click()`);
+  check('취소하면 프로그램이 그대로 남는다',
+    !!(await p.waitFor(`document.querySelector('[data-t="slot-delete-ask"]') === null
+      && !!document.querySelector('[data-t="slot-row"]')`, { timeoutMs: 4000 })));
+
   await p.eval(`[...document.querySelectorAll('nav button')].find(b => b.textContent === 'Teach').click()`);
   await p.waitFor(`!!document.querySelector('[data-t="teach"]')`, { timeoutMs: 5000 });
   await p.screenshot(`${OUT}/fr5-teach.png`);
@@ -304,7 +330,8 @@ try {
   await p.screenshot(`${OUT}/fr5-live-p2.png`);
 
   // 7. 브리지 재기동 → 웹이 스스로 다시 붙고 재연결 횟수가 남는다 (V0 AC)
-  bridge.kill();
+  // 여기서도 그룹째 죽인다 — 안 그러면 옛 uvicorn 이 포트를 쥐고 있어 재기동이 실패한다
+  killTree(bridge);
   await p.waitFor(`document.querySelector('[data-t="safetybar"]').textContent.includes('DISCONNECTED') || true`, { timeoutMs: 3000 }).catch(() => {});
   await new Promise((r) => setTimeout(r, 1500));
   bridge = spawnBridge();
@@ -322,14 +349,22 @@ try {
 
   // 7. 해제 → 미연결 스냅샷으로 복귀
   await p.eval(`[...document.querySelectorAll('[data-t="diag"] button')].find(b => b.textContent.includes('연결 해제')).click()`);
-  check('disconnect → DISCONNECTED + 값 비움',
-    !!(await p.waitFor(`document.querySelector('[data-t="safetybar"]').textContent.includes('DISCONNECTED') && document.querySelector('[data-t="joints"] td')?.textContent === '—'`, { timeoutMs: 5000 })));
+  // **`—` 대신 「표 자체가 없다」를 본다** (2026-08-06 `/감사` UI/UX). 예전에는 끊긴 뒤에도
+  // 관절·TCP 12행이 `—` 로 남아 첫 화면에서 제일 넓은 면적을 뜻 없는 대시가 먹었다. 지금은
+  // `state.connected` 일 때만 그린다 — 옛 값이 남지 않는다는 원래 의도를 **더 세게** 만족한다.
+  // 그 자리는 「지금 무엇을 하면 되나」(startguide)가 쓴다.
+  check('disconnect → DISCONNECTED + 값 비움 (표를 안 그린다)',
+    !!(await p.waitFor(`document.querySelector('[data-t="safetybar"]').textContent.includes('DISCONNECTED')
+      && document.querySelector('[data-t="joints"]') === null
+      && document.querySelector('[data-t="tcp"]') === null`, { timeoutMs: 5000 })));
+  check('연결 전 시작 순서가 「로봇에 연결」을 짚는다',
+    (await p.eval(`document.querySelector('[data-t="startguide"] li[data-at="true"]')?.textContent`)) === '로봇에 연결');
 } catch (e) {
   check('실행 자체', false, String(e.message || e));
 } finally {
   try { await p?.close?.(); } catch {}
-  bridge.kill();
-  web.kill();
+  killTree(bridge);
+  killTree(web);
   rmSync(DATA, { recursive: true, force: true });
 }
 

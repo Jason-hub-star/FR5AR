@@ -22,11 +22,9 @@ Vite 관문 · 주제 확정(D16·D17) · 문서 무게 게이트(D18).
 **2026-07-31** — `web/` 정리 · 관제화면 별도 배포(D24) · 폰 측정 도구(`[측정 30초]`).
 **근거는 전부 `docs/evidence/` 에 날짜별로 있다** — 여기 다시 쓰지 않는다.
 
-- **터틀봇 상판 마커 실기 통과** (35mm·1.8m·100%, D26·D27) · **L1 배치안 편집기 완결·배포**
-  (`fr5dashboard.vercel.app`, 실렌더가 버그 12개, D33~D35) · **AR 녹화+배포**
-  (`fr5ar.vercel.app`, D42) · 디자인 규약(D38) · 증거 폴더 규약(D37) · observe-only 기준선(D39)
-- 상세는 `evidence/2026-07-31/` 의 `marker-live-phone` · `dashboard-l1-editor` · `ar-record` ·
-  `fr5-live-readback` 에 있다
+**터틀봇 상판 마커 실기 통과**(35mm·1.8m·100% · D26·D27) · **L1 배치안 편집기 배포**
+(`fr5dashboard.vercel.app` · D33~D35) · **AR 녹화+배포**(`fr5ar.vercel.app` · D42) ·
+디자인 규약(D38) · 증거 폴더 규약(D37) · observe-only 기준선(D39). 상세 `evidence/2026-07-31/`.
 
 ## FR5 트랙 — P0~P2 완료 (2026-07-31 · 실기 첫 조그·그리퍼 개폐)
 
@@ -36,16 +34,13 @@ Vite 관문 · 주제 확정(D16·D17) · 문서 무게 게이트(D18).
 **다음 순서의 정본은 골사다리 6칸**(`docs/goals/GOAL-*.md`)이다 — `FR5-IMPLEMENTATION-PLAN.md`
 는 화면·안전 순서의 정본이고 **완료된 것만** 적는다 (D74).
 
-**08-05 실기 3건** — ①주소 `58.2`(D68) ②펜던트를 잠근 ARM은 `mode`+헤더 토글로 복구(D72)
-③로봇이 상판 3점·벽 2점을 짚은 작업영역 게이트(D73). 손끝의 상판·벽 침범을 거부한다.
-근거 `evidence/2026-08-05/{workcell-measure,pendant-mode}.md`.
+**08-05 실기 3건** — ①주소 `58.2`(D68) ②펜던트를 잠근 ARM 은 `mode`+헤더 토글로 복구(D72)
+③상판 3점·벽 2점을 짚은 작업영역 게이트(D73). 근거 `evidence/2026-08-05/{workcell-measure,pendant-mode}.md`.
 
 **08-05 밤 — 사다리 2(Teach) 실기 완료 (D74·D75).** 4패널·지점·궤적·이동 전 미리보기.
-궤적은 `stamp`·`fps`·`startPose`·`endReason`·`dropped`·`purpose`를 싣고, 브리지는
-`teach.py`·`commands.py`로 분리했다. 근거 `evidence/2026-08-05/teach-points-trajectory.md`.
-
-**실기** — 관절 소수 4자리 일치 · 6.196s/93프레임 결손 0 · 배포 2회 · `home→1→home` 성공.
-결손은 15fps로, 블로킹 `MoveJ`의 3초 초과·xmlrpc 오염은 `blendT=0.0`으로 막았다.
+관절 소수 4자리 일치 · 6.196s/93프레임 결손 0 · `home→1→home` 성공. 결손은 15fps 로,
+블로킹 `MoveJ` 의 3초 초과·xmlrpc 오염은 `blendT=0.0` 으로 막았다.
+근거 `evidence/2026-08-05/teach-points-trajectory.md`.
 
 **08-06 글로벌 카메라 PiP 실기 완료 (D79).** 프록시 두 IP 예외 · 시계 방향 90° · **9:16 ·
 340px(면적 4배)**. 배포본 실영상과 `OBSERVE_ONLY / 서보 OFF` 확인. 근거 `evidence/2026-08-06/fr5-cam-pip.md`.
@@ -53,9 +48,13 @@ Vite 관문 · 주제 확정(D16·D17) · 문서 무게 게이트(D18).
 ⚠ **그 과정에 방어선 하나가 비었다** — `motionQueueLength` 가 이동 중에도 **0** 이라
 조건 6·`EXECUTING`·드리프트 검사가 다 헛돈다. **다음 세션 감사 1순위.**
 
+**08-06 밤 — 화면 UI/UX 감사 반영·배포.** P0 3(영구 잠김 · 화면이 거짓말 · 삭제 무확인) +
+P1 7 + P2 5. 실렌더 63→**66건** · 배포본에서 새 문구 10/10 확인.
+상세는 아래 §핸드오프 · 근거 `evidence/2026-08-06/fr5-uiux-audit.md`.
+
 ## 미착수
 
-- FR5 사다리 3~4 (Program 슬롯 · History) · URDF 확장
+- FR5 사다리 4 (History) · URDF 확장 — **사다리 3(Program 슬롯)은 08-06 에 닫혔다**
 - **다음 한 걸음** — ①저장을 팀 공유로(이관 H · D46) ②L2 AR 검증 → L3 비교
 
 ## 터틀봇 관제 트랙 (2026-07-31 개설 · D29~D31)
@@ -66,10 +65,10 @@ ROS 2 Jazzy · Nav2). 팀원 전원이 URL 하나로 켜고·몰고·매핑하�
 
 주행 알고리즘은 팀원 몫 — `bridge/slots/` 슬롯 계약으로 꽂힌다.
 
-**P0~P4 완료** (`evidence/2026-07-31/tb-mock-verify.md`) · mock 실행 `bash scripts/dev/tb-dev.sh`.
-**2026-08-06** (`evidence/2026-08-06/tb-connect-check.md`) — ①PC 는 `11.2`→**`ej@192.168.30.240`**
-(FR5 와 같은 기계 · 코드 `~/fr5tb/TurtleBot/`) ②**포트를 갈랐다 — tb 는 5056** (D80 · 화면 0줄 ·
-정본 `config.yaml`) ③**남은 건 로봇 전원뿐**(도메인 0·1·2·30 토픽 0개 · 배포는 `git pull` 후 `tb-run.sh`).
+**2026-08-06 — 실기 배포 완료.** `http://192.168.30.240:5056` (FR5 와 **같은 기계**라 포트로
+가른다 · D80). systemd `--user tb-bridge` 로 돌고 배포는 `bash scripts/deploy/tb-ubuntu.sh`
+(8.8초 · 실렌더 6/6 PASS · adapter:real · 로봇 카드 2). mock 은 `bash scripts/dev/tb-dev.sh`.
+**남은 건 로봇 전원뿐** — 도메인 0·1·2·30 토픽 0개. 근거 `evidence/2026-08-06/tb-connect-check.md`.
 
 ## 블로커
 
@@ -100,27 +99,30 @@ ROS 2 Jazzy · Nav2). 팀원 전원이 URL 하나로 켜고·몰고·매핑하�
 투입 팔과 조립 팔로 역할이 갈리고(도달 922mm 인데 팔레트↔리프터가 4.6m), 방은 9:16 세로다.
 ⚠ **실물 FR5 는 한 대다** — 화면의 두 대는 무대 구성이고 실측을 나눠 적지 않는다.
 
-## 핸드오프 (2026-08-05 밤 · `/감사` 완료 · 다음은 **P0 수리**)
+## 핸드오프 (2026-08-06 밤 · 화면 `/감사` 반영·배포 완료 · 다음은 **사다리 4 History**)
 
-⚠ **"게이트 전부 green" 을 믿지 않는다.** `all.sh:11` 은 `*.sh` 만 돌아 `.mjs` 7개를
-아무도 안 부른다 — **단위 106 만 자동이고 브리지 82 · 실렌더 46 은 손으로 불러야 나온다.**
+✅ **FR5 몫은 잠갔다** (2026-08-06 · `check/fr5-render.sh` · **자동 297건** = 단위 141 + 실렌더 156).
+못 넣던 진짜 이유가 넣으면서 나왔다 — **`.mjs` 가 자기 자식(uvicorn·vite)을 안 죽여** 연달아
+돌리면 다음 실행이 무너졌다. 손으로 한 번씩 부르면 안 보인다. 근거 `evidence/2026-08-06/fr5-gate-lock.md`.
+⚠ 남은 `.mjs` 는 아직 손으로 — `dash-web`(113) · `cam-web` · `fr5-cam` · `tb-*`.
 
-**`/감사` 29건 (P0 4 · P1 16 · P2 9).** 전문 `evidence/2026-08-05/audit-harness-and-bridge.md` ·
-추적 GAP-MATRIX 상단 9행. **코드는 안 고쳤다(주인님 판정: 보고서만).**
-P0 — ①위 게이트 ②궤적 이름이 그대로 파일 경로(임의 덮어쓰기) ③`NaN` 이 안전설정 대조를
-통과해 **하중 없이 ARM** ④지점 삭제에 확인·되돌리기 없음. **①부터** — 게이트가 반만 돌면
-나머지 수리의 회귀를 못 잡는다. 표적 ① 근원은 `read_state()` 가 SDK 의 `robot_state`·
-`motion_done`·`actual_qd` 를 안 읽는 것. 확정하려면 **로봇을 움직여야** 한다.
+**08-05 `/감사` 29건의 P0 4개는 전부 닫혔다** (①게이트 ②궤적 이름 경로 ③`NaN` 안전설정
+④지점 삭제 확인). 전문 `evidence/2026-08-05/audit-harness-and-bridge.md` · 추적 GAP-MATRIX 상단.
+
+**08-06 화면 `/감사` — P0 3 · P1 7 · P2 5 전부 반영·배포.** 초심자 기준으로 다시 읽었다.
+가장 큰 것은 **화면이 거짓말하던 것** — 목록을 못 읽어도 *"아직 지점이 없습니다"* 라고 해서
+학생이 처음부터 다시 만들게 했다. 이제 없음과 못 읽음이 다른 문장을 쓴다.
+근거 `evidence/2026-08-06/fr5-uiux-audit.md`. **AI 슬롭은 0건이었다.**
+⚠ 남은 손 사용성 2건 — **조그 연타 · STOP 26px.** 실렌더가 못 만든다, 사람이 폰에서 본다.
 
 | | FR5 브리지 | 배치 편집기 | 비전·카메라 |
 |---|---|---|---|
-| **시작 지점** | `docs/goals/GOAL-program-slots.md` (사다리 3) | `Dashboard/src/features/layout/LayoutEditor.jsx` | `docs/ref/arch/DEPTH-CAM.md` |
-| **먼저 읽을 것** | **D75·D74** → `evidence/2026-08-05/teach-points-trajectory.md` | `evidence/2026-08-04/dash-authoring.md` → `GOAL-amr-route-legible.md` | **D70·D71** → `evidence/2026-08-05/cam-fov.md` |
+| **시작 지점** | `docs/goals/GOAL-run-history.md` (사다리 4 · 사다리 3 은 닫혔다) | `Dashboard/src/features/layout/LayoutEditor.jsx` | `docs/ref/arch/DEPTH-CAM.md` |
+| **먼저 읽을 것** | `evidence/2026-08-06/fr5-uiux-audit.md` → **D78·D75** | `evidence/2026-08-04/dash-authoring.md` → `GOAL-amr-route-legible.md` | **D70·D71** → `evidence/2026-08-05/cam-fov.md` |
 | **막힌 것** | **큐가 이동 중을 안 알린다(위 1)** · 막힌 경로 거부를 못 봤다 · `_guard` 상한을 넘긴 호출은 연결을 영구 오염(재연결만이 복구) · 물건 파지 미실험(힘 30% 고정) · 래치 오류·`j1` 한계 밖은 펜던트로만 | **손으로 안 눌러 봤다** — 실렌더 113/113 이지만 전부 합성 이벤트. 폰에서 팔레트 232px 고정 · Shift·우클릭이 없어 다중선택·메뉴에 길이 없다 | **툴 좌표계 미검증** — 좌표 기반 제안이 전부 `toolCalibrationUnverified` 로 거부. **저울이 없어 말단 하중을 못 넣어** 드래그 티칭이 막혀 있다 |
-| **첫 명령** | `all.sh` 가 `.mjs` 를 집게 고치기(P0-1) → 나머지 P0 | `bash scripts/check/all.sh` → `npm run dev:dash` | `bash scripts/check/all.sh` → 툴 좌표계 캘리브레이션 |
+| **첫 명령** | `bash scripts/check/all.sh` → 폰에서 조그 연타·STOP 크기 손으로 확인 | `bash scripts/check/all.sh` → `npm run dev:dash` | `bash scripts/check/all.sh` → 툴 좌표계 캘리브레이션 |
 
-**카메라 조사는 실측으로 닫혔다** (D69·D70 · `evidence/2026-08-05/cam-fov.md`) —
-장착 기하·화각·사각지대·유효율 임계값·USB3.2 까지. 문서 무게 게이트도 개정됐다 (D71).
+**카메라 조사는 실측으로 닫혔다** (D69~D71 · `evidence/2026-08-05/cam-fov.md`) — 장착 기하·화각·사각지대·유효율·USB3.2.
 
 **로봇 상태 (08-06 마감 직전 실측)** — `58.2`(D68) · **ARMED · 서보 ON · owner admin** · 오류 0/0. 지점 `home`·`1` 과
 궤적 `실기-정지-01` 이 `~/fr5-data/` 에 살아 있다.
