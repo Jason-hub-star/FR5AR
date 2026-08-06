@@ -24,7 +24,8 @@ scripts/
 ├── build/                      설정·산출물 생성
 │   └── config.mjs                .env → Shared/data/config/*.json (검증 포함)
 ├── dev/                        개발 중 사람이 손으로 부른다
-│   └── serve.sh                  Vite dev 서버 (ar | dash)
+│   ├── serve.sh                  Vite dev 서버 (ar | dash)
+│   └── rotate-decisions.mjs      DECISION-LOG-CURRENT 초과분을 본문으로 이관 (`--write` 로 실행)
 ├── assets/                     자산 복사·변환
 │   ├── sync-from-unity.sh        유니티에서 URDF·메시 가져오기
 │   ├── make-marker-sheet.py      AR 마커 인쇄 시트 생성 (자가검사 포함)
