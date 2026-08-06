@@ -9,7 +9,7 @@ import './robot.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
-  loadConfig, loadRobot, applyMount, countTriangles,
+  loadConfig, loadRobot, applyMount, countTriangles, mountRobotYUp,
 } from '@fr5/shared/view3d/robot.js';
 import { bindNumberPair } from '../features/ui/number-pair.js';
 
@@ -45,10 +45,8 @@ addEventListener('resize', resize); resize();
 // 설정은 fetch 가 아니라 빌드 시 import 다 — 파일이 깨지면 빌드가 실패한다 (D18).
 const { gripper: gripperConfig } = loadConfig();
 
-// URDF 는 Z-up, three.js 는 Y-up. **로봇을 돌리지 않고 부모를 돌린다** —
-// 로봇 자체를 돌리면 관절 각도 해석이 헷갈린다.
-const zUpToYUp = new THREE.Group();
-zUpToYUp.rotation.x = -Math.PI / 2;
+// Z-up→Y-up 은 `Shared` 한 곳에서만 한다 (`mountRobotYUp`).
+const zUpToYUp = mountRobotYUp(null);
 scene.add(zUpToYUp);
 
 // 자산은 Shared/assets 가 publicDir 이라 루트에서 서빙된다 → '/FAIRINO_FR5/…'

@@ -3,7 +3,9 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { loadConfig, loadRobot, setJointsDeg, setGripperOpenPct } from '@fr5/shared/view3d/robot.js';
+import {
+  loadConfig, loadRobot, setJointsDeg, setGripperOpenPct, mountRobotYUp,
+} from '@fr5/shared/view3d/robot.js';
 
 export function RobotTwin({ jointsDeg, gripperPct }) {
   const hostRef = useRef(null);
@@ -30,9 +32,8 @@ export function RobotTwin({ jointsDeg, gripperPct }) {
     scene.add(key);
     scene.add(new THREE.GridHelper(2, 20, 0xb8b4ae, 0xcfccc7));
 
-    // URDF 는 Z-up, three.js 는 Y-up — 로봇이 아니라 부모를 돌린다 (robot-view 규칙)
-    const zUpToYUp = new THREE.Group();
-    zUpToYUp.rotation.x = -Math.PI / 2;
+    // Z-up→Y-up 은 `Shared` 한 곳에서만 한다 (`mountRobotYUp`).
+    const zUpToYUp = mountRobotYUp(null);
     scene.add(zUpToYUp);
 
     let robot = null;

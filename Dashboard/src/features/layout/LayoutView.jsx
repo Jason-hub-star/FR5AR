@@ -17,7 +17,7 @@ import { createInteraction } from '@fr5/shared/view3d/lab/interaction.js';
 import { SIZE_MM, SIZE_LABEL, SIZE_RANGE_MM, SIZE_AXIS } from '@fr5/shared/data/layout/catalog.js';
 import { stateAt, cycleSecOf } from '@fr5/shared/data/timeline/timeline.js';
 import { sizeMmOf } from '@fr5/shared/view3d/parts.js';
-import { loadConfig, loadRobot, setJointsDeg } from '@fr5/shared/view3d/robot.js';
+import { loadConfig, loadRobot, setJointsDeg, mountRobotYUp } from '@fr5/shared/view3d/robot.js';
 import { PRESET_POSES, CARRY_BY_ARM, poseFor, easeAngle } from '@fr5/shared/data/motion/poses.js';
 import { createJointGizmo } from '@fr5/shared/view3d/lab/joint-gizmo.js';
 import { JOINTS, JOINT_LIMITS_DEG } from '@fr5/shared/data/motion/limits.js';
@@ -51,11 +51,8 @@ function getArm(key) {
     gripperDir: '/PGEA_100_40/',
   }).then(({ robot }) => {
     setJointsDeg(robot, PRESET_POSES.home);
-    // URDF 는 Z-up, three 는 Y-up. **로봇을 돌리지 않고 부모를 돌린다** —
-    // 로봇 자체를 돌리면 관절 각도 해석이 헷갈린다 (FR5/RobotTwin.jsx 와 같은 규약).
-    const holder = new THREE.Group();
-    holder.rotation.x = -Math.PI / 2;
-    holder.add(robot);
+    // Z-up→Y-up 은 `Shared` 한 곳에서만 한다 (`mountRobotYUp`).
+    const holder = mountRobotYUp(robot);
     // **피킹에서 뺀다.** 팔은 받침대로 고른다 — URDF 를 피킹에 두면 뒤가 다 가려진다
     holder.traverse((o) => { o.raycast = () => {}; });
     e.holder = holder; e.robot = robot;

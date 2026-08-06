@@ -120,6 +120,29 @@ function attachGripper(robot, cfg, dir, manager) {
 }
 
 /**
+ * 로봇을 화면에 세울 홀더. **URDF 는 Z-up, three.js 는 Y-up** 이라 −90° 를 준다.
+ *
+ * 로봇이 아니라 **부모를 돌린다** — robot 자체를 돌리면 관절 각도 해석이 헷갈린다.
+ * 위 `loadRobot` 주석이 이 규칙을 적어만 두고 구현은 안 갖고 있어서, 화면마다 각자
+ * 베껴 쓰다 **다섯 벌**이 됐다 (`xr.js`·`ar.js`·`robot.js`·`LayoutView.jsx`·`RobotTwin.jsx`).
+ * 이름도 다 달랐다(`holder`/`stage`/`zUpToYUp`) — 한 벌이 빠지면 **로봇이 누워서 뜬다**.
+ * 하드 룰 5 와 같은 취지다: 좌표계를 바꾸는 자리는 한 곳뿐이어야 한다.
+ *
+ * 홀더에 얹는 것(위치 오프셋·그림자·피킹 해제)은 **부르는 쪽이 각자** 한다 —
+ * 그건 화면마다 다르고, 여기 넣으면 다섯 화면의 사정이 이 함수로 새어 들어온다.
+ *
+ * @param {THREE.Object3D} robot `loadRobot` 이 준 URDF 로봇 (Z-up 그대로)
+ * @returns {THREE.Group} Y-up 홀더. 씬·부모에 이걸 붙인다
+ */
+export function mountRobotYUp(robot) {
+  const holder = new THREE.Group();
+  holder.name = 'robotHolder';
+  holder.rotation.x = -Math.PI / 2;
+  if (robot) holder.add(robot);
+  return holder;
+}
+
+/**
  * 손가락 개폐를 3D 에 반영한다 (2026-08-04).
  *
  * **관절이 아니라 메시 이동이다** — URDF 에 prismatic 관절이 없다. 손가락 STL 둘이 X 축

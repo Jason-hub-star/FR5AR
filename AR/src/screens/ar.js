@@ -8,7 +8,7 @@
 
 import './ar.css';
 import * as THREE from 'three';
-import { loadConfig, loadRobot } from '@fr5/shared/view3d/robot.js';
+import { loadConfig, loadRobot, mountRobotYUp } from '@fr5/shared/view3d/robot.js';
 import {
   interpolateJoints, tipPath, pathLength, makeTube, createPlayer,
 } from '@fr5/shared/view3d/path.js';
@@ -139,8 +139,9 @@ function applyMarkerSize(mm) {
 applyMarkerSize(mcfg.markerSizeMm);
 markerRoot.add(scaleRoot);
 
-const stage = new THREE.Group();
-stage.rotation.x = -Math.PI / 2; // URDF 는 Z-up, three.js 는 Y-up
+// Z-up→Y-up 은 `Shared` 한 곳에서만 한다 (`mountRobotYUp`). `stage` 라는 이름과
+// `window` 노출은 그대로 둔다 — 이관 기준값 대조가 거기 걸려 있다 (`AGENTS.md`).
+const stage = mountRobotYUp(null);
 scaleRoot.add(stage);
 
 // 마커 원점 → 로봇 원점 (실물 옆 시연에서 자로 재서 설정에 넣는다)

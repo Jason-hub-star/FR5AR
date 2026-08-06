@@ -22,13 +22,18 @@
 
 import * as THREE from 'three';
 import { createLayoutView } from '@fr5/shared/view3d/lab/layout-view.js';
-import { createStage } from '@fr5/shared/view3d/lab/stage.js';
 import { buildLabSky, ENV_INTENSITY } from '@fr5/shared/view3d/lab/sky.js';
 import { PRESETS, buildPreset } from '@fr5/shared/data/layout/presets.js';
-import { loadConfig, loadRobot, setJointsDeg, countTriangles } from '@fr5/shared/view3d/robot.js';
+import {
+  loadConfig, loadRobot, setJointsDeg, countTriangles, mountRobotYUp,
+} from '@fr5/shared/view3d/robot.js';
 import { PRESET_POSES as POSES } from '@fr5/shared/data/motion/poses.js';
 // 놓기 계산은 **화면 밖 순수 함수**다 — XR 세션 없이 게이트가 숫자로 판정한다
-import { solveCorners, hudText, ghostWalls } from '../features/place/place.js';
+import {
+  solveCorners, hudText, ghostWalls, classifyHit, yawFromWallNormal, readiness,
+  fitLine, SWEEP_MIN,
+} from '../features/place/place.js';
+import { createMapPreview } from '../features/preview/map-preview.js';
 import './xr.css';
 
 const $ = (id) => document.getElementById(id);
@@ -116,45 +121,13 @@ function sync() {
   $('go').textContent = m.xr ? 'AR 시작' : '방 안으로 들어가기';
 }
 
-// ── 맵 미리보기 — **무엇을 얹게 되는지 먼저 보여준다.**
-//
-// `layout-view.js` 의 `updateCutaway` 가 카메라 쪽 벽을 숨겨 안이 보인다. 이 화면이
-// 그 기능을 처음 쓴다 (대시보드만 쓰고 있었다). 팔 URDF 는 안 받는다 — 대당 6MB 이고
-// 미리보기에 필요한 건 "무슨 방이고 뭐가 어디 있나" 지 로봇의 생김새가 아니다.
+// ── 맵 미리보기 — **무엇을 얹게 되는지 먼저 보여준다.** 알맹이는 `features/preview/` 에 있다.
 let preview = null;
-// **시트가 덮는 비율.** 매 프레임 `getBoundingClientRect` 를 부르면 레이아웃이 강제로
-// 다시 계산된다 — 렌더 루프 안에서 이건 폰에서 비싸다. 바뀔 때만 다시 잰다.
-let seenFrac = 0.6;
-const measureSheet = () => {
-  seenFrac = Math.max(0.35, 1 - $('sheet').getBoundingClientRect().height / innerHeight);
-};
-new ResizeObserver(measureSheet).observe($('sheet'));
-
 function showPreview() {
   preview?.dispose();
-  preview = null;
-  const stage = createStage($('preview'), { background: 0x181b20, controls: false });
-  const view = createLayoutView(buildPreset(sel.value));
-  stage.scene.add(view.root);
-  // **바운딩 구로 거리를 잡는다.** AABB 로 잡으면 도는 동안 긴 변이 옆으로 누워 잘린다.
-  const sph = new THREE.Box3().setFromObject(view.root).getBoundingSphere(new THREE.Sphere());
-  let a = Math.PI * 0.25;
-  stage.onTick(() => {
-    a += 0.0016;                                   // 한 바퀴 ≈ 65초. 읽는 걸 방해하지 않는 속도
-    // **시트가 아래를 덮는다.** 화면 한가운데에 맞추면 맵의 절반이 시트 밑으로 들어간다
-    // (첫 실렌더가 그랬다). 안 가려지는 세로 비율만큼 좁혀 맞추고, 그만큼 위로 올린다.
-    const seen = seenFrac;
-    const tv = Math.tan((stage.camera.fov * Math.PI) / 360);
-    const d = (sph.radius / Math.min(tv * seen, tv * stage.camera.aspect)) * 1.05;
-    stage.camera.position.set(
-      sph.center.x + d * 0.86 * Math.cos(a),
-      sph.center.y + d * 0.5,
-      sph.center.z + d * 0.86 * Math.sin(a),
-    );
-    stage.camera.lookAt(sph.center.x, sph.center.y - (1 - seen) * d * tv, sph.center.z);
-    view.updateCutaway(stage.camera);
+  preview = createMapPreview({
+    host: $('preview'), sheet: $('sheet'), layout: buildPreset(sel.value),
   });
-  preview = { dispose() { view.dispose?.(); stage.dispose(); } };
 }
 sel.onchange = showPreview;
 
@@ -184,13 +157,21 @@ const TARGET_MM = 2500;
 const SANE_SCALE = [0.5, 2];
 
 /**
- * 평면을 처음 찾고 이만큼은 놓지 못하게 한다.
- *
- * ARCore 의 첫 평면 추정이 가장 거칠고, **그때 놓은 오차가 세션 내내 박힌다**
- * ("처음 화면에 따라 떠 보인다" 의 정체). 앵커가 나중에 보정해 주지만
- * 애초에 덜 익은 값을 안 받는 쪽이 싸다.
+ * 준비도 색 — **CSS 토큰과 같은 값**이다 (`xr.css` 의 `--muted`·`--hazard`·`--go`·`--bad`).
+ * 조준 링과 화면 글자가 다른 색으로 같은 상태를 말하면 사람이 둘을 다른 것으로 읽는다.
  */
-const WARMUP_MS = 1500;
+const RD_COLOR = {
+  gray: 0x97a1ac, yellow: 0xd9a323, green: 0x7fd88f, red: 0xff8b8b,
+};
+
+/** 겨냥한 면과 바닥이 이보다 벌어지면 **낙하선을 긋는다** — 링만 바닥에 있으면 허공에 뜬 것으로 읽힌다 */
+const DROP_MM = 50;
+
+/** 초록이 이만큼 흔들림 없이 이어지면 `평소` 는 저절로 놓는다 */
+const AUTO_MS = 800;
+
+/** 훑기 결과를 이만큼 붙잡아 둔다 — 준비도 문구가 바로 덮으면 사람이 못 읽는다 */
+const HOLD_MS = 2500;
 
 /** `화면` 모드의 눈높이 — 서 있는 사람 기준 */
 const EYE_M = 1.6;
@@ -255,11 +236,9 @@ async function mountArms(view) {
       const { robot } = await loadRobot({
         urdfUrl: '/FAIRINO_FR5/fairino5_v6.urdf', gripperCfg: gripper, gripperDir: '/PGEA_100_40/',
       });
-      // **URDF 는 Z-up, three.js 는 Y-up.** 이 회전을 빼면 팔이 바닥에 누워 버린다
-      // (`Dashboard/…/LayoutView.jsx` 의 holder 와 같은 규약 · `ar.js` 의 stage 와도 같다).
-      const holder = new THREE.Group();
-      holder.rotation.x = -Math.PI / 2;
-      holder.add(robot);
+      // Z-up→Y-up 은 `Shared` 한 곳에서만 한다 — 베껴 쓴 다섯 벌 중 하나가 빠지면
+      // 팔이 바닥에 누워 버린다.
+      const holder = mountRobotYUp(robot);
       // 팔이 그림자를 던져야 바닥에 서 있는 것으로 읽힌다. 128k 삼각형이 그림자맵에도
       // 한 번 더 들어가므로 **fps 로그가 이 비용을 말한다** (GAP: 폰 성능 미측정).
       robot.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
@@ -303,7 +282,7 @@ async function startAR(layout) {
   // 모드를 하나 더 넣을 때마다 삼항 연산자가 한 겹씩 깊어진다.
   const HINT = {
     fit: { first: '링을 놓을 자리에 맞추고 탭 — 폰을 돌려 겨냥', again: '다시 놓을 자리를 겨냥해 탭' },
-    walk: { first: '방 한쪽 구석에 링을 맞추고 탭 — 그 자리가 맵의 모서리가 된다', again: '다시 놓을 구석을 겨냥해 탭' },
+    walk: { first: '방 구석을 겨냥해 탭 — 벽이 보이면 그 벽에 나란히 맞춥니다', again: '다시 놓을 구석을 겨냥해 탭' },
     real: { first: '맵의 한쪽 모서리에 링을 맞추고 탭 — 다음은 대각선 반대편', again: '맵의 한쪽 모서리를 겨냥해 탭 (두 번 받는다)' },
   };
 
@@ -341,12 +320,44 @@ async function startAR(layout) {
   const camera = new THREE.PerspectiveCamera();   // XR 이 투영행렬을 넣는다
 
   // 놓을 자리 표식 — 바닥에 눕힌 링. DOM 조준선보다 바닥에서 읽기 쉽다.
+  //
+  // **두 겹이다.** 흐린 바탕 링 위로 밝은 원호가 준비도만큼 차오른다 — 색이 회색→노랑→초록
+  // 으로 바뀌는 것만으로는 "얼마나 남았나" 를 못 읽는다. 폰을 들고 바닥을 보는 사람은
+  // 글자를 읽을 눈이 없으니 링 자체가 진행률이어야 한다.
   const reticle = new THREE.Mesh(
     new THREE.RingGeometry(0.09, 0.12, 32).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({ color: 0x7fd88f, transparent: true, opacity: 0.9 }),
+    new THREE.MeshBasicMaterial({ color: RD_COLOR.gray, transparent: true, opacity: 0.32 }),
   );
   reticle.visible = false;
   scene.add(reticle);
+  const arc = new THREE.Mesh(
+    new THREE.RingGeometry(0.09, 0.12, 32, 1, Math.PI / 2, 0).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: RD_COLOR.gray, transparent: true, opacity: 0.95 }),
+  );
+  arc.visible = false;
+  scene.add(arc);
+  /** 원호를 다시 굽는다. **20칸으로 뭉뚱그린다** — 매 프레임 지오메트리를 새로 만들 수는 없다. */
+  let arcStep = -1;
+  const setArc = (score) => {
+    const step = Math.round(score * 20);
+    if (step === arcStep) return;
+    arcStep = step;
+    arc.geometry.dispose();
+    arc.geometry = new THREE.RingGeometry(0.088, 0.122, 48, 1, Math.PI / 2, (step / 20) * Math.PI * 2)
+      .rotateX(-Math.PI / 2);
+  };
+
+  // 겨냥한 면 → 바닥 낙하선. 상판을 겨냥했을 때 **맵이 갈 곳이 어디인지** 보여준다 (F9).
+  const dropMat = new THREE.LineBasicMaterial({ color: RD_COLOR.red, transparent: true, opacity: 0.8 });
+  // **버퍼를 미리 잡고 값만 덮어쓴다.** `setFromPoints` 는 부를 때마다 새 어트리뷰트를
+  // 만드는데, 상판을 겨냥한 채 있으면 그게 초당 60번이다 — 폰에서 GC 로 돌아온다.
+  const dropXYZ = new Float32Array(6);
+  const dropGeo = new THREE.BufferGeometry();
+  dropGeo.setAttribute('position', new THREE.BufferAttribute(dropXYZ, 3));
+  const drop = new THREE.Line(dropGeo, dropMat);
+  drop.frustumCulled = false;      // 두 점짜리라 바운딩이 납작해 잘못 잘린다
+  drop.visible = false;
+  scene.add(drop);
 
   // 맵이 붙는 자리. 탭하면 이 그룹만 옮긴다 — 맵 데이터는 손대지 않는다.
   const anchor = new THREE.Group();
@@ -388,7 +399,10 @@ async function startAR(layout) {
     hits?.cancel?.();                       // 히트테스트 소스는 명시로 닫는다
     $('bar').removeEventListener('beforexrselect', barGuard);
     view.dispose?.();                       // geometry — 재질은 각자 지운다
-    for (const m of [ghost, edge, catcher.material, reticle.material]) m.dispose?.();
+    for (const m of [ghost, edge, catcher.material, reticle.material, arc.material, dropMat]) {
+      m.dispose?.();
+    }
+    for (const g of [reticle.geometry, arc.geometry, drop.geometry]) g.dispose?.();
     sky.dispose?.();
     renderer.dispose();
     $('hud').hidden = false;
@@ -443,7 +457,41 @@ async function startAR(layout) {
   // 한 번 들어왔을 때 세션을 새로 열기 전에는 못 빠져나온다 (2026-08-06 `/감사`).
   let floorY = null;
 
+  // 지금 겨냥 안에 벽이 있으면 그 벽에 맞출 yaw, 없으면 null. **매 프레임 다시 판정한다** —
+  // 겨냥이 벗어났는데 옛 각도가 남아 있으면 엉뚱한 벽에 맞춘다.
+  let wallYaw = null;
+  // 법선을 뽑는 임시 그릇. 렌더 루프 안이라 매 프레임 새로 만들지 않는다.
+  const NORMAL = new THREE.Vector3();
+  const QUAT = new THREE.Quaternion();
+
+  // ── 준비도 계측. **판정은 `place.js` 가 하고 여기서는 재기만 한다** — 그래야 폰 없이
+  // 게이트가 판정을 검사할 수 있다. 예전의 `WARMUP_MS` 타이머가 이 자리에 있었다.
+  let pathM = 0;                   // 눈이 실제로 움직인 누적 거리 = 시차
+  let speedMps = 0;
+  let lastEye = null;
+  let lastEyeT = 0;
+  const floorLog = [];             // 최근 바닥값(m). 흔들림을 여기서 잰다
+  const swept = new THREE.Box3();  // 훑은 히트점이 퍼진 범위
+  let rd = { score: 0, state: 'gray', ok: false, say: '바닥을 비추세요' };
+  let lastHint = null;
+  let hintHold = 0;                // 이 시각까지는 준비도가 안내줄을 안 건드린다
+  let lastState = null;
+  let greenAt = 0;
+  // `다시 놓기` 를 누른 사람은 **자리를 직접 고르겠다는 뜻**이다. 그 뒤로 자동 놓기를
+  // 다시 걸면 옮기려는 순간 제자리에 도로 놓여 "안 움직인다" 가 된다.
+  let autoOff = false;
+  // 팔을 받는 동안 안내줄은 **받기 진행률이 쓴다** (대당 6MB). 준비도가 매 프레임 덮어쓰면
+  // "몇 대째 받는 중" 이 통째로 안 보인다 — 그게 검은 화면 다음으로 나빴다.
+  let armsLoading = true;
+
   // 앵커 — 다음 프레임에 만들 자리와, 만들어진 뒤의 앵커.
+  //
+  // **놓기 세대를 센다.** `createAnchor` 는 프로미스라, 앵커가 붙기 *전에* `다시 놓기` 를
+  // 누르면 그 시점 `xrAnchor` 는 아직 `null` 이라 **삭제가 무동작**이고, 뒤늦게 해결되며
+  // 옛 자리 앵커가 되살아난다. 그러면 아래 렌더 루프가 매 프레임 그걸로 위치를 덮어써
+  // **새로 놓은 맵이 옛 자리로 끌려간다** (2026-08-07 `/감사` F1).
+  // 사람 손으로는 타이밍이 잘 안 맞아 안 보였다 — 자동 놓기가 이걸 상시 경로로 만든다.
+  let placeGen = 0;
   let anchorReq = null;
   let xrAnchor = null;
   let anchorWarned = false;
@@ -462,15 +510,14 @@ async function startAR(layout) {
   };
   setStep(1);
 
-  session.addEventListener('select', () => {
-    // **놓은 뒤의 탭은 안 옮긴다.** 촬영 중 화면을 스치면 맵이 튀었다.
-    // 대신 조작바를 여닫는 데 쓴다 — 영상에 버튼이 안 찍히게 하려면 이 길뿐이다.
-    if (placed) { barShown = !barShown; $('bar').hidden = !barShown; return; }
-    if (!aimed) { tell('아직 평면을 못 찾았습니다'); return; }
-    if (performance.now() - found < WARMUP_MS) {
-      tell('바닥을 조금 더 훑어라 — 평면이 아직 덜 잡혔다');
-      return;
-    }
+  /**
+   * 실제로 놓는다. **탭과 자동 놓기가 같은 길을 쓴다** — 갈라 두면 한쪽만 고쳐서
+   * 자동으로 놓았을 때만 앵커가 안 붙는 식의 버그가 난다.
+   */
+  const tryPlace = () => {
+    // **거절하지 않고 링이 말한다.** 예전엔 탭을 받아 놓고 "안 된다" 고 답했다 — 사후
+    // 처벌이다. 지금은 준비가 안 됐으면 링이 회색·노랑이라 애초에 탭할 생각이 안 든다.
+    if (placed || !aimed || !rd.ok) return;
 
     if (mode === 'real' && !cornerA) {
       cornerA = aimed.clone();
@@ -499,32 +546,111 @@ async function startAR(layout) {
       $('hud').hidden = true;
       $('fps').hidden = true;
     } else {
+      // **벽을 잡았으면 그 벽에 나란히 놓는다.** ±15° 손 크랭크는 최선을 다해도 ±7.5° 가
+      // 남고, 12m 지점에서 그게 157cm 다 — 축척 오차(24cm)의 6배였다.
+      // 못 잡았으면 지금 각도를 그대로 둔다: 없는 값을 지어내지 않는다.
+      if (wallYaw !== null) {
+        yaw = wallYaw;
+        say(`벽에 맞춤 — ${Math.round((yaw * 180) / Math.PI)}°`, 'ok');
+      }
       say(`놓음 — 겨냥 높이 ${(aimed.y * 1000).toFixed(0)}mm · `
         + `바닥 ${((floorY ?? aimed.y) * 1000).toFixed(0)}mm · 1:${(1 / scale).toFixed(1)}`, 'ok');
     }
     // 앵커가 붙기 전에도 바로 보여야 하니 좌표를 먼저 넣고, 앵커는 다음 프레임에 만든다
     // (`createAnchor` 는 **활성 프레임 안**에서만 부를 수 있다).
+    // **놓는 순간의 준비도를 로그에 남긴다.** 화면 문구는 명령형이라 기술 용어가 없는데,
+    // `결과 복사` 가 회수하는 이 로그가 실기 검증의 유일한 증거다 — 어긋났을 때
+    // "그때 어떤 상태에서 놓았나" 를 여기서만 알 수 있다 (F11).
+    say(`놓은 시점 준비도 ${(rd.score * 100).toFixed(0)}% ${rd.state} · `
+      + `이동 ${pathM.toFixed(2)}m · 훑은 범위 ${(swept.isEmpty() ? 0
+        : Math.max(swept.max.x - swept.min.x, swept.max.z - swept.min.z)).toFixed(2)}m · `
+      + `바닥 흔들림 ${floorLog.length >= 5
+        ? ((Math.max(...floorLog) - Math.min(...floorLog)) * 1000).toFixed(0) : '?'}mm`);
+
     anchor.position.copy(at);
+    placeGen += 1;                   // 이전 세대의 앵커 프로미스를 무효로 만든다 (F1)
     anchorReq = at.clone();
     placed = true;
+    reticle.visible = false;
+    arc.visible = false;
+    drop.visible = false;
     setStep(2);
+    lastHint = null;
     tell('');
     apply();
+  };
+
+  // ── 훑기. **누르고 있는 동안 링이 지나간 바닥점을 모아** 그 선에 맵을 나란히 맞춘다.
+  //
+  // 손가락이 아니라 **폰을 움직인다** — 조준 광선이 `viewer` 에서 나가므로 화면 위 손가락
+  // 위치는 애초에 안 본다. 그게 오히려 낫다: 걸으면서 훑으면 시차가 같이 벌리고, 표본이
+  // 전부 같은 거리·같은 각도라 먼 쪽이 스치는 각도로 뭉개지지 않는다.
+  //
+  // **`select` 와 `selectend` 의 발화 순서에 기대지 않는다.** 점 목록을 `selectstart` 에서만
+  // 비우므로 어느 순서로 와도 "훑기였다" 를 양쪽이 똑같이 읽는다 (F7).
+  let sweepPts = [];
+  let sweeping = false;
+  let sweepPath = 0;
+  session.addEventListener('selectstart', () => {
+    sweepPts = [];
+    sweepPath = pathM;
+    // 촬영은 탭 2회 규약이 따로 있고, 놓은 뒤엔 조작바 토글이 이 이벤트를 쓴다
+    sweeping = !placed && mode !== 'real';
+  });
+  session.addEventListener('selectend', () => {
+    sweeping = false;
+    if (sweepPts.length < SWEEP_MIN) return;
+    const fit = fitLine(sweepPts);
+    // 훑기 결과는 **잠깐 붙잡아 둔다** — 안 그러면 다음 프레임에 준비도 문구가 덮어써서
+    // 사람이 자기가 방금 뭘 했는지 못 읽는다.
+    hintHold = performance.now() + HOLD_MS;
+    if (!fit) { tell('너무 짧습니다 — 벽을 따라 좀 더 길게 훑으세요'); return; }
+    // **사람이 실제로 움직였는지 따로 잰다.** 서서 폰만 돌리면 점들은 여전히 직선이라
+    // 잔차가 작게 나오는데(F8), 먼 쪽 깊이 오차는 크다 — 잔차만 믿으면 안 된다.
+    const moved = pathM - sweepPath;
+    yaw = fit.yaw;
+    apply();
+    say(`훑기 정렬 — ${Math.round((yaw * 180) / Math.PI)}° · 길이 ${fit.spanM.toFixed(2)}m · `
+      + `잔차 ${fit.residualMm.toFixed(0)}mm · 이동 ${moved.toFixed(2)}m · 표본 ${sweepPts.length}`,
+    fit.residualMm < 50 && moved > 0.15 ? 'ok' : 'bad');
+    if (fit.residualMm >= 50) tell('선이 휘었습니다 — 천천히 다시 훑으세요');
+    else if (moved <= 0.15) tell('제자리에서 돌리셨습니다 — 옆으로 걸으며 다시 훑으세요');
+    else tell('벽에 맞췄습니다 — 이제 놓을 자리를 탭하세요');
+  });
+
+  session.addEventListener('select', () => {
+    // **놓은 뒤의 탭은 안 옮긴다.** 촬영 중 화면을 스치면 맵이 튀었다.
+    // 대신 조작바를 여닫는 데 쓴다 — 영상에 버튼이 안 찍히게 하려면 이 길뿐이다.
+    if (placed) { barShown = !barShown; $('bar').hidden = !barShown; return; }
+    // 훑는 동작이었다면 이건 놓기가 아니라 **정렬**이다 — `selectend` 가 처리한다
+    if (sweepPts.length >= SWEEP_MIN) return;
+    tryPlace();
   });
 
   $('zoomIn').onclick = () => { scale *= 1.25; zoomed = true; apply(); };
   $('zoomOut').onclick = () => { scale /= 1.25; zoomed = true; apply(); };
-  $('rotL').onclick = () => { yaw -= Math.PI / 12; apply(); };
-  $('rotR').onclick = () => { yaw += Math.PI / 12; apply(); };
+  // **90° 씩 돈다.** 벽 법선이 미세각을 넣어 주므로 사람에게 남는 건 "네 벽 중 어느 벽"
+  // 뿐이다 — 직사각형이라 90° 네 자리가 다 유효하고, 기하학은 어느 것인지 안 알려준다.
+  // 예전 15° 는 그 미세각을 손으로 맞추라는 뜻이었고, 그게 정합 오차의 최대 항이었다.
+  $('rotL').onclick = () => { yaw -= Math.PI / 2; apply(); };
+  $('rotR').onclick = () => { yaw += Math.PI / 2; apply(); };
   $('again').onclick = () => {
     placed = false;
     cornerA = null;
     anchorReq = null;
+    // **세대를 올리는 것이 핵심이다.** 아직 안 붙은 앵커는 여기서 지울 수가 없어
+    // (`xrAnchor` 가 `null` 이다) 세대로 무효화한다 — 안 그러면 뒤늦게 되살아난다 (F1)
+    placeGen += 1;
     xrAnchor?.delete?.();          // 안 지우면 앵커가 세션에 쌓인다
     xrAnchor = null;
     scale = scale0;                // 손으로 늘린 배율도 되돌린다 — 답사는 1:1 이 전제다
     zoomed = false;
     floorY = null;                 // 잘못 잡힌 바닥에서 빠져나오는 유일한 길
+    floorLog.length = 0;           // 바닥값을 비웠으니 그 흔들림도 다시 잰다
+    lastHint = null;
+    autoOff = true;                // 이제부터 자리는 사람이 고른다
+    // **`pathM` 과 `swept` 은 안 비운다** — 이미 걸었고 이미 훑었다. 그건 여전히 사실이라,
+    // 지우면 사람에게 한 일을 또 시키게 된다.
     say('다시 놓기 — 배율과 바닥값을 비웠다');
     $('hud').hidden = false;
     $('fps').hidden = false;
@@ -538,25 +664,118 @@ async function startAR(layout) {
   renderer.setAnimationLoop((t, frame) => {
     if (frame) {
       const ref = renderer.xr.getReferenceSpace();
+
+      // **눈의 이동을 잰다.** ARCore 를 수렴시키는 건 시간이 아니라 시차다 — 가만히 서서
+      // 기다리면 얻는 게 없고, 옆으로 반 걸음이 5초보다 낫다.
+      const eye = frame.getViewerPose(ref);
+      if (eye) {
+        const p = eye.transform.position;
+        if (lastEye) {
+          const d = Math.hypot(p.x - lastEye.x, p.y - lastEye.y, p.z - lastEye.z);
+          pathM += d;
+          const dt = (t - lastEyeT) / 1000;
+          if (dt > 0) speedMps = speedMps * 0.8 + (d / dt) * 0.2;   // 떨림을 눌러 읽는다
+        }
+        lastEye = { x: p.x, y: p.y, z: p.z };
+        lastEyeT = t;
+      }
+
       const r = hits ? frame.getHitTestResults(hits) : [];
       if (r.length) {
-        // **가장 낮은 면을 고른다** — 첫 결과는 카메라에 가까운 책상일 수 있다 (실측).
-        let best = null;
+        // **먼저 수평/수직을 가른다.** 예전엔 그냥 최저를 골랐는데, 벽을 겨냥해도 바닥
+        // 히트가 같이 와서 **늘 바닥이 이겼다** — 벽 법선이 영영 안 왔다 (F2).
+        // 더 나쁜 건 `floorY` 다: 수직 평면은 바닥선 아래로 자주 뻗어서, 한 번 섞이면
+        // 세션 바닥값이 내려앉고 **맵이 바닥 밑으로 파묻힌다** (F3).
+        //
+        // 법선은 히트 포즈에서 그대로 나온다 — 규약상 포즈의 **로컬 +Y 가 그 면의 법선**이다.
+        // 오일러로 뽑지 않는다: 벽 포즈는 이미 90° 눕혀져 있어 pitch 가 yaw 로 샌다 (F6).
+        let low = null;
+        let wall = null;
         for (const h of r) {
           const po = h.getPose(ref);
-          if (po && (!best || po.transform.position.y < best.transform.position.y)) best = po;
+          if (!po) continue;
+          const n = NORMAL.set(0, 1, 0).applyQuaternion(QUAT.copy(po.transform.orientation));
+          const kind = classifyHit(n.y);
+          if (kind === 'horizontal') {
+            if (!low || po.transform.position.y < low.transform.position.y) low = po;
+          } else if (kind === 'vertical' && wall === null) {
+            wall = yawFromWallNormal(n);
+          }
         }
-        if (best) {
-          aimed = new THREE.Vector3().copy(best.transform.position);
+        wallYaw = wall;
+        if (low) {
+          aimed = new THREE.Vector3().copy(low.transform.position);
+          // **수평 히트만 바닥값을 내린다** (F3)
           if (floorY === null || aimed.y < floorY) floorY = aimed.y;
-          reticle.position.copy(aimed);
-          reticle.visible = !placed;
+          floorLog.push(aimed.y);
+          if (floorLog.length > 30) floorLog.shift();
+          swept.expandByPoint(aimed);
+          if (sweeping) sweepPts.push({ x: aimed.x, z: aimed.z });
           if (!found) {
             found = performance.now();
             say(`평면 찾음 — ${((found - t0) / 1000).toFixed(1)}초`, 'ok');
-            tell(HINT[mode].first);
           }
         }
+      }
+
+      // ── 준비도 → 링·문구. 놓기 전에만 잰다.
+      if (!placed) {
+        const above = aimed && floorY !== null ? (aimed.y - floorY) * 1000 : 0;
+        rd = readiness({
+          pathM,
+          // 표본이 몇 개 안 되면 흔들림을 말할 자격이 없다 — `null` 은 "아직 모른다" 다
+          floorSpreadMm: floorLog.length >= 5
+            ? (Math.max(...floorLog) - Math.min(...floorLog)) * 1000 : null,
+          extentM: swept.isEmpty() ? 0
+            : Math.max(swept.max.x - swept.min.x, swept.max.z - swept.min.z),
+          aboveFloorMm: above,
+          speedMps,
+          elapsedMs: found ? t - found : 0,
+        });
+
+        // **초록이 되는 순간 진동.** 폰을 들고 바닥을 보는 사람은 글자를 읽을 눈이 없다 —
+        // 30ms 한 번이면 안 보고도 안다. 회색↔노랑에는 안 울린다: 자주 울리면 그것도 소음이다.
+        if (rd.state === 'green' && lastState !== 'green') {
+          greenAt = t;
+          navigator.vibrate?.(30);
+        } else if (rd.state !== 'green') greenAt = 0;
+        lastState = rd.state;
+
+        // **`평소` 만 저절로 놓는다.** 자리가 어디든 상관없는 모드라 사람이 할 일을
+        // "폰 들고 바닥 훑기" 하나로 줄일 수 있다. 답사·촬영은 *특정 구석*을 노리므로
+        // 저절로 놓으면 엉뚱한 데 앉는다 — 거기선 초록 + 진동까지만 하고 탭은 사람이 한다.
+        if (mode === 'fit' && !autoOff && !sweeping && greenAt && t - greenAt > AUTO_MS) {
+          say('저절로 놓았다 — 자리가 마음에 안 들면 `다시 놓기`', 'ok');
+          tryPlace();
+        }
+
+        // **링은 맵이 갈 자리에 선다** — 겨냥한 상판이 아니라 바닥이다. 둘이 벌어지면
+        // 낙하선을 그어 "여기를 보고 있지만 저기에 놓인다" 를 한 장면으로 만든다 (F9).
+        if (aimed) {
+          const fy = floorY ?? aimed.y;
+          reticle.position.set(aimed.x, fy, aimed.z);
+          arc.position.copy(reticle.position);
+          reticle.visible = true;
+          arc.visible = true;
+          reticle.material.color.setHex(RD_COLOR[rd.state]);
+          arc.material.color.setHex(RD_COLOR[rd.state]);
+          setArc(rd.score);
+          drop.visible = above > DROP_MM;
+          if (drop.visible) {
+            dropXYZ.set([aimed.x, aimed.y, aimed.z, aimed.x, fy, aimed.z]);
+            dropGeo.attributes.position.needsUpdate = true;
+          }
+        }
+
+        // **문구는 한 곳에서만 정한다.** 여러 군데서 `tell` 하면 서로 덮어써 마지막 것만
+        // 남는다 — 무엇이 이겼는지 코드를 읽어야 알게 된다. 우선순위를 여기 한 줄로 둔다.
+        const want = (() => {
+          if (!rd.ok) return rd.say;
+          if (mode === 'real') return cornerA ? '이제 대각선 반대편 모서리를 겨냥해 탭' : HINT.real.first;
+          if (wallYaw !== null) return '벽을 잡았습니다 — 탭하면 이 벽에 나란히 놓입니다';
+          return rd.say;
+        })();
+        if (!armsLoading && t > hintHold && want !== lastHint) { lastHint = want; tell(want); }
       }
 
       // 앵커 만들기 — **활성 프레임 안**이라 여기서만 가능하다.
@@ -564,8 +783,15 @@ async function startAR(layout) {
         const req = anchorReq;
         anchorReq = null;
         if (typeof frame.createAnchor === 'function') {
+          const gen = placeGen;
           frame.createAnchor(new XRRigidTransform({ x: req.x, y: req.y, z: req.z }), ref)
-            .then((a) => { xrAnchor = a; say('앵커 붙음 — 트래킹 보정이 따라온다', 'ok'); })
+            .then((a) => {
+              // 기다리는 사이에 다시 놓았거나 나갔다 — **받은 앵커를 버린다.**
+              // 안 버리면 이 앵커가 계속 살아 새 자리를 옛 자리로 끌어간다 (F1).
+              if (gen !== placeGen || ended) { a.delete?.(); return; }
+              xrAnchor = a;
+              say('앵커 붙음 — 트래킹 보정이 따라온다', 'ok');
+            })
             .catch((e) => say(`앵커 실패 — ${e?.message ?? e} (고정 좌표로 진행)`, 'bad'));
         } else if (!anchorWarned) {
           anchorWarned = true;
@@ -607,7 +833,7 @@ async function startAR(layout) {
 
   arms = await mountArms(view);
   if (ended) return;                        // 팔 받는 사이에 나갔다 — 아래는 죽은 세션이다
-  tell(found ? HINT[mode].first : '바닥을 훑어 평면을 찾는 중…');
+  armsLoading = false;                      // 이제부터 안내줄은 준비도가 쓴다
   // 팔이 안 움직이므로 그림자맵을 매 프레임 다시 그릴 이유가 없다 — 폰에서 이게 크다.
   // 바뀔 때는 `apply()` 가, 앵커가 보정될 때는 렌더 루프가 `needsUpdate` 를 켠다.
   renderer.shadowMap.autoUpdate = false;

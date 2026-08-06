@@ -21,7 +21,10 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { openPage } from '../../.claude/skills/검증/references/cdp-harness.mjs';
-import { solveCorners, hudText, ghostWalls } from '../../AR/src/features/place/place.js';
+import * as THREE from 'three';
+import {
+  solveCorners, hudText, ghostWalls, classifyHit, yawFromWallNormal, readiness, GRACE_MS, fitLine,
+} from '../../AR/src/features/place/place.js';
 import { createLayoutView } from '../../Shared/view3d/lab/layout-view.js';
 import { buildPreset } from '../../Shared/data/layout/presets.js';
 
@@ -100,6 +103,149 @@ const D = 3.25;
   check('촬영의 보정은 1:1 을 유지한 채 표시한다',
     /실물 1:1/.test(real) && /보정 -1\.9%/.test(real), real);
   check('평소는 축소 배율을 적는다', /1:2\.5 축소/.test(fit) && /1\.30×1\.30m/.test(fit), fit);
+}
+
+// ── 히트 분류 — 벽 법선을 살리고 바닥값은 지킨다 (2026-08-07 `/감사` F2·F3·F6)
+{
+  check('바닥/천장은 수평이다', classifyHit(1) === 'horizontal' && classifyHit(-1) === 'horizontal');
+  check('벽은 수직이다', classifyHit(0) === 'vertical' && classifyHit(-0.2) === 'vertical');
+  // **애매한 것은 버린다.** 경사면 법선으로 맵을 돌리면 조용히 비뚤어진다.
+  check('경사면은 둘 다 아니다 (버린다)',
+    classifyHit(0.6) === 'other' && classifyHit(-0.5) === 'other');
+  // 이게 F3 의 핵심이다 — 수직 히트가 `horizontal` 로 새면 세션 바닥값이 내려앉는다
+  check('수직 히트가 수평으로 새지 않는다 (맵이 바닥 밑으로 파묻히는 것을 막는다)',
+    [0, 0.1, 0.2, 0.3, -0.3].every((y) => classifyHit(y) !== 'horizontal'));
+}
+
+// ── 벽 법선 → yaw. **three 로 직접 돌려 확인한다** — 손으로 유도한 부호를 못 믿는다
+{
+  let worst = 0;
+  const probe = new THREE.Object3D();
+  for (const deg of [0, 23, 90, 137, 180, -61, -170]) {
+    const yawTrue = (deg * Math.PI) / 180;
+    // 맵을 yawTrue 만큼 돌렸을 때 로컬 +Z(= `z=0` 쪽 벽의 법선)가 가는 세계 방향
+    probe.rotation.set(0, yawTrue, 0);
+    probe.updateMatrixWorld(true);
+    const n = new THREE.Vector3(0, 0, 1).applyQuaternion(probe.quaternion);
+    const got = yawFromWallNormal({ x: n.x, z: n.z });
+    worst = Math.max(worst, Math.abs(((got - yawTrue + Math.PI * 3) % (Math.PI * 2)) - Math.PI));
+  }
+  check('벽 법선 → yaw 왕복 복원 (한계 0.01°)', (worst * 180) / Math.PI < 0.01,
+    `최대 ${((worst * 180) / Math.PI).toFixed(5)}°`);
+  // **뒤집힌 법선은 반대쪽을 봐야 한다.** 같은 값이 나오면 이 검사는 아무것도 안 막는다
+  const a = yawFromWallNormal({ x: 0.6, z: 0.8 });
+  const b = yawFromWallNormal({ x: -0.6, z: -0.8 });
+  check('법선을 뒤집으면 180° 반대가 나온다 (검사가 실제로 막는다)',
+    Math.abs(Math.abs(a - b) - Math.PI) < 1e-9, `${a.toFixed(4)} vs ${b.toFixed(4)}`);
+  check('벽이 아니면 각도를 지어내지 않는다 (null)', yawFromWallNormal({ x: 0, z: 0 }) === null);
+}
+
+// ── 훑기 — 짧은 기저에서 긴 기저의 정확도가 나오는가
+{
+  // 재현 가능한 잡음. `Math.random` 을 쓰면 게이트가 가끔 빨개진다.
+  let seed = 12345;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 - 0.5; };
+  const sweep = (deg, spanM, n, noiseMm) => {
+    const th = (deg * Math.PI) / 180;
+    const pts = [];
+    for (let i = 0; i < n; i += 1) {
+      const s = (i / (n - 1) - 0.5) * spanM;
+      const j = (rnd() * 2 * noiseMm) / 1000;             // 선에 수직인 손 떨림
+      pts.push({ x: 3 + s * Math.cos(th) - j * Math.sin(th), z: -2 + s * Math.sin(th) + j * Math.cos(th) });
+    }
+    return pts;
+  };
+
+  // **성질로 잰다, 유도로 재지 않는다.** "맵을 이 yaw 로 돌리면 그 벽에 나란해진다" 가
+  // 우리가 원하는 전부다 — 즉 맵의 로컬 +Z 가 훑은 선과 **수직**이어야 한다.
+  // 처음엔 `yaw = 선각 + 90°` 로 기대했다가 90° 어긋나 실패했다: `layout-view` 의 Z 가
+  // 거울이라 실제로는 `π − 선각` 이다. 손유도를 검사에 박으면 이런 게 거짓 실패를 낸다.
+  let worst = 0;
+  const probe = new THREE.Object3D();
+  for (const deg of [0, 31, 90, 148, -67]) {
+    const th = (deg * Math.PI) / 180;
+    const fit = fitLine(sweep(deg, 3, 120, 40));
+    probe.rotation.set(0, fit.yaw, 0);
+    const n = new THREE.Vector3(0, 0, 1).applyQuaternion(probe.quaternion);
+    const dot = n.x * Math.cos(th) + n.z * Math.sin(th);   // 수직이면 0
+    worst = Math.max(worst, (Math.asin(Math.min(1, Math.abs(dot))) * 180) / Math.PI);
+  }
+  // 손계산: σ√12/(L√N) = 0.04·3.46/(3·10.95) ≈ 0.0042rad ≈ 0.24°. 3배를 한계로 둔다.
+  check('3m 훑기 120표본이 0.7° 안에 든다 (탭 2회 14m 대각보다 낫다)', worst < 0.7,
+    `최대 ${worst.toFixed(3)}°`);
+  check('잔차가 손 떨림 크기를 말한다 (40mm 넣으면 10~40mm 로 읽힌다)', (() => {
+    const r = fitLine(sweep(20, 3, 120, 40)).residualMm;
+    return r > 10 && r < 40;
+  })(), `${fitLine(sweep(20, 3, 120, 40)).residualMm.toFixed(1)}mm`);
+  check('휜 선은 잔차가 크게 나온다 (실패를 말해 주는 첫 방법)', (() => {
+    const pts = [];
+    for (let i = 0; i < 120; i += 1) {
+      const s = (i / 119 - 0.5) * 3;
+      pts.push({ x: 3 + s, z: -2 + s * s * 0.35 });        // 포물선
+    }
+    return fitLine(pts).residualMm > 100;
+  })());
+  check('짧은 훑기는 각도를 지어내지 않는다 (null)', fitLine(sweep(10, 0.2, 60, 5)) === null);
+  check('표본이 모자라면 그냥 탭으로 본다 (null)', fitLine(sweep(10, 3, 5, 5)) === null);
+  // **z 축에 나란한 벽에서 죽지 않는가.** `z = ax+b` 로 맞췄으면 여기서 기울기가 발산한다.
+  check('세로 벽(90°)에서도 발산하지 않는다', Number.isFinite(fitLine(sweep(90, 3, 120, 20)).yaw));
+
+  // **한계를 검사로 박아 둔다 (F8).** 제자리에서 돌려도 점들은 직선이라 잔차가 작다 —
+  // 그래서 화면이 잔차만 믿으면 안 되고, 사람이 실제로 이동했는지를 따로 잰다.
+  const panned = [];
+  for (let i = 0; i < 120; i += 1) {
+    const s = 0.5 + (i / 119) ** 2 * 6;                    // 먼 쪽일수록 표본이 벌어진다
+    panned.push({ x: 3 + s, z: -2 + rnd() * 0.02 });
+  }
+  check('제자리 팬은 잔차로 못 잡는다 — 이동 거리를 따로 재야 하는 이유 (F8)',
+    fitLine(panned).residualMm < 50, `${fitLine(panned).residualMm.toFixed(1)}mm`);
+}
+
+// ── 준비도 — 화면이 언제 초록이 되고, **언제까지나 안 되지는 않는가** (F4)
+{
+  const good = { pathM: 1, floorSpreadMm: 2, extentM: 2 };
+  check('바닥이 없으면 회색이다 (실패가 아니라 아직 안 한 것)',
+    readiness({ floorSpreadMm: null }).state === 'gray');
+  check('다 채우면 초록이고 놓을 수 있다',
+    readiness(good).state === 'green' && readiness(good).ok === true);
+  check('상판을 겨냥하면 빨강이고 얼마나 높은지 말한다',
+    readiness({ ...good, aboveFloorMm: 400 }).state === 'red'
+    && /40cm/.test(readiness({ ...good, aboveFloorMm: 400 }).say));
+  check('너무 빠르면 속도부터 말한다',
+    readiness({ ...good, speedMps: 2 }).say === '조금 천천히');
+
+  // **가장 모자란 관문이 문구를 정한다** — 원호가 차오른 정도와 말이 늘 같은 것을 가리킨다
+  check('시차가 모자라면 걸으라고 한다',
+    readiness({ pathM: 0, floorSpreadMm: 2, extentM: 2 }).say === '폰을 든 채 옆으로 두 걸음');
+  check('훑은 범위가 좁으면 훑으라고 한다',
+    readiness({ pathM: 1, floorSpreadMm: 2, extentM: 0.1 }).say === '바닥을 좌우로 천천히 훑으세요');
+
+  // **삼각대 회귀 방지.** `WARMUP_MS` 는 반드시 만료됐는데 "0.3m 이동" 은 고정 카메라에서
+  // 영영 충족 안 된다 — 조건으로 바꾸다 도달 불가 상태를 만드는 사고를 여기서 막는다.
+  const tripod = { pathM: 0, floorSpreadMm: 35, extentM: 0 };
+  check('삼각대(움직임 0)는 유예 전에는 막힌다', readiness({ ...tripod, elapsedMs: 1000 }).ok === false);
+  check('삼각대라도 유예 뒤에는 반드시 놓을 수 있다 (도달 불가 상태 없음)',
+    readiness({ ...tripod, elapsedMs: GRACE_MS }).ok === true
+    && /정확도가 낮을 수 있습니다/.test(readiness({ ...tripod, elapsedMs: GRACE_MS }).say));
+
+  // 상태↔문구가 어긋나는 조합이 하나도 없어야 한다 (F12 를 수용한 값어치가 이것이다)
+  let mismatch = null;
+  for (const pathM of [0, 0.15, 0.4]) {
+    for (const floorSpreadMm of [null, 2, 25, 60]) {
+      for (const extentM of [0, 0.5, 2]) {
+        for (const aboveFloorMm of [0, 400]) {
+          for (const elapsedMs of [0, 3000, 9000]) {
+            const r = readiness({ pathM, floorSpreadMm, extentM, aboveFloorMm, elapsedMs });
+            const okState = { gray: /비추세요/, red: /높습니다/, green: /지금 탭하세요$/, yellow: /./ };
+            if (!okState[r.state]?.test(r.say)) mismatch = `${r.state} ← "${r.say}"`;
+            if (r.ok && (r.state === 'gray' || r.state === 'red')) mismatch = `놓기 허용된 ${r.state}`;
+            if (r.state === 'green' && !r.ok) mismatch = '초록인데 못 놓는다';
+          }
+        }
+      }
+    }
+  }
+  check('상태와 문구가 어긋나는 조합이 없다 (216 가지 전수)', mismatch === null, mismatch ?? '');
 }
 
 // ── 유령벽이 벽만 고르는가 (문·창·소품은 `contents` 라 손대면 안 된다)

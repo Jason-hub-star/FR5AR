@@ -18,7 +18,7 @@ scripts/
 │   ├── fr5-unit.sh               FR5 브리지 단위 테스트 (safety.py 순수 함수 · unittest)
 │   ├── motion.sh                 자세 — 이름 정합 · NaN · j1 각속도 상한 · 화면에 안 박혔나
 │   ├── scenario.sh               시나리오 — 왕복 · 사건 칸(좌표·관절 금지) · 프리셋 재생
-│   ├── xr-place.sh               겹치기 놓기 계산 — 두 모서리 풀이·계기 문구·유령벽 (1초)
+│   ├── xr-place.sh               겹치기 놓기 계산 — 두 모서리·히트 분류·벽 법선·훑기·준비도 (1초)
 │   ├── xr-web-verify.mjs         WebXR 화면 — ①놓기 계산 ②`화면` 모드 실렌더. `--pure` 면 ①만
 │   └── cam-web-verify.mjs        글로벌 카메라 겹치기 실렌더 — 사진 재검출 ↔ 투영 픽셀 대조
 ├── build/                      설정·산출물 생성
