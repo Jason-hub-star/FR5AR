@@ -4,8 +4,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/../../TurtleBot/bridge"
 
+# 포트 정본은 config.yaml 하나다 (D80) — 파서를 들이지 않고 그 한 줄만 읽는다
+PORT=$(sed -n 's/^port:[[:space:]]*\([0-9]\{1,\}\).*/\1/p' config.yaml)
+[ -n "$PORT" ] || { echo "config.yaml 에 port 가 없다"; exit 1; }
+
 BRIDGE_CMD=(uv run --with fastapi --with 'uvicorn[standard]' --with pyyaml \
-  uvicorn main:app --host 0.0.0.0 --port 5055)
+  uvicorn main:app --host 0.0.0.0 --port "$PORT")
 
 if [ "${1:-}" = "bridge" ]; then
   exec "${BRIDGE_CMD[@]}"

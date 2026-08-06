@@ -66,10 +66,10 @@ ROS 2 Jazzy · Nav2). 팀원 전원이 URL 하나로 켜고·몰고·매핑하�
 
 주행 알고리즘은 팀원 몫 — `bridge/slots/` 슬롯 계약으로 꽂힌다.
 
-**P0~P4 완료 (로봇 실주행만 보류)** — 상세는 `evidence/2026-07-31/tb-mock-verify.md`.
-mock 실행 `bash scripts/dev/tb-dev.sh`. real 브리지는 우분투(`ej@192.168.11.2`)에서 떴다.
-**로봇 실주행만 남았다** — bringup(도메인 0)이 안 켜져 토픽이 없었고, **WiFi 교체 예정**이라
-교체 후로 보류. 재개: 우분투 `bash ~/start-bridge.sh`(코드 `~/fr5tb/`).
+**P0~P4 완료** (`evidence/2026-07-31/tb-mock-verify.md`) · mock 실행 `bash scripts/dev/tb-dev.sh`.
+**2026-08-06** (`evidence/2026-08-06/tb-connect-check.md`) — ①PC 는 `11.2`→**`ej@192.168.30.240`**
+(FR5 와 같은 기계 · 코드 `~/fr5tb/TurtleBot/`) ②**포트를 갈랐다 — tb 는 5056** (D80 · 화면 0줄 ·
+정본 `config.yaml`) ③**남은 건 로봇 전원뿐**(도메인 0·1·2·30 토픽 0개 · 배포는 `git pull` 후 `tb-run.sh`).
 
 ## 블로커
 

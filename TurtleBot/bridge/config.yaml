@@ -1,5 +1,7 @@
 # tb-bridge 설정 — WiFi·로봇이 바뀌면 여기만 바뀐다 (코드에 IP 를 박지 않는다 · D29)
-port: 5055
+# port 는 기동 스크립트(tb-dev.sh · tb-run.sh)가 읽는 정본이다 — 여기만 고치면 따라온다.
+# 5055 는 같은 PC 의 FR5 브리지가 쓴다 (D80). 바꾸면 vite dev 프록시도 같이 (consts.sh 가 잡는다)
+port: 5056
 robots:
   - id: tb3_1
     ros_domain_id: 2        # repo2 값 — P4 실기에서 대조 (스택가드)

@@ -14,15 +14,19 @@
 ```
 TurtleBot3 Burger ×2 (tb3_1 · tb3_2)      라즈베리파이는 turtlebot3_bringup 만
       ↕ ROS 2 (WiFi · DDS)
-  우분투 PC — Nav2·SLAM ×2 · 슬롯 스크립트 · tb-bridge :5055   ← 이 문서가 정의하는 것
-      ↕ HTTP + WebSocket (브리지가 웹 빌드도 정적 서빙)
-  팀원 폰·노트북 브라우저 — http://turtlebot.local:5055 하나
+  우분투 PC — Nav2·SLAM ×2 · 슬롯 스크립트 · tb-bridge :5056   ← 이 문서가 정의하는 것
+      ↕ HTTP + WebSocket (브리지가 웹 빌드도 정적 서빙)     (같은 PC 의 :5055 는 FR5 브리지 · D80)
+  팀원 폰·노트북 브라우저 — http://turtlebot.local:5056 하나
 ```
 
 - **무거운 것은 전부 PC 에서 돈다.** 로봇에 스크립트를 얹으면 느려진다 — bringup 만 남긴다
 - **Vercel 에 올리지 않는다.** https 페이지는 LAN 의 ws:// 에 못 붙고(혼합 콘텐츠),
   로봇 제어를 인터넷에 노출하지 않는다. 배포 = 우분투 PC 에서 `git pull` + 실행
-- WiFi 가 바뀌면 `TurtleBot/bridge/config.yaml` 값 하나만 바뀐다. 코드에 IP 를 박지 않는다
+- WiFi·포트가 바뀌면 `TurtleBot/bridge/config.yaml` 값 하나만 바뀐다. 코드에 IP·포트를 박지 않는다
+- **포트는 5056 이다 — FR5 브리지와 같은 PC 라 번호로 가른다** (D80 · 2026-08-06).
+  "형제·무의존" 은 코드 의존을 말한 것이라 포트까지 갈라 두지 않았고, 그래서 tb-bridge 가
+  아예 못 떴다. **기동 스크립트는 `config.yaml` 의 `port` 를 읽는다** — 여기가 정본이다.
+  `vite.config.js` 의 dev 프록시만 사본이고 `check/consts.sh` 가 둘의 일치를 잡는다
 - FR5 `bridge/` 와는 **형제·무의존** — 로봇마다 관문 하나, 서로 호출하지 않는다
 - **API 는 브라우저 외 클라이언트에도 열려 있다** (팀원 스크립트·curl — 의도된 설계).
   신원 증명은 하지 않는다 — LAN·팀 신뢰 전제. 이 한계는 수용 리스크로 명시한다
@@ -243,7 +247,9 @@ POST  /api/record/start|stop          { "robot": "tb3_1" }   rosbag 토글 → �
 | 맵 저장 | `/map` OccupancyGrid 구독(TRANSIENT_LOCAL) — 로봇엔 map_server 없음 | 원본 대조 (repo2 `_t1_save_map.py`) |
 | 배터리 토픽 | repo2 에 사용처 없음 — 실기에서 `/{ns}/battery_state` 존재 확인 | **미확인** |
 | 상태 주기·WiFi 대역 | 100ms 목표 | **미실측** |
-| PC·로봇 IP | `config.yaml` | WiFi 변경 예정 — 값만 교체 |
+| `ros_domain_id` | `config.yaml` 은 tb3_1=2 · tb3_2=1 (repo2 값) | **미대조** — 2026-08-06 에 0·1·2·30 을 훑었으나 로봇이 꺼져 있어 판별 불가 |
+| PC 주소 | **`ej@192.168.30.240`** (무선 `wlxb0386cf6fa9a`) — FR5 브리지와 같은 기계 | 실측 2026-08-06 (WiFi 교체 완료 · 옛 `192.168.11.2` 폐기) |
+| 로봇 IP | `config.yaml` 에 없다 — ROS 2 DDS 가 도메인으로 찾는다 | 로봇 기동 후 확인 |
 
 ## 바꿀 때
 

@@ -80,5 +80,19 @@ else
 fi
 
 echo
+echo "== tb-bridge 포트 (config.yaml 이 정본) =="
+# 두 관문이 우분투 PC 한 대에 산다 — 5055 는 FR5, 5056 이 tb 다 (D80). 기동 스크립트는
+# config.yaml 을 읽지만 **vite dev 프록시만 사본**이라 손으로 갈라지면 dev 에서만 안 붙는다.
+TBP=$(sed -n 's/^port:[[:space:]]*\([0-9]\{1,\}\).*/\1/p' TurtleBot/bridge/config.yaml)
+VITEP=$(grep -oE 'localhost:[0-9]+' TurtleBot/vite.config.js | grep -oE '[0-9]+' | sort -u)
+FR5P=$(sed -n 's/.*FR5_PORT:-\([0-9]\{1,\}\).*/\1/p' scripts/dev/fr5-dev.sh | head -1)
+if [ -z "$TBP" ]; then bad "TurtleBot/bridge/config.yaml 에 port 가 없다"
+elif [ "$(printf '%s\n' "$VITEP" | wc -l | tr -d ' ')" != "1" ] || [ "$VITEP" != "$TBP" ]; then
+  bad "tb 포트 config=$TBP 인데 vite 프록시=$(printf '%s ' $VITEP) (TurtleBot/vite.config.js 를 고쳐라)"
+elif [ "$TBP" = "$FR5P" ]; then
+  bad "tb 포트 $TBP 가 FR5 기본 포트와 같다 — 같은 PC 에서 둘 다 못 뜬다 (D80)"
+else note "tb=$TBP · FR5=$FR5P · vite 프록시 일치"; fi
+
+echo
 [ "$FAIL" -eq 0 ] && echo "기준값 OK" || echo "기준값 불일치"
 exit "$FAIL"

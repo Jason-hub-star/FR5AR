@@ -9,9 +9,10 @@ export default defineConfig({
   server: {
     port: 5175,             // AR(5173) · Dashboard(5174) 와 같이 띄울 수 있게
     // dev 전용 — http.js 는 상대경로만 알고, 운영은 브리지가 같은 출처에서 서빙한다 (D29)
+    // 5056 은 bridge/config.yaml 의 사본이다 (정본은 거기 · D80) — check/consts.sh 가 일치를 잡는다
     proxy: {
-      '/api': 'http://localhost:5055',
-      '/ws': { target: 'ws://localhost:5055', ws: true },
+      '/api': 'http://localhost:5056',
+      '/ws': { target: 'ws://localhost:5056', ws: true },
     },
   },
 });

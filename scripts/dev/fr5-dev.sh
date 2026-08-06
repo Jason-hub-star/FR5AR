@@ -2,7 +2,7 @@
 # FR5 개발 — fr5-bridge(mock+실기) 와 웹 dev 서버를 같이 띄운다.
 # 브리지만: bash scripts/dev/fr5-dev.sh bridge   웹만: npm run dev:fr5
 # 실기 어댑터는 순수 파이썬 SDK 라 별도 준비물이 없다 (D42). 포트는 FR5_PORT (기본 5055).
-# tb-bridge 도 dev 에서 5055 를 쓴다 — 같은 맥에서 동시에 띄우려면 FR5_PORT 를 바꾼다.
+# tb-bridge 는 5056 이라 같이 띄워도 안 겹친다 (D80).
 set -euo pipefail
 cd "$(dirname "$0")/../../FR5/bridge"
 

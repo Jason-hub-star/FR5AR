@@ -1,6 +1,7 @@
-// 수동 검증용 — 우분투 real 브리지(192.168.11.2:5055)가 떠 있을 때. WiFi 교체 시 IP 갱신.
+// 수동 검증용 — 우분투 real 브리지가 떠 있을 때. IP·포트는 TB_REAL 로 덮어쓴다.
+// 포트 5056 은 `TurtleBot/bridge/config.yaml` 이 정본이다 — 5055 는 같은 PC 의 FR5 브리지 (D80).
 import { openPage } from '/Users/family/jason/FR5Web/.claude/skills/검증/references/cdp-harness.mjs';
-const URL = 'http://192.168.11.2:5055/';
+const URL = process.env.TB_REAL ?? 'http://192.168.30.240:5056/';
 const OUT = '/private/tmp/claude-501/-Users-family-jason-FR5Web/481290f3-2055-4026-8046-4063d229057d/scratchpad/tb-mockup';
 const R=[]; const ck=(n,ok,d='')=>R.push([ok?'PASS':'FAIL',n,d]);
 const p = await openPage(URL, { port: 9350, windowSize: '1280,900' });
