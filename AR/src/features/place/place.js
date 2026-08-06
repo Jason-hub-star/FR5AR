@@ -80,6 +80,24 @@ export function solveCorners(a, b, widthM, depthM) {
   return { scale: measuredM / diagM, yaw: yawLocal - Math.atan2(dz, dx), measuredM, diagM };
 }
 
+/**
+ * 벽이 준 각도를 **사람이 서 있는 쪽**으로 90° 단위로 돌린다.
+ *
+ * 직사각형은 90° 네 자리가 전부 유효하고 기하학은 어느 것인지 안 알려준다 — 벽 법선도
+ * 직선 맞춤도 yaw 를 거기까지만 좁힌다. 그 마지막 한 칸을 사람 손(`↺↻`)에 미루지 않고
+ * **사람이 어디 서서 어디를 보는지**로 고른다: 걸어 들어갈 면이 앞에 와야 하기 때문이다.
+ *
+ * 정밀함은 `yaw` 가, 방향은 `towardYaw` 가 낸다 — 둘을 섞지 않는다.
+ *
+ * @param {number} yaw       벽·훑기가 낸 각도 (정밀)
+ * @param {number} towardYaw 사람을 마주 보게 하는 각도 (거칠지만 방향은 맞다)
+ * @returns {number} `yaw + k·90°` 중 `towardYaw` 에 가장 가까운 것
+ */
+export function snapQuadrant(yaw, towardYaw) {
+  const q = Math.PI / 2;
+  return yaw + Math.round((towardYaw - yaw) / q) * q;
+}
+
 /** 훑기로 인정하는 최소 표본. 이보다 적으면 **그냥 탭**이다 (60fps 에서 ≈0.2초) */
 export const SWEEP_MIN = 12;
 /** 이보다 짧은 훑기는 각도를 낼 자격이 없다 (m) */

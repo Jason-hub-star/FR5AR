@@ -31,7 +31,7 @@ import { PRESET_POSES as POSES } from '@fr5/shared/data/motion/poses.js';
 // 놓기 계산은 **화면 밖 순수 함수**다 — XR 세션 없이 게이트가 숫자로 판정한다
 import {
   solveCorners, hudText, ghostWalls, classifyHit, yawFromWallNormal, readiness,
-  fitLine, SWEEP_MIN,
+  fitLine, snapQuadrant, SWEEP_MIN,
 } from '../features/place/place.js';
 import { createMapPreview } from '../features/preview/map-preview.js';
 import './xr.css';
@@ -282,7 +282,7 @@ async function startAR(layout) {
   // 모드를 하나 더 넣을 때마다 삼항 연산자가 한 겹씩 깊어진다.
   const HINT = {
     fit: { first: '링을 놓을 자리에 맞추고 탭 — 폰을 돌려 겨냥', again: '다시 놓을 자리를 겨냥해 탭' },
-    walk: { first: '방 구석을 겨냥해 탭 — 벽이 보이면 그 벽에 나란히 맞춥니다', again: '다시 놓을 구석을 겨냥해 탭' },
+    walk: { first: '들어갈 쪽 바닥을 겨냥해 탭 — 거기가 입구가 되고 맵은 앞으로 펼쳐집니다', again: '다시 들어갈 자리를 겨냥해 탭' },
     real: { first: '맵의 한쪽 모서리에 링을 맞추고 탭 — 다음은 대각선 반대편', again: '맵의 한쪽 모서리를 겨냥해 탭 (두 번 받는다)' },
   };
 
@@ -427,19 +427,27 @@ async function startAR(layout) {
   // 촬영의 `보정` 은 이것과 다르다. 그건 **1:1 을 맞추려고** 곱한 값이다.
   let zoomed = false;
   const pct = (s) => `${s >= 1 ? '+' : ''}${((s - 1) * 100).toFixed(1)}%`;
-  // **`평소` 만 맵의 중심을 앵커에 맞춘다.** `layout-view.js:102` 의 root 원점은 맵의
-  // **모서리**라, 그대로 두면 탭한 곳에서 옆으로 뻗는다. 답사·촬영은 그게 의도지만
-  // (구석을 맞추는 모드다) 책상 위 모형은 "여기 놔라" 라는 뜻이다.
-  const centered = mode === 'fit';
+  // **링이 맵의 어디에 해당하는가 — 모드가 정한다.** `layout-view.js:102` 의 root 원점은
+  // 맵의 **모서리**라, 그대로 두면 셋 다 구석에 서게 된다.
+  //
+  //   평소 center — 탭한 곳이 **가운데**. 책상 위 모형은 "여기 놔라" 라는 뜻이다
+  //   답사 edge   — 탭한 곳이 **들어가는 변의 가운데**. 구석에 서면 대각선으로 들어가야
+  //                 해서 "걸어 들어간다" 가 성립하지 않는다 (폰에서 잡혔다)
+  //   촬영 corner — **모서리 그대로.** `solveCorners` 가 첫 모서리를 원점으로 쓴다 —
+  //                 여기서 바꾸면 축척 보정이 통째로 깨진다
+  const PIVOT = { fit: 'center', walk: 'edge' }[mode] ?? 'corner';
   const apply = () => {
     view.root.scale.setScalar(scale);
     anchor.rotation.y = yaw;
-    // 중심 이동을 **여기서** 한다 — 탭할 때 좌표를 옮겨 두면 확대할 때마다 중심이
-    // 모서리 쪽으로 밀린다. 배율이 바뀔 때 같이 다시 잡아야 제자리에 머문다.
-    if (centered) view.root.position.set(-(W * scale) / 2, 0, (D * scale) / 2);
-    // 라이트는 앵커 공간(=배율 없는 미터)에 있으므로 배율을 곱해 따라가게 한다
-    const cx = centered ? 0 : (W * scale) / 2;
-    const cz = centered ? 0 : -(D * scale) / 2;
+    // 이동을 **여기서** 한다 — 탭할 때 좌표를 옮겨 두면 확대할 때마다 기준점이 모서리
+    // 쪽으로 밀린다. 배율이 바뀔 때 같이 다시 잡아야 제자리에 머문다.
+    const px = PIVOT === 'corner' ? 0 : -(W * scale) / 2;   // 가운데·변 둘 다 가로는 중앙
+    const pz = PIVOT === 'center' ? (D * scale) / 2 : 0;    // 변은 z=0 모서리가 링에 온다
+    view.root.position.set(px, 0, pz);
+    // 라이트는 앵커 공간(=배율 없는 미터)에 있다. 맵의 **중심**을 비춰야 하므로
+    // 위에서 옮긴 만큼을 더해 따라가게 한다.
+    const cx = view.root.position.x + (W * scale) / 2;
+    const cz = view.root.position.z - (D * scale) / 2;
     key.target.position.set(cx, 0, cz);
     key.position.set(cx + 2.5 * scale, 5 * scale, cz + 2.5 * scale);
     fitShadow(key, Math.max(W, D) * scale * 0.8);
@@ -559,26 +567,19 @@ async function startAR(layout) {
       // 촬영 모드는 놓는 순간 계기를 끈다. **로그에는 남으므로 `결과 복사`로 회수된다.**
       $('hud').hidden = true;
       $('fps').hidden = true;
-    } else if (mode === 'walk') {
-      // **벽을 잡았으면 그 벽에 나란히 놓는다.** ±15° 손 크랭크는 최선을 다해도 ±7.5° 가
-      // 남고, 12m 지점에서 그게 157cm 다 — 축척 오차(24cm)의 6배였다.
-      // 못 잡았으면 지금 각도를 그대로 둔다: 없는 값을 지어내지 않는다.
-      // **모서리 기준인 것은 의도다** — 안내가 "그 자리가 맵의 모서리가 된다" 이고,
-      // 걸어 들어가려면 방 구석과 맵 구석이 맞아야 한다.
-      if (wallYaw !== null) {
-        yaw = wallYaw;
-        say(`벽에 맞춤 — ${Math.round((yaw * 180) / Math.PI)}°`, 'ok');
-      }
     } else {
-      // **`평소` 만 탭한 곳이 중심이고, 맵이 사람 쪽을 본다.**
-      //
-      // 책상 위 모형이라 탭의 뜻은 "여기 놔라" 지 "여기가 모서리다" 가 아니다. 그런데
-      // `layout-view.js:102` 의 root 원점은 맵의 **모서리**라, 그대로 놓으면 겨냥한 데가
-      // 아니라 옆으로 뻗어 나간다 — 폰에서 "화면 오른쪽에 생긴다" 로 잡혔다.
-      // 각도도 마찬가지다: `yaw = 0` 은 사람이 보는 쪽과 아무 상관이 없었다.
-      // 중심 맞추기 자체는 `apply()` 가 한다 — 확대해도 중심이 안 밀리게.
+      // **맵이 사람을 마주 본다.** `yaw = 0` 은 사람이 보는 쪽과 아무 상관이 없었다 —
+      // 평소는 읽으려고, 답사는 **앞으로 걸어 들어가려고** 이쪽을 향해야 한다.
+      // 어느 자리가 링에 오는지(가운데냐 변 가운데냐)는 `apply()` 의 `PIVOT` 이 정한다.
       const face = eyeFwd ? yawFromWallNormal({ x: -eyeFwd.x, z: -eyeFwd.z }) : null;
-      if (face !== null) yaw = face;          // 맵의 +Z 면이 사람을 마주 본다
+      if (wallYaw !== null) {
+        // **벽이 정밀함을, 사람이 방향을 낸다.** 벽 법선은 yaw 를 90° 네 자리까지만
+        // 좁힌다 — 그 마지막 한 칸을 `↺↻` 로 미루지 않고 서 있는 쪽이 고른다.
+        yaw = face !== null ? snapQuadrant(wallYaw, face) : wallYaw;
+        say(`벽에 맞춤 — ${Math.round((yaw * 180) / Math.PI)}°`, 'ok');
+      } else if (face !== null) {
+        yaw = face;
+      }
       say(`놓음 — 겨냥 높이 ${(aimed.y * 1000).toFixed(0)}mm · `
         + `바닥 ${((floorY ?? aimed.y) * 1000).toFixed(0)}mm · 1:${(1 / scale).toFixed(1)}`, 'ok');
     }

@@ -24,6 +24,7 @@ import { openPage } from '../../.claude/skills/검증/references/cdp-harness.mjs
 import * as THREE from 'three';
 import {
   solveCorners, hudText, ghostWalls, classifyHit, yawFromWallNormal, readiness, GRACE_MS, fitLine,
+  snapQuadrant,
 } from '../../AR/src/features/place/place.js';
 import { createLayoutView } from '../../Shared/view3d/lab/layout-view.js';
 import { buildPreset } from '../../Shared/data/layout/presets.js';
@@ -138,6 +139,29 @@ const D = 3.25;
   check('법선을 뒤집으면 180° 반대가 나온다 (검사가 실제로 막는다)',
     Math.abs(Math.abs(a - b) - Math.PI) < 1e-9, `${a.toFixed(4)} vs ${b.toFixed(4)}`);
   check('벽이 아니면 각도를 지어내지 않는다 (null)', yawFromWallNormal({ x: 0, z: 0 }) === null);
+}
+
+// ── 90° 네 자리 중 하나를 사람이 서 있는 쪽이 고른다 (`↺↻` 를 안 누르게 하는 것)
+{
+  const q = Math.PI / 2;
+  let worstOff = 0;      // 벽이 준 정밀함을 얼마나 망가뜨리나 — 0 이어야 한다
+  let worstFace = 0;     // 사람 쪽에서 얼마나 벗어나나 — 45° 안이어야 한다
+  for (let a = -180; a <= 180; a += 7) {
+    for (let b = -180; b <= 180; b += 11) {
+      const yaw = (a * Math.PI) / 180;
+      const face = (b * Math.PI) / 180;
+      const got = snapQuadrant(yaw, face);
+      // ① 결과는 반드시 `yaw + k·90°` — 벽이 낸 각도가 훼손되면 정합이 깨진다
+      const k = (got - yaw) / q;
+      worstOff = Math.max(worstOff, Math.abs(k - Math.round(k)));
+      // ② 그중 사람을 가장 잘 마주 보는 것
+      const d = Math.abs(((got - face + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      worstFace = Math.max(worstFace, (d * 180) / Math.PI);
+    }
+  }
+  check('벽이 낸 각도를 90° 배수로만 돌린다 (정밀함을 안 깎는다)', worstOff < 1e-9);
+  check('네 자리 중 사람을 마주 보는 것을 고른다 (45° 안)', worstFace <= 45.001,
+    `최대 ${worstFace.toFixed(2)}°`);
 }
 
 // ── 훑기 — 짧은 기저에서 긴 기저의 정확도가 나오는가
