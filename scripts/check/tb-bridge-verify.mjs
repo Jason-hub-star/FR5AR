@@ -72,7 +72,9 @@ try {
     `fetch('/api/runs').then(r => r.json()).then(rs => rs[0]?.result === 'estop')`, { timeoutMs: 10000 });
   check('estop run 으로 마감됨 (프로세스 종료 → result 매핑)', !!finalized);
   await p.eval(clickByText('기록', 'nav button'));
-  await p.waitFor(`document.querySelectorAll('.runs-table tbody tr').length >= 1`);
+  // `tbody tr >= 1` 로 기다리면 **빈 상태 행("기록이 없어요")이 그 조건을 이미 만족**해
+  // 목록이 채워지기 전에 통과한다 — 그래서 다음 줄이 badge 를 못 찾았다 (2026-08-06).
+  await p.waitFor(`document.querySelectorAll('.runs-table tbody tr:not(.runs-empty)').length >= 1`);
   const rowInfo = await p.eval(`JSON.stringify({
     rows: document.querySelectorAll('.runs-table tbody tr').length,
     badge: document.querySelector('.runs-table tbody tr .badge')?.textContent,

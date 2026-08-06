@@ -41,6 +41,14 @@ def _slot_exited(robot, run_id, result):
 
 
 procs = ProcessRunner(logs.emit, _slot_exited)
+
+# 기동 한 줄을 버퍼에 남긴다. 없으면 갓 뜬 브리지의 로그 패널이 **빈 채로 열려**, 보는 사람이
+# "로그가 안 오나" 와 "아직 아무 일도 없었나" 를 못 가른다 (2026-08-06). 계약 §로그의
+# "새 접속에 백로그 먼저" 도 버퍼가 비면 줄 게 없다. adapter 종류를 여기 남기면 나중에
+# 기록을 되짚을 때 **그 세션이 mock 이었는지 실기였는지**가 로그만으로 판별된다 (SR_24).
+logs.emit("—", "bridge", "info",
+          f"tb-bridge 기동 · adapter={ADAPTER_KIND} · 로봇 {', '.join(ROBOT_IDS)}")
+
 app = FastAPI(title="tb-bridge")
 
 

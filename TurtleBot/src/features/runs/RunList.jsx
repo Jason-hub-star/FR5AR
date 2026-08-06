@@ -57,7 +57,9 @@ export function RunList() {
                 <td>{run.bagPath ? '▣' : '—'}</td>
               </tr>
             ))}
-            {shown.length === 0 && <tr><td colSpan="7" className="dim">기록이 없어요</td></tr>}
+            {/* 빈 상태도 `tbody tr` 이라 "행이 1개 이상" 으로는 데이터와 구별되지 않는다 —
+                자동 검증이 이걸 데이터로 세고 먼저 읽어 버렸다 (2026-08-06). 표식을 붙인다. */}
+            {shown.length === 0 && <tr className="runs-empty"><td colSpan="7" className="dim">기록이 없어요</td></tr>}
           </tbody>
         </table>
 
