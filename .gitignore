@@ -10,6 +10,12 @@ Shared/data/config/gripper-mount.json
 # 측정 원본이지 SSOT 가 아니다 — 결론만 docs/evidence/ 로 옮긴다
 .diag/
 
+# 영상 원본 — 리포가 붓는다. `scripts/dev/shot.sh --mov` 이 gif + 대표 프레임으로 구워
+# 그 산출물만 커밋한다 (gif 상한 2MB). 원본은 각자 로컬에 둔다
+docs/evidence/**/*.mov
+docs/evidence/**/*.mp4
+docs/evidence/**/*.webm
+
 # macOS
 .DS_Store
 

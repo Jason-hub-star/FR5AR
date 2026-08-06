@@ -61,7 +61,7 @@ Shared/data/datasource/    ← 함수 몇 개. 화면은 출처를 모른다
 FR5Web/
 ├── CLAUDE.md · AGENTS.md          진입 문서
 ├── docs/                          SSOT
-├── FR5/                           FR5 웹 펜던트 + 브리지 수직 배포 단위 (구조만 준비)
+├── FR5/                           FR5 웹 펜던트 + 브리지 수직 배포 단위 (우분투에서 실기 동작)
 │   ├── src/features/              조작 · 티칭 · 슬롯 · 경로 · 기록
 │   ├── src/data/datasource/       mock ↔ bridge ↔ Database 교체 경계
 │   └── bridge/robot_adapter/      FastAPI 경계 · mock/FAIRINO SDK 교체 경계
@@ -90,23 +90,23 @@ FR5Web/
 
 **규칙** — 새 최상위 폴더를 만들기 전에 이 문단을 먼저 고친다.
 폴더 경계와 파일 귀속은 `docs/ref/arch/BUILD-VITE.md`가 정본이다.
-현재 루트 `package.json`은 `Shared`·`AR`·`Dashboard`·`TurtleBot`을 **npm workspaces**로
-묶는다. `FR5`는 실행 패키지를 만들 때 추가한다. 문서성 골격 때문에 빈 패키지를 만들지 않는다.
+현재 루트 `package.json`은 `Shared`·`AR`·`Dashboard`·`TurtleBot`·`FR5` 다섯을
+**npm workspaces**로 묶는다. 빈 패키지는 만들지 않는다 — 실행 패키지가 생길 때 더한다.
 
 ### 이름은 접두사로 무엇인지 알린다
 
 | 폴더 | 무엇 | 지금 |
 |---|---|---|
 | `AR` | 폰 AR | **동작** |
-| `Dashboard` | 관제화면 | 미착수 |
-| `FR5` | 웹 티칭 펜던트 + 브리지 | 문서성 골격 |
+| `Dashboard` | 관제화면 | **동작 · 배포** (배치안 편집 · 시간축 재생) |
+| `FR5` | 웹 티칭 펜던트 + 브리지 | **동작 · 실기** (Live · Teach · Program) |
 | `Database` | 스키마·마이그레이션 | 미착수 |
 | `Vision` | 비전 인식 | 미착수 |
-| `TurtleBot` | 터틀봇 관제 — 웹 + 브리지 (`TB-CONTRACT.md`) | 계약 확정 (D29~D31) |
-| `Shared` | 공용 (소문자 — 화면이 아니다) | 골격 |
+| `TurtleBot` | 터틀봇 관제 — 웹 + 브리지 (`TB-CONTRACT.md`) | **동작 (mock)** · 실기는 로봇 전원 대기 |
+| `Shared` | 공용 (소문자 — 화면이 아니다) | **동작** (세 화면이 실제로 쓴다) |
 
 각 최상위 작업 폴더에는 `AGENTS.md`가 있다(D25). `FR5/`는 D36에서 루트 `Backend/`를
-대체했다. 지금은 그 자리에 무엇이 오고 **경계가 무엇인지**만 적은 문서성 골격이다.
+대체했고, 지금은 브리지가 우분투 systemd 로 돌며 **실기 조작을 받는다.**
 
 ## UI 통일 — codegate를 시각 정본으로, 토큰은 `Shared/tokens/` 한 곳
 
@@ -217,6 +217,7 @@ Vision  ──제안(proposal)──▶  FR5/bridge 안전 게이트  ──검�
 
 ## 아직 정하지 않은 것
 
-- 기록 저장소 — 파일 / SQLite / Supabase 중 미정. 지난 프로젝트 Supabase 스키마 재사용 가능
+- ~~기록 저장소~~ → **정해졌다 (D81)** — 로봇 옆 로컬 파일이 정본, 공유층은 **랩 안 상주 기계의
+  SQLite**. 클라우드는 "랩 밖에서 봐야 하는가" 가 참이 될 때 얹는다. 보존 기간은 아직 미정
 - ~~AMR 연계 지점~~ — 기종 확정(버거 ×2), 계약은 `TB-CONTRACT.md` 로 확정 (D29~D31)
 - **파이썬 SDK 가 macOS 에서 되는지** — `FR5/bridge/` 착수 시 첫 관문

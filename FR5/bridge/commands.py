@@ -128,6 +128,8 @@ class Commands:
         if reasons:
             return reasons
         diag = s.adapter.gripper_activate()
+        # 정체는 여기서만 온다 — 로그로 흘려보내면 궤적이 어느 그리퍼로 찍혔는지 못 남긴다 (D46·D81)
+        s.gripperConfig = diag
         time.sleep(0.5)                  # 원점을 잡는 물리 동작 — 비트가 서기까지 한 번만 본다
         after = (s.read_fresh_state() or {}).get("gripper") or {}
         self._log("gripper-activate", f"config={diag} → activeRaw={after.get('activeRaw')} "

@@ -15,15 +15,96 @@
     python3 scripts/map/capture.py tags --device http://192.168.0.9:8080/video   # 폰 IP캠
 
 SPACE 저장 · Q 종료. 창이 안 뜨면 터미널에 카메라 권한을 준 뒤 다시 실행한다.
+
+## `--auto` — 창 없이, 화면을 **구석까지** 채우게 시킨다 (2026-08-06)
+
+카메라가 벽에 붙어 있으면 창을 볼 사람이 그 앞에 없다. 그리고 손으로 SPACE 를 누르면
+**보드가 편한 자리(가운데)에만 모인다** — 실측: 20장이 화면 폭의 28% 안에서만 찍혔고,
+그 결과 fx 가 1351~2351 로 아예 안 정해졌다 (RMS 는 0.38 로 멀쩡했다).
+
+`--auto` 는 화면을 3x3 으로 나눠 **아직 안 찬 칸에 보드가 들어왔을 때만** 저장한다.
+사람은 보드를 들고 걸어 다니기만 하면 되고, 다 차면 스스로 멈춘다.
+
+    python3 scripts/map/capture.py charuco --auto \
+        --device http://192.168.30.10:8080/video --width 2560 --height 1440
 """
 import argparse
+import json
 import sys
+import time
 from pathlib import Path
 
 import cv2
+import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 SHOTS = ROOT / "calib-shots"      # .gitignore 대상 — 측정 원본이지 SSOT 가 아니다
+SPEC = ROOT / "Shared/assets/tag/tags.json"
+
+MIN_CORNERS = 12        # 이보다 적으면 자세가 안 풀린다 (intrinsics.py 와 같은 기준)
+CELLS = 3               # 화면을 3x3 으로 본다 — 구석 네 칸이 초점거리를 정하는 칸이다
+MOVE_MM_PX = 120        # 같은 칸 안에서도 이만큼은 움직여야 새 장으로 친다
+
+
+def load_detector():
+    """ChArUco 보드 규격은 `tags.json` 이 주인이다 (intrinsics.py 와 같은 것을 읽는다)."""
+    s = json.loads(SPEC.read_text(encoding="utf-8"))
+    c = s["charuco"]
+    dic = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, s["family"]))
+    board = cv2.aruco.CharucoBoard((c["cols"], c["rows"]), c["squareMm"], c["markerMm"], dic)
+    return cv2.aruco.CharucoDetector(board)
+
+
+def grid_map(counts, per_cell):
+    """3x3 진행 상황을 글자로 — 사람이 다음에 어디로 갈지 한눈에 본다."""
+    rows = []
+    for r in range(CELLS):
+        rows.append(" ".join(
+            ("■" if counts.get((r, c), 0) >= per_cell else
+             "▨" if counts.get((r, c), 0) else "□") for c in range(CELLS)))
+    return rows
+
+
+def auto_charuco(cap, out, kind, per_cell, size):
+    """빈 칸에 보드가 들어왔을 때만 저장한다. 다 차면 멈춘다."""
+    det = load_detector()
+    counts, last = {}, {}
+    n = len(list(out.glob("*.png")))
+    total = CELLS * CELLS * per_cell
+    print(f"칸마다 {per_cell} 장 · 목표 {total} 장. 보드를 들고 화면 구석까지 다녀라.\n"
+          "  ■ 다 참 · ▨ 모자람 · □ 빈 칸    (Ctrl-C 로 언제든 중단)")
+    while sum(min(v, per_cell) for v in counts.values()) < total:
+        # MJPEG 는 버퍼가 쌓여 몇 초 전 장면이 나온다 — 버리고 최신 프레임을 쓴다
+        for _ in range(4):
+            cap.grab()
+        ok, frame = cap.read()
+        if not ok:
+            print("프레임을 못 읽는다", file=sys.stderr)
+            return n
+        cc, ci, _, _ = det.detectBoard(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
+        if cc is None or len(cc) < MIN_CORNERS:
+            time.sleep(0.2)
+            continue
+        ctr = cc.reshape(-1, 2).mean(axis=0)
+        cell = (min(int(ctr[1] / size[1] * CELLS), CELLS - 1),
+                min(int(ctr[0] / size[0] * CELLS), CELLS - 1))
+        if counts.get(cell, 0) >= per_cell:
+            time.sleep(0.2)
+            continue
+        # 같은 자리에서 연사하면 장수만 늘고 정보는 안 는다
+        if cell in last and np.hypot(*(ctr - last[cell])) < MOVE_MM_PX:
+            time.sleep(0.2)
+            continue
+        n += 1
+        counts[cell] = counts.get(cell, 0) + 1
+        last[cell] = ctr
+        cv2.imwrite(str(out / f"{kind}-{n:03d}.png"), frame)   # 오버레이 없는 원본
+        print(f"  저장 {kind}-{n:03d}.png · 칸 {cell} · 코너 {len(cc)}")
+        for row in grid_map(counts, per_cell):
+            print(f"      {row}")
+        time.sleep(0.6)     # 사람이 다음 자리로 옮길 틈
+    print("다 찼다 — 이제 python3 scripts/map/intrinsics.py")
+    return n
 
 
 def main():
@@ -34,7 +115,13 @@ def main():
     ap.add_argument("--width", type=int, default=1920)
     ap.add_argument("--height", type=int, default=1080)
     ap.add_argument("--shots", type=int, default=20, help="이 장수를 채우면 알려준다")
+    ap.add_argument("--auto", action="store_true",
+                    help="창 없이 3x3 빈 칸을 채운다 (charuco 전용 · 위 §--auto)")
+    ap.add_argument("--per-cell", type=int, default=2, help="--auto 에서 칸마다 몇 장")
     a = ap.parse_args()
+    if a.auto and a.kind != "charuco":
+        print("--auto 는 charuco 전용이다 — tags 는 한 장이면 되므로 그냥 찍어라", file=sys.stderr)
+        return 2
 
     dev = int(a.device) if a.device.isdigit() else a.device
     cap = cv2.VideoCapture(dev)
@@ -59,6 +146,15 @@ def main():
     out = SHOTS / a.kind
     out.mkdir(parents=True, exist_ok=True)
     n = len(list(out.glob("*.png")))
+    if a.auto:
+        try:
+            n = auto_charuco(cap, out, a.kind, a.per_cell, got)
+        except KeyboardInterrupt:
+            print("\n중단 — 찍은 것은 남는다")
+            n = len(list(out.glob("*.png")))
+        cap.release()
+        print(f"총 {n} 장 · {out.relative_to(ROOT)}/")
+        return 0
     print(f"{out.relative_to(ROOT)}/ 에 이미 {n} 장 — SPACE 저장, Q 종료")
 
     while True:

@@ -92,6 +92,10 @@ if [ -d docs/evidence ]; then
       printf '%s' "$b" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' \
         && { note "$b/ ($(find "$f" -type f | wc -l | tr -d ' ')건)"; n=$((n+1)); } \
         || bad "날짜 폴더가 아님: evidence/$b  → YYYY-MM-DD"
+    elif [ "$b" = "ALBUM.md" ]; then
+      # 유일한 예외 — 날짜 폴더 전체의 색인이라 어느 한 날짜에 들어갈 수 없다.
+      # 생성물이다 (scripts/build/album.mjs). 손으로 만든 파일이면 여기 있으면 안 된다
+      note "ALBUM.md (생성물 · 날짜 폴더 색인)"
     else
       bad "evidence/ 루트에 파일: $b  → evidence/<YYYY-MM-DD>/<주제> 로 (날짜는 파일명에서 뺀다)"
     fi

@@ -16,15 +16,21 @@ scripts/
 │   ├── consts.sh                 기준값 표 ↔ 실제 상수 대조 (드리프트)
 │   ├── docs-weight.sh            문서 무게 — 쌓이는 것만 재서 임계 초과 시 알린다
 │   ├── fr5-unit.sh               FR5 브리지 단위 테스트 (safety.py 순수 함수 · unittest)
+│   ├── fr5-render.sh             FR5 실렌더 159건 — 아래 `.mjs` 둘을 자동 게이트로 잠근다
+│   ├── fr5-bridge-verify.mjs     브리지 왕복 93건 — 안전·조종권·작업영역·모드 (브라우저 없음)
+│   ├── fr5-web-verify.mjs        Live·Teach·Program 실렌더 66건 (브리지 + vite + Chrome)
 │   ├── motion.sh                 자세 — 이름 정합 · NaN · j1 각속도 상한 · 화면에 안 박혔나
 │   ├── scenario.sh               시나리오 — 왕복 · 사건 칸(좌표·관절 금지) · 프리셋 재생
 │   ├── xr-place.sh               겹치기 놓기 계산 — 두 모서리·히트 분류·벽 법선·훑기·준비도 (1초)
 │   ├── xr-web-verify.mjs         WebXR 화면 — ①놓기 계산 ②`화면` 모드 실렌더. `--pure` 면 ①만
 │   └── cam-web-verify.mjs        글로벌 카메라 겹치기 실렌더 — 사진 재검출 ↔ 투영 픽셀 대조
 ├── build/                      설정·산출물 생성
-│   └── config.mjs                .env → Shared/data/config/*.json (검증 포함)
+│   ├── config.mjs                .env → Shared/data/config/*.json (검증 포함)
+│   ├── album.mjs                 evidence 사진 전부 → docs/evidence/ALBUM.md (발표에서 고르는 자리)
+│   └── deck.py                   발표 md → 편집 가능한 .pptx (pandoc + 우리 디자인 토큰)
 ├── dev/                        개발 중 사람이 손으로 부른다
 │   ├── serve.sh                  Vite dev 서버 (ar | dash)
+│   ├── shot.sh                   화면·폰사진·영상 → 오늘 날짜 폴더 + 캡션 (발표 기록물 투입구)
 │   └── rotate-decisions.mjs      DECISION-LOG-CURRENT 초과분을 본문으로 이관 (`--write` 로 실행)
 ├── assets/                     자산 복사·변환
 │   ├── sync-from-unity.sh        유니티에서 URDF·메시 가져오기
@@ -81,6 +87,23 @@ map/capture.py tags     →  map/extrinsics.py     →  위치  (카메라를 �
 **폴더는 첫 파일이 생길 때 만든다.** 빈 폴더를 미리 파두지 않는다.
 어디에도 안 맞으면 카테고리를 새로 만들고 이 표에 한 줄 추가한다 — 루트에 두지 않는다.
 
+## 개발 기록물 — 찍는 순간에 캡션을 받는다
+
+```
+dev/shot.sh <슬러그> "<캡션>"   →  docs/evidence/<오늘>/ 에 파일 + 같은 폴더 SHOTS.md 에 캡션
+build/album.mjs                 →  docs/evidence/ALBUM.md (전 날짜 · 캡션 · 크기 한 장에)
+```
+
+`shot.sh` 는 소스 셋을 받는다 — 인자 없으면 **화면 영역 캡처**, `--from <파일>` 은 폰 사진
+(HEIC 는 jpg 로 굽는다), `--mov <파일>` 은 영상 → gif(2MB 상한) + 대표 프레임 png.
+
+**캡션을 나중에 받으면 못 받는다.** 실측(2026-08-06)으로 사진 42장 중 마크다운 이미지 문법에
+캡션이 붙은 건 9장뿐이었고 나머지는 산문에 흩어져 있었다 — `album.mjs` 가 문장에서 28장을 건져
+88%까지 올리지만, 건진 문장은 캡션으로 어색하다. 그래서 `SHOTS.md` 가 캡션의 단일 출처다.
+**앨범은 생성물이다.** 캡션을 고치려면 그 날 폴더의 `SHOTS.md` 를 고치고 다시 굽는다.
+
+영상 원본(`.mov`/`.mp4`/`.webm`)은 `.gitignore` 에 있다 — 커밋되는 건 gif 와 png 뿐이다.
+
 ## 규칙 4개
 
 1. **`check/`는 실패 시 반드시 exit 1.** 출력만 하고 0을 내면 게이트가 아니라 소음이다.
@@ -123,7 +146,8 @@ node scripts/build/config.mjs --check  # 쓰지 않고 대조만 (게이트가 �
 | `check/harness.sh` | `WANT_COMMANDS` `WANT_SKILLS` | 0 / 17 | 스킬을 더 만들거나 합칠 때 |
 | `check/assets.sh` | `WANT_ARM_TRIS` `WANT_GRIP_TRIS` | 58482 / 70102 | 유니티 원본 모델이 바뀔 때 |
 | `check/docs.sh` | `REQUIRED` 배열 | 15개 | SSOT 문서를 추가·삭제할 때 |
-| `check/fr5-unit.sh` | 상수 없음 — 테스트가 스스로 기준 | 29 케이스 | `safety.py` 조건을 더하면 테스트도 더한다 |
+| `check/fr5-unit.sh` | 상수 없음 — 테스트가 스스로 기준 | **141 케이스** (2026-08-06 실측 — 표가 29 로 낡아 있었다) | `safety.py` 조건을 더하면 테스트도 더한다 |
+| `check/fr5-render.sh` | 상수 없음 — `.mjs` 두 개가 스스로 기준 | 93 + 66 = **159 건** · 42초 | FR5 화면·브리지를 고칠 때. **자기 포트(5155·5157·5176)에 자기 브리지를 띄우고 `FR5_DATA_DIR` 를 임시 폴더로 돌린다 — 실기·`~/fr5-data/` 안 건드린다** |
 | `check/motion.sh` | 상수 없음 — `Shared/data/motion/presets.js`·`limits.js` 가 기준 | 자세 10개 · 관절 한계 6쌍(URDF 대조) | 자세를 더하거나 URDF 가 바뀔 때 |
 | `check/scenario.sh` | 상수 없음 — `Shared/data/scenario/presets.js` 가 기준 | 사건 13개 · 49초 · 거부 10종 | 시나리오 프리셋을 더하거나 사건 칸을 늘릴 때 |
 | `assets/make-marker-sheet.py` | `SHEETS` · `QUIET_RATIO_MIN` | A4 170/14mm · A3 240/20mm · 하한 6% | 마커 크기·용지를 바꿀 때 |

@@ -182,7 +182,7 @@
 | 로봇 실주행 (bringup·teleop·SLAM) | 터틀봇 실주행 전부 | **BLOCKED** | WiFi 는 교체됐다(30 대역). **2026-08-06 실측 — 도메인 0·1·2·30 전부 토픽 0개**(`/rosout`·`/parameter_events` 뿐)라 로봇이 여전히 안 켜져 있다. 켜면 `config.yaml` 의 `ros_domain_id: 2/1` 을 실기와 대조한다(스택가드 미통과 값) |
 | 실물 그리퍼·tool/user·페이로드·충돌 형상 미보정 | V3·V5·V6 | BLOCKED | 현장 값 확정 전 시뮬레이션 후보를 “최적” 또는 실기 승인으로 승격하지 않는다 |
 | 폰 HTTPS 접속 방식 미결정 (mkcert vs 터널) | V3 | BLOCKED | 개발 환경과 시연 환경에서 접속 방법 확정 |
-| 기록 저장소 미정 (파일/SQLite/Supabase) | F6, V4 | BLOCKED | 저장 방식과 보존 기간 팀 회의에서 확정 |
+| 기록 저장소 미정 (파일/SQLite/Supabase) | F6, V4 | **CLOSED (2026-08-06)** | **D81** — 로컬 파일이 정본, 공유층은 랩 안 SQLite. 클라우드는 랩 밖 열람 요구가 생길 때. **보존 기간은 별개로 아직 미정**(팀 회의) |
 | v3 기능이 실제 동작하는지 미검증 — 이름만 확인. V3 씬은 빌드에 없음 | F1·F3 | OPEN | 옮길 기능마다 원본 C# 직접 읽기. 안전 로직 우선 (`docs/evidence/2026-07-29/v3-feature-survey-limits.md`) |
 | SDK 상태 패킷이 안전조건을 주는지 | V0 전체 | **CLOSED (2026-07-29)** | 킬-실험 통과 — 4개 값 전부 확인. `docs/ref/contract/SAFETY-RULES.md` |
 | 비상정지 신호의 SDK 필드명 | 안전 전체 | **CLOSED (2026-07-30)** | `EmergencyStop` 외 9개 확인. `docs/evidence/2026-07-30/sdk-state-fields.md` |

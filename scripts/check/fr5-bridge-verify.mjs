@@ -28,10 +28,17 @@ const del = async (path, body) => {
 
 // 지점·궤적은 파일에 남는다 — **사람의 진짜 ~/fr5-data 에 쓰지 않는다** (env 로 갈아 끼운다)
 const DATA = mkdtempSync(join(tmpdir(), 'fr5-verify-'));
+// **자식의 자식까지 죽인다.** `uv run` 은 SIGTERM 을 uvicorn 에 안 넘겨서, `.kill()` 만
+// 하면 파이썬이 포트를 쥔 채 살아남는다 — 다음 실행이 5155 를 못 잡고 **첫 검사부터**
+// 무더기로 빨개진다. 손으로 한 번씩 돌릴 때는 안 보였고, `all.sh` 에 넣어 연달아 돌리자
+// 바로 나왔다 (2026-08-06). `detached` 로 프로세스 그룹을 따로 만들어 그룹째 죽인다.
+const killTree = (c) => { try { process.kill(-c.pid, 'SIGKILL'); } catch { try { c.kill('SIGKILL'); } catch {} } };
 const bridge = spawn('uv', ['run', '--with', 'fastapi', '--with', 'uvicorn[standard]', '--with', 'pyyaml',
   'uvicorn', 'main:app', '--port', String(PORT)],
-  { cwd: join(ROOT, 'FR5/bridge'), stdio: ['ignore', 'pipe', 'pipe'],
+  { cwd: join(ROOT, 'FR5/bridge'), stdio: ['ignore', 'pipe', 'pipe'], detached: true,
     env: { ...process.env, FR5_DATA_DIR: DATA } });
+// 중간에 죽어도(예외·Ctrl-C) 고아를 남기지 않는다
+process.on('exit', () => killTree(bridge));
 let bridgeLog = '';
 bridge.stdout.on('data', d => { bridgeLog += d; });
 bridge.stderr.on('data', d => { bridgeLog += d; });
@@ -130,6 +137,17 @@ try {
   });
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const getState = async () => (await api('/state')).json;
+  // **고정 sleep 은 "왔겠지" 다.** 기계가 바쁘면 안 왔고, 그러면 그 뒤 검사가 줄줄이
+  // 빨개져 원인이 어디인지 안 보인다 — `all.sh` 에 넣은 2026-08-06 에 재현됐다
+  // (혼자 돌리면 3/3 초록, `all.sh` 안에서는 모드 전환 넷이 한꺼번에 실패).
+  // 조건이 오면 즉시 지나가고, 안 오면 제한 시간까지 기다린 뒤 그대로 실패한다.
+  const until = async (fn, timeoutMs = 4000) => {
+    for (const t0 = Date.now(); ;) {
+      if (await fn()) return true;
+      if (Date.now() - t0 > timeoutMs) return false;
+      await sleep(50);
+    }
+  };
 
   await api('/connect', { robotId: 'fr5-mock-a' });
   const lee = await wsClient('lee');
@@ -407,28 +425,28 @@ try {
   // 드래그 티칭은 서보가 켜져 있어야 되므로 **ARMED 인 채로** 넘길 수 있어야 한다.
   kim.refusals.length = 0;
   kim.send({ cmd: 'mode', manual: true });
-  await sleep(300);
+  await until(async () => (await getState()).mode === 1);
   const manualOn = await getState();
   check('ARMED 인 채로 수동 전환 → mode 1 · 서보는 켜진 채 (드래그 전제)',
     manualOn.mode === 1 && manualOn.enabled === true);
 
   kim.send({ cmd: 'jog', joint: 0, deltaDeg: 1 });
-  await sleep(200);
+  await until(() => kim.refusals.some((r) => r.includes('auto 모드가 아니다')));
   check('수동 모드에서 조그는 거부된다 — 하드 룰 4 를 지키는 것은 이 게이트다',
     kim.refusals.some((r) => r.includes('auto 모드가 아니다')));
 
   kim.refusals.length = 0;
   kim.send({ cmd: 'mode', manual: 'yes' });
-  await sleep(200);
+  await until(() => kim.refusals.some((r) => r.includes('true/false')));
   check('manual 이 불리언이 아니면 거부', kim.refusals.some((r) => r.includes('true/false')));
 
   kim.send({ cmd: 'mode', manual: false });
-  await sleep(300);
+  await until(async () => (await getState()).mode === 0);
   check('자동으로 되돌아온다', (await getState()).mode === 0);
 
   lee.refusals.length = 0;
   lee.send({ cmd: 'mode', manual: true });
-  await sleep(200);
+  await until(() => lee.refusals.some((r) => r.includes('조종권')));
   check('조종권 없는 사람의 모드 전환 거부',
     lee.refusals.some((r) => r.includes('조종권')));
 
@@ -436,7 +454,7 @@ try {
   check('옛 토큰으로는 반납도 안 된다',
     (await api('/owner/release', { who: 'kim', token: T })).status === 409);
   await api('/owner/release', { who: 'kim', token: T2 });
-  await sleep(200);
+  await until(async () => (await getState()).enabled === false);
   const released = await getState();
   check('owner release → 자동 disarm (서보 OFF · OBSERVE_ONLY)',
     released.enabled === false && released.phase === 'OBSERVE_ONLY');
@@ -446,7 +464,7 @@ try {
 } catch (e) {
   check('실행 자체', false, String(e.message || e));
 } finally {
-  bridge.kill();
+  killTree(bridge);
   rmSync(DATA, { recursive: true, force: true });
 }
 

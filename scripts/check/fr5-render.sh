@@ -19,6 +19,22 @@ for tool in node npm uv; do
   command -v "$tool" >/dev/null || { echo "  $tool 이 없다 — FR5 실렌더 게이트를 돌릴 수 없다"; exit 1; }
 done
 
+# 게이트 전용 포트를 **남이 쥐고 있으면 멈춘다** (2026-08-06).
+# `.mjs` 는 자기 브리지를 띄운 뒤 `/robots` 가 200 이면 "떴다" 로 본다 — 그런데 남의 브리지도
+# 200 을 준다. 앞선 실행이 남긴 고아가 포트를 쥐고 있으면 **이미 로봇에 연결된 화면**에
+# 붙어서, "아직 연결 안 됨" 을 전제한 검사들이 화면 탓처럼 깨진다 (실측: 66건 중 2건).
+# 개발용 5055 와 겹치지 않는 전용 포트라, 여기 살아 있는 것은 고아뿐이다.
+BUSY=""
+for port in 5155 5157 5176; do
+  lsof -ti tcp:"$port" >/dev/null 2>&1 && BUSY="$BUSY $port"
+done
+if [ -n "$BUSY" ]; then
+  echo "  게이트 전용 포트를 이미 누가 쓴다:$BUSY"
+  echo "  앞선 실행의 고아다 — 정리하고 다시 돌린다:"
+  echo "    for p in 5155 5157 5176; do lsof -ti tcp:\$p | xargs -r kill -9; done"
+  exit 1
+fi
+
 FAIL=0
 run() {          # $1 표시 이름 · $2 스크립트 · $3 기대 건수
   local out

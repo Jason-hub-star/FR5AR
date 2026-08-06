@@ -56,6 +56,9 @@ class RobotSession:
         self.badReads = 0
         self.appliedSettings = None
         self.workspace = None
+        # 그리퍼 정체 — 활성화 때 읽은 **원본**. 소급해 못 채우는 값이라 궤적 stamp 에 싣는다
+        # (D46·D81). 해석은 안 한다 — 계약 §궤적 녹화 참조
+        self.gripperConfig = None
         # 드리프트 기준 — **우리가 마지막으로 보낸 MoveJ 목표** (계약 §드리프트 기준).
         # None 이면 검사하지 않는다. 컨트롤러의 lastServoTarget 을 쓰지 않는 이유는 계약에.
         self.lastCommandedDeg = None
@@ -76,6 +79,8 @@ class RobotSession:
         self.lastStateAt = now
         self.badReads = 0
         self.lastCommandedDeg = None
+        # 로봇이 바뀌면 그리퍼도 바뀐다 — 이전 연결의 정체를 물려주지 않는다
+        self.gripperConfig = None
 
     # ── 상태 ────────────────────────────────────────────────────────────────
     def current_phase(self, owner_who):
@@ -139,7 +144,8 @@ class RobotSession:
                 "firmware": v.get("controller"),
                 "speedCapPct": safety.SPEED_CAP_PCT,
                 "gripperForcePct": gripper_force_pct,
-                "workspaceRev": ws.get("rev") or ("측정됨" if ws else None)}
+                "workspaceRev": ws.get("rev") or ("측정됨" if ws else None),
+                "gripperConfig": self.gripperConfig}
 
     def snapshot(self, owner_who):
         """미연결에도 같은 스키마 — 클라이언트가 빈 응답을 따로 처리하지 않는다 (D40)."""

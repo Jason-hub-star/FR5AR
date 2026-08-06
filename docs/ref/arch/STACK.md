@@ -222,7 +222,7 @@ def preview_path(q_from, q_to, steps=100):
 |---|---|---|
 | `react` · `react-dom` | **19.2.8** | 배치안 편집 + 지표 비교는 화면이 복잡해지는 시점이다 (D17) |
 | `@vitejs/plugin-react` | **5.2.0** | Vite React 플러그인 |
-| `vite` | 8.1.5 | AR 과 같은 버전. workspaces 로 묶여 있다 |
+| `vite` | **8.2.0** | AR 과 같은 버전. workspaces 로 묶여 있다 |
 | `three` | 0.185.1 | 배치안 3D. **R3F 는 쓰지 않는다** — `Shared/view3d/` 를 ref 로 마운트 (D17) |
 
 **안 넣은 것** — 상태관리 · 라우터 · 차트 · UI 프레임워크.

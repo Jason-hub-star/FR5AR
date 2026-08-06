@@ -357,12 +357,16 @@ GET  /trajectories                                       → 목록 (누구나)
   "dropped": 0,                     // 결손 프레임 수
   "stamp": { "robotId": "fr5-lab-a", "toolId": 1, "userId": 1,
              "firmware": "…", "speedCapPct": 10, "gripperForcePct": 30,
-             "workspaceRev": "2026-08-05" },
+             "workspaceRev": "2026-08-05",
+             "gripperConfig": { "config": [0, [1, 4, 0, 0]] } },   // 활성화 때 읽은 **원본**. 활성화 전이면 null
   "frames": [{ "tSec": 0.0, "jointsDeg": [...], "tcpMmDeg": [...], "gripperPct": 62 }] }
 ```
 
 - **`stamp` 는 잰 조건이다** — 이게 없으면 속도 상한 10% 로 잰 것과 30% 로 잰 것을 나란히
   놓게 되고 "A 가 B 보다 몇 % 빠르다" 가 거짓말이 된다 (D74)
+- **`gripperConfig` 는 해석하지 않고 원본을 싣는다** — `GetGripperConfig` 는 `company`·`device`
+  에 +1 보정이 섞여 있고 우리 실측(`4·0`)과 유니티 기록(`2·4`)이 갈렸다. 파싱해서 저장하면
+  그 해석이 틀렸을 때 원본이 남지 않는다. 소급해 못 채우는 값이라 그대로 남긴다 (D46·D81)
 - **`measure` 인데 `stamp` 가 다르거나 `dropped > 0` 이거나 `endReason != done` 이면
   비교에서 제외**하고 화면이 그 이유를 말한다. 조용히 빼면 표가 왜 비었는지 모른다
 - 최대 지속·최대 프레임에 **상한**을 둔다. 무한 기록은 디스크와 메모리 둘 다 먹는다

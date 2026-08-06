@@ -131,4 +131,4 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 
 - INDEX.md에 등재된 문서 행 개수 = 60/60
 - PROJECT-STATUS.md의 "다음 한 걸음" 항목 개수 = 5/5
-- PROJECT-STATUS.md의 "블로커" 항목 개수 = 3/3
+- PROJECT-STATUS.md의 "블로커" 항목 개수 = 4/4 (**세는 단위는 불릿 행** — 해소된 2건의 취소선 행 포함)
