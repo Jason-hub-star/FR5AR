@@ -212,6 +212,20 @@ try {
   // 거짓 실패한다 (첫 판이 그랬다). 화면이 다 선 시점은 `화면 모드 시작` 로그다.
   const canvasFirst = await p.waitFor("document.getElementById('walk') ? 1 : 0", { timeoutMs: 30000 });
   check('`화면` 모드가 캔버스를 띄운다', canvasFirst === 1);
+  // **팔보다 방이 먼저 떠야 한다.** 렌더 루프를 팔 받기 뒤에 등록했더니 6MB×3 을 받는
+  // 내내 검은 화면이었다 (2026-08-06 `/감사`). 캔버스가 뜬 직후 이미 그려지고 있어야 한다.
+  const early = await p.eval(`(async () => {
+    const c = document.getElementById('walk');
+    const g = c.getContext('webgl2') || c.getContext('webgl');
+    const px = new Uint8Array(4);
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    g.readPixels(Math.floor(c.width / 2), Math.floor(c.height / 2), 1, 1, g.RGBA, g.UNSIGNED_BYTE, px);
+    return { lit: px[0] + px[1] + px[2], arms: [...document.querySelectorAll('#log div')]
+      .filter((d) => /팔 \d 준비/.test(d.textContent)).length };
+  })()`);
+  check('팔을 받기 전에 이미 방을 그린다 (검은 화면 회귀 방지)', early.lit > 30,
+    `가운데 픽셀 합 ${early.lit} · 그 시점 팔 ${early.arms}대`);
+
   const up = await p.waitFor(
     "[...document.querySelectorAll('#log div')].some((d) => /화면 모드 시작/.test(d.textContent)) ? 1 : 0",
     { timeoutMs: 60000 });

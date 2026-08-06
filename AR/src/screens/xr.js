@@ -122,6 +122,14 @@ function sync() {
 // 그 기능을 처음 쓴다 (대시보드만 쓰고 있었다). 팔 URDF 는 안 받는다 — 대당 6MB 이고
 // 미리보기에 필요한 건 "무슨 방이고 뭐가 어디 있나" 지 로봇의 생김새가 아니다.
 let preview = null;
+// **시트가 덮는 비율.** 매 프레임 `getBoundingClientRect` 를 부르면 레이아웃이 강제로
+// 다시 계산된다 — 렌더 루프 안에서 이건 폰에서 비싸다. 바뀔 때만 다시 잰다.
+let seenFrac = 0.6;
+const measureSheet = () => {
+  seenFrac = Math.max(0.35, 1 - $('sheet').getBoundingClientRect().height / innerHeight);
+};
+new ResizeObserver(measureSheet).observe($('sheet'));
+
 function showPreview() {
   preview?.dispose();
   preview = null;
@@ -135,7 +143,7 @@ function showPreview() {
     a += 0.0016;                                   // 한 바퀴 ≈ 65초. 읽는 걸 방해하지 않는 속도
     // **시트가 아래를 덮는다.** 화면 한가운데에 맞추면 맵의 절반이 시트 밑으로 들어간다
     // (첫 실렌더가 그랬다). 안 가려지는 세로 비율만큼 좁혀 맞추고, 그만큼 위로 올린다.
-    const seen = Math.max(0.35, 1 - $('sheet').getBoundingClientRect().height / innerHeight);
+    const seen = seenFrac;
     const tv = Math.tan((stage.camera.fov * Math.PI) / 360);
     const d = (sph.radius / Math.min(tv * seen, tv * stage.camera.aspect)) * 1.05;
     stage.camera.position.set(
@@ -414,13 +422,10 @@ async function startAR(layout) {
   };
   apply();
 
-  const arms = await mountArms(view);
-  if (ended) return;                        // 팔 받는 사이에 나갔다 — 아래는 죽은 세션이다
-  // 팔이 안 움직이므로 그림자맵을 매 프레임 다시 그릴 이유가 없다 — 폰에서 이게 크다.
-  // 바뀔 때는 `apply()` 가, 앵커가 보정될 때는 렌더 루프가 `needsUpdate` 를 켠다.
-  renderer.shadowMap.autoUpdate = false;
-  renderer.shadowMap.needsUpdate = true;
-
+  // **팔보다 방을 먼저 띄운다.** 아래 렌더 루프를 팔 받기 뒤에 등록했더니 6MB×3 을 받는
+  // 내내 **검은 화면에 안내 한 줄**만 있었다 (실렌더가 잡았다 · 2026-08-06 `/감사`).
+  // 히트테스트도 싸니 먼저 연다 — 그래야 받는 동안에도 조준 링이 산다.
+  let arms = [];
   const hitSpace = await session.requestReferenceSpace('viewer');
   hits = await session.requestHitTestSource({ space: hitSpace });
   let aimed = null;
@@ -533,7 +538,7 @@ async function startAR(layout) {
   renderer.setAnimationLoop((t, frame) => {
     if (frame) {
       const ref = renderer.xr.getReferenceSpace();
-      const r = frame.getHitTestResults(hits);
+      const r = hits ? frame.getHitTestResults(hits) : [];
       if (r.length) {
         // **가장 낮은 면을 고른다** — 첫 결과는 카메라에 가까운 책상일 수 있다 (실측).
         let best = null;
@@ -599,6 +604,14 @@ async function startAR(layout) {
     }
     renderer.render(scene, camera);
   });
+
+  arms = await mountArms(view);
+  if (ended) return;                        // 팔 받는 사이에 나갔다 — 아래는 죽은 세션이다
+  tell(found ? HINT[mode].first : '바닥을 훑어 평면을 찾는 중…');
+  // 팔이 안 움직이므로 그림자맵을 매 프레임 다시 그릴 이유가 없다 — 폰에서 이게 크다.
+  // 바뀔 때는 `apply()` 가, 앵커가 보정될 때는 렌더 루프가 `needsUpdate` 를 켠다.
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
 }
 
 // ── 화면 — AR 없이 방 안에 서서 둘러본다 ────────────────────────────────────
@@ -640,10 +653,7 @@ async function startWalk(layout) {
   let yaw = 0;
   let pitch = -0.05;
 
-  const arms = await mountArms(view);
-  renderer.shadowMap.autoUpdate = false;
-  renderer.shadowMap.needsUpdate = true;
-
+  let arms = [];
   // 끌면 둘러보고, **끌지 않은 탭은 그 바닥으로 간다.** 조이스틱을 안 만드는 이유는
   // 이 모드의 용도가 "맵을 눈으로 확인" 이지 이동 자체가 아니기 때문이다.
   const ray = new THREE.Raycaster();
@@ -689,7 +699,6 @@ async function startWalk(layout) {
   $('hud').hidden = false;
   $('fps').hidden = false;
   $('hud').textContent = `화면 · ${W.toFixed(2)}×${D.toFixed(2)}m · 눈높이 ${EYE_M}m`;
-  tell('끌어서 둘러본다 · 바닥을 탭하면 그리로 간다');
   for (const id of ['zoomIn', 'zoomOut', 'rotL', 'rotR', 'again']) $(id).hidden = true;
   $('exit').hidden = false;
   $('bar').hidden = false;
@@ -710,8 +719,8 @@ async function startWalk(layout) {
 
   let frames = 0;
   let fpsAt = performance.now();
-  say(`화면 모드 시작 — ${W.toFixed(2)}×${D.toFixed(2)}m · 팔 ${arms.length}대`, 'ok');
 
+  // **방을 먼저 띄우고 팔을 받는다** (AR 쪽과 같은 이유 — 검은 화면 3초가 나온다).
   renderer.setAnimationLoop((t) => {
     camera.position.copy(pos);
     camera.rotation.set(pitch, yaw, 0, 'YXZ');
@@ -722,6 +731,12 @@ async function startWalk(layout) {
     }
     renderer.render(scene, camera);
   });
+
+  arms = await mountArms(view);
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
+  tell('끌어서 둘러본다 · 바닥을 탭하면 그리로 간다');
+  say(`화면 모드 시작 — ${W.toFixed(2)}×${D.toFixed(2)}m · 팔 ${arms.length}대`, 'ok');
 }
 
 // ── 기동. 지원 확인이 끝나야 칩·버튼 상태가 정해진다.
