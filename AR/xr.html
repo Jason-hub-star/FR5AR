@@ -3,37 +3,39 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>WebXR — 배치안을 바닥에 얹는다</title>
+  <title>맵을 실제 바닥에 얹는다</title>
   <link rel="stylesheet" href="/src/screens/xr.css">
 </head>
 <body>
-  <div id="panel">
-    <h2>배치안을 바닥에 얹는다</h2>
-    <p id="sup">확인 중…</p>
-    <label>배치안 <select id="preset"></select></label>
-    <!-- **두 모드는 배율 숫자 하나만 다르다.** 렌더 경로를 가르면 평소 테스트가
-         촬영본을 검증해 주지 못하고, 정작 촬영 날 갈라진 쪽이 깨진다 (D17 의 실패 모양). -->
-    <label>모드
-      <select id="mode">
-        <option value="fit">평소 — 2.5m 로 줄여서 (아무 바닥)</option>
-        <option value="real">촬영 — 실물 1:1 (맵 두 모서리 탭)</option>
-      </select>
-    </label>
-    <!-- **팔은 단계적으로 켠다.** 삼각형 128,808 × 2 의 폰 성능이 미측정이라
-         (GAP-MATRIX) 0 → 1 → 2 로 올리며 fps 를 본다. 6MB 다운로드도 팔마다 붙는다. -->
-    <label>FR5 팔
-      <select id="arms">
-        <option value="0">0대 (빠름)</option>
-        <option value="1">1대</option>
-        <option value="2">2대</option>
-      </select>
-    </label>
-    <label><input id="anim" type="checkbox"> 애니메이션 (팔마다 다른 동작)</label>
-    <div>
-      <button id="go" type="button" disabled>AR 시작</button>
-      <button id="copy" type="button">결과 복사</button>
+  <!-- **고를 것이 둘뿐이다** — 무엇을 할까(모드)와 어느 맵인가. 팔 대수·애니메이션은
+       사람이 고를 값이 아니라 맵이 정한다(`cell` FR5 3대 · `empty` 1대). 골라서 얻는 게
+       없는 선택지는 화면에서 뺀다. -->
+  <div id="app">
+    <!-- 배경은 **진짜 3D 다.** 고른 맵이 천천히 돌아 "무엇을 얹게 되는지" 를 먼저 보여준다.
+         `layout-view.js` 의 `updateCutaway` 가 카메라 쪽 벽을 숨겨 안이 보인다 — 이 화면이
+         그 기능을 처음 쓴다. -->
+    <div id="preview"></div>
+
+    <div id="topbar">
+      <span id="dot" aria-hidden="true"></span>
+      <p id="sup">확인 중…</p>
     </div>
-    <div id="log"></div>
+
+    <!-- 조작은 전부 아래에 모은다 — 폰을 고쳐 잡지 않고 엄지로 닿는다. -->
+    <div id="sheet">
+      <div id="grab" aria-hidden="true"></div>
+      <div id="chips" role="group" aria-label="모드"></div>
+      <p id="blurb"></p>
+      <label class="field" for="preset">맵
+        <select id="preset"></select>
+      </label>
+      <button id="go" type="button" disabled>AR 시작</button>
+      <div id="more">
+        <button id="logBtn" type="button" aria-expanded="false" aria-controls="log">기록 보기</button>
+        <button id="copy" type="button">결과 복사</button>
+      </div>
+      <div id="log" hidden></div>
+    </div>
   </div>
 
   <!-- **오버레이 루트는 화면을 덮으면 안 된다.** 덮으면 탭을 DOM 이 먹어 XR `select` 가
@@ -43,13 +45,15 @@
   <div id="ov">
     <div id="hud"></div>
     <div id="fps"></div>
+    <div id="steps" hidden><span class="step"></span><span class="step"></span></div>
     <div id="hint"></div>
     <div id="bar" hidden>
-      <button id="zoomOut" type="button">축소</button>
-      <button id="zoomIn" type="button">확대</button>
-      <button id="rotL" type="button">↺</button>
-      <button id="rotR" type="button">↻</button>
-      <button id="again" type="button">다시 놓기</button>
+      <button id="zoomOut" type="button" aria-label="줄이기">축소</button>
+      <button id="zoomIn" type="button" aria-label="키우기">확대</button>
+      <button id="rotL" type="button" aria-label="왼쪽으로 15도 돌리기">↺</button>
+      <button id="rotR" type="button" aria-label="오른쪽으로 15도 돌리기">↻</button>
+      <button id="again" type="button" aria-label="처음부터 다시 놓기">다시 놓기</button>
+      <button id="exit" type="button" hidden aria-label="화면 모드 나가기">나가기</button>
     </div>
   </div>
 

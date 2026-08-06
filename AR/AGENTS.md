@@ -8,6 +8,13 @@
   이관 기준값 대조가 거기 걸려 있다 (`docs/evidence/2026-07-30/ar-baseline.md`)
 - **판정은 폰이다.** 카메라 권한은 자동화로 못 넘는다 — 빌드 통과로 대체하지 않는다
 - 자산은 `Shared/assets` 가 `publicDir` 이라 **루트에서 서빙**된다 → `/FAIRINO_FR5/…`
+- **배포는 원격 빌드로 안 된다.** `vercel.json` 에 `buildCommand` 가 있지만 Vercel 은 `AR/`
+  만 올려서 워크스페이스 형제(`@fr5/shared`)를 못 받는다 (`npm error 404 @fr5/shared`).
+  로컬에서 굽고 결과만 올린다 — **별칭도 따로 건다**:
+  ```bash
+  cd AR && vercel build --prod && vercel deploy --prebuilt --prod --yes
+  vercel alias set <새 배포 URL> fr5ar.vercel.app
+  ```
 
 ## 폴더
 

@@ -37,7 +37,9 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, _narrow ? 1.5 : 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;   // 접지감. 없으면 물체가 떠 보인다
+  // 접지감. 없으면 물체가 떠 보인다. **`PCFSoft` 는 three 0.185 에서 폐기됐다** —
+  // 콘솔이 경고하고 어차피 `PCF` 로 대체해 그린다 (2026-08-06 실렌더에서 잡았다).
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
