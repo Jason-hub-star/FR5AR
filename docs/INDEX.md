@@ -21,6 +21,7 @@
 | `docs/ref/contract/VISION-CONTRACT.md` | 비전 제안 계약 — `/proposal` 판정 3단·거부 사유·앵커 봉인 | SSOT | 비전이 로봇에 무엇을 제안할 수 있는지 정할 때 |
 | `docs/ref/contract/PROGRAM-CONTRACT.md` | 프로그램 슬롯 계약 — 지점을 순서로 엮어 `draft→approve→step`, 한 단계씩 | SSOT | Program 화면·슬롯 실행을 짤 때 |
 | `docs/ref/contract/TB-CONTRACT.md` | **터틀봇 관제 계약** — 상태·teleop·슬롯·맵·기록·미래 접점 5 | SSOT | 터틀봇 브리지·웹을 짤 때 |
+| `docs/ref/contract/RECORD-NODE-CONTRACT.md` | **기록 노드 계약** — 파이5 SQLite 수집·서빙·10 테이블 스키마·보존 | SSOT | 저장소·기록 노드를 짤 때 |
 | `docs/ref/arch/CODING-CONVENTIONS.md` | 단위·좌표계·안전·네이밍 규칙 | SSOT | 코드를 쓰기 전에 |
 | `docs/ref/contract/SAFETY-RULES.md` | 안전 판정 조건 19개와 SDK 필드 매핑, fail-closed 원칙 | SSOT | **로봇에 명령 보내는 코드 쓰기 전** |
 | `docs/ref/plan/MILESTONES.md` | **L1~L3(배치 실험)** + H0~V7(FR5 플랫폼) 단계와 완료 조건 | SSOT | 다음에 뭘 할지 정할 때 |
@@ -129,6 +130,6 @@ Unity의 Y-up 좌표와 C# API를 웹(three.js)에 그대로 적용하면 조용
 
 ## 자가검증
 
-- INDEX.md에 등재된 문서 행 개수 = 60/60
+- INDEX.md에 등재된 문서 행 개수 = 61/61
 - PROJECT-STATUS.md의 "다음 한 걸음" 항목 개수 = 5/5
 - PROJECT-STATUS.md의 "블로커" 항목 개수 = 4/4 (**세는 단위는 불릿 행** — 해소된 2건의 취소선 행 포함)

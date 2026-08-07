@@ -25,6 +25,17 @@
 
 ## 폴더
 
-아직 비어 있다. 착수하면 여기에 구조를 적는다.
+착수했다 (2026-08-07 · 계약 `RECORD-NODE-CONTRACT.md`). 표준 라이브러리만.
 
-읽을 것 — `docs/ref/contract/SHARED-CORE.md` §datasource · `docs/ref/contract/API-CONTRACT.md`
+- `schema.sql` — 10 테이블 DDL (정본은 계약 · 여기는 사본, 어긋나면 계약이 이긴다)
+- `migrate.py` — 스키마 적용·버전 관리 (idempotent)
+- `retention.py` — 보존 게이트 순수 함수 (움직일 때만 + 전이는 항상 · 계약 §보존 정책)
+- `collector.py` — WS 읽기 구독 → 보존 적용 → 저장 (한 수집기 = 한 브리지)
+- `test_retention.py` — 보존 게이트 단위 (게이트 `scripts/check/db-unit.sh`)
+
+아직 없는 것 — **서빙 읽기 API**(`GET /records/*`) · **14일 자동 정리** · **Pi 배포**. 다음 세션.
+
+**스키마·서빙 SSOT 가 섰다 (2026-08-07)** — `docs/ref/contract/RECORD-NODE-CONTRACT.md`.
+착수하면 그 10 테이블 DDL 을 여기 마이그레이션으로 옮긴다. 어긋나면 계약이 이긴다.
+
+읽을 것 — `docs/ref/contract/RECORD-NODE-CONTRACT.md` → `SHARED-CORE.md` §datasource

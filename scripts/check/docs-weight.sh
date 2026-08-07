@@ -38,7 +38,7 @@ bad()  { printf '  FAIL  %s\n' "$1"; FAIL=1; }
 CAP_ENTRY_W=80;    CAP_ENTRY_H=110      # docs/SESSION-START.md
 CAP_STATUS_W=120;  CAP_STATUS_H=160     # docs/status/PROJECT-STATUS.md
 CAP_DOC_W=300;     CAP_DOC_H=450        # 개별 md 한 개
-CAP_INDEX_W=45;    CAP_INDEX_H=60       # docs/INDEX.md 등재 행
+CAP_INDEX_W=45;    CAP_INDEX_H=61       # docs/INDEX.md 등재 행 (60→61: RECORD-NODE-CONTRACT SSOT 등재 · 2026-08-07)
 CAP_EVID_W=8;      CAP_EVID_H=14        # docs/evidence/<날짜>/ 폴더 **하나당** 파일 수 (D37)
 CAP_RND_W=5;       CAP_RND_H=8          # docs/ref/rnd/ 파일 수
 CAP_TOTAL_W=9000;  CAP_TOTAL_H=13000    # **읽는** 문서 총 줄수 (evidence/·archive/ 제외 — D71)
