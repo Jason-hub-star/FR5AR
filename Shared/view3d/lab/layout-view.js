@@ -10,7 +10,45 @@ import { mm } from '../../data/units/units.js';
 import { reachCheck, crossings, pointAlong, nearestU } from '../../data/layout/schema.js';
 import { createPathGizmo } from './path-gizmo.js';
 import { makeReachZone } from '../reach-zone.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { assembleProps, PROPS } from '../parts.js';
+import { AMR_MM } from '../../data/layout/catalog.js';
+
+/**
+ * 실물 TurtleBot3 Burger 메시 — **한 번만 받아서 돌려 쓴다.**
+ *
+ * 물건 하나를 옮길 때마다 이 뷰가 통째로 다시 만들어진다 (`LayoutView.jsx` §②).
+ * 그때마다 750KB 를 다시 받으면 편집이 멈춘다 — FR5 팔의 `getArm` 과 같은 규약이다.
+ *
+ * 자산은 `Shared/assets/turtlebot3_burger/` 에 있고 세 화면이 같은 `publicDir` 을 쓴다
+ * (Dashboard·AR·FR5 의 `vite.config.js`). 출처·라이선스·굽는 법은 그 폴더의 `ATTRIBUTION.md`.
+ *
+ * **조용히 실패하지 않는다** (D15·D18) — 못 받으면 이유를 콘솔에 남기고 `null` 을 돌려주며,
+ * 부르는 쪽은 대체 상자를 그대로 둔다. 발자국·도달 링은 메시가 없어도 판단 근거로 남는다.
+ */
+let burgerPromise = null;
+function loadBurger() {
+  if (burgerPromise) return burgerPromise;
+  // **DOM 없는 곳에서는 안 받는다.** `check/xr-place.sh`·`ar-render.sh` 가 이 모듈을 **Node 에서**
+  // 불러 겹치기 기하만 계산한다. 거기서 `GLTFLoader.load` 는 기준 URL 이 없어 `Invalid URL` 로
+  // **던지고**, 게이트가 미처리 거부로 죽는다 (2026-08-07 에 실제로 죽였다).
+  // 이 파일 머리 규약이 이미 그렇게 적어 뒀다 — 자산 로딩은 화면의 일이다.
+  if (typeof document === 'undefined') {
+    burgerPromise = Promise.resolve(null);
+    return burgerPromise;
+  }
+  burgerPromise = new Promise((res) => {
+    const fail = (err) => {
+      console.warn('터틀봇 메시를 못 불러왔다 — 대체 상자로 간다:', err?.message ?? err);
+      res(null);
+    };
+    // `load` 는 콜백으로도 오고 **동기로 던지기도 한다.** 둘 다 같은 자리로 모은다
+    try {
+      new GLTFLoader().load('/turtlebot3_burger/burger.glb', (gltf) => res(gltf.scene), undefined, fail);
+    } catch (err) { fail(err); }
+  });
+  return burgerPromise;
+}
 
 // 토큰과 같은 의미의 색. 상태 색은 두 화면에서 같아야 한다 (D21).
 // 평면도 Y(미터) → 씬 Z. **부호가 뒤집힌다.**
@@ -390,16 +428,63 @@ export function createLayoutView(layout, { mountArm } = {}) {
     g.userData.item = { kind: 'amr', id: a.id, type: 'amr', name: a.model ?? 'AMR' };
     contents.add(g);
 
-    // 몸통 + **라이다**. 상자만 두면 바닥에 붙은 회색 덩어리라 가구에 묻힌다 —
-    // 위로 솟은 원통 하나가 "자율주행 로봇" 신호를 완성한다 (터틀봇 실물도 그렇다).
-    const body = new THREE.Mesh(track(new THREE.BoxGeometry(0.28, 0.19, 0.3)), mat.amr);
-    body.position.y = 0.095;
+    // 몸통. **실물 Burger 메시**(GLB)가 오면 갈아 끼우고, 오기 전까지는 상자로 버틴다.
+    //
+    // **치수는 `AMR_MM` 이 정본이다** (Burger 실물 · `STACK.md` 등재). 여기 숫자를 박지 않는다 —
+    // 발자국은 간섭·통로 판정의 입력이라 화면이 제 값을 지어내면 판정이 조용히 거짓말을 한다.
+    //
+    // 상자를 **지우지 않고 남긴다.** GLB 는 네트워크를 타므로 늦게 오거나 안 올 수 있고,
+    // 그때 AMR 이 사라지면 배치 판단의 근거(발자국·도달)가 같이 사라진다 — 팔이 실패하면
+    // 도달 링만 그리는 것과 같은 규약이다 (D15·D18 · `LayoutView.jsx` §getArm).
+    const LIDAR_H = 0.04;                       // LDS-01 두께 — 사양 등재 안 됨(미확인)
+    const bodyH = mm(AMR_MM.heightMm) - LIDAR_H;
+
+    // ⚠ **투명 히트박스를 두지 않는다** — 넣어 보고 지웠다 (2026-08-07 실측).
+    // GLB 가 이미 같은 부피(178×138×192)를 채우므로 과녁이 하나도 안 넓어졌고,
+    // 픽 격자 지도가 넣기 전과 **한 칸도 다르지 않았다.** 고르기가 어려운 진짜 이유는
+    // 메시 모양이 아니라 **축척**이다 — 기본 시점에서 1px ≈ 28mm 라 AMR 이 화면에서
+    // 6~8px 이고, `interaction.js` 의 20px 근접 보조가 기하보다 크다.
+    // 근거·처방은 `evidence/2026-08-07/amr-burger-mm.md` §5.
+    const fallback = new THREE.Group();
+    const body = new THREE.Mesh(track(new THREE.BoxGeometry(
+      mm(AMR_MM.widthMm), bodyH, mm(AMR_MM.depthMm),
+    )), mat.amr);
+    body.position.y = bodyH / 2;
     body.castShadow = true;
-    g.add(body);
-    const lidar = new THREE.Mesh(track(new THREE.CylinderGeometry(0.037, 0.037, 0.09, 12)), mat.amr);
-    lidar.position.set(0, 0.235, -0.06);
+    fallback.add(body);
+    // ponytail: 몸통/라이다 **쪼개는 비율**은 실측이 아니다 — 잰 것은 겉면(178·138·192)뿐이다.
+    // 천장(ceiling): 대체 상자는 "실물이 안 왔을 때의 발자국" 이지 외형 근거가 아니다.
+    const lidar = new THREE.Mesh(track(new THREE.CylinderGeometry(0.035, 0.035, LIDAR_H, 12)), mat.amr);
+    lidar.position.set(0, bodyH + LIDAR_H / 2, 0);
     lidar.castShadow = true;
-    g.add(lidar);
+    fallback.add(lidar);
+    g.add(fallback);
+
+    // 실물 메시 — **형태만 쓰고 재질은 `mat.amr` 로 덮는다.** GLB 가 자기 색·텍스처를 들고
+    // 오면 화이트 모형 규약(D62)이 깨진다. 굽는 단계에서 재질을 안 실었고(`ATTRIBUTION.md`),
+    // 여기서 한 번 더 덮어 **자산이 바뀌어도 화면 스타일이 안 흔들리게** 한다.
+    loadBurger().then((proto) => {
+      if (!proto || !g.parent) return;          // 늦게 와서 무대가 이미 치워졌으면 버린다
+      const real = proto.clone(true);
+      // **피킹에 남긴다.** FR5 팔은 피킹에서 뺐지만(URDF 가 뒤를 다 가린다) 터틀봇은
+      // 178mm 라 가리는 것이 없고, 빼면 과녁이 20px 근접 보조 원만 남는다.
+      real.traverse((o) => {
+        if (!o.isMesh) return;
+        // **지오메트리를 복사한다.** `clone()` 은 지오메트리를 공유하는데, 아래 `dispose()` 가
+        // root 를 훑어 전부 지운다 — 공유본을 지우면 **두 번째 편집부터 터틀봇이 빈 껍데기**가
+        // 된다. FR5 팔이 정확히 이 함정을 밟았다 (`LayoutView.jsx` §armCache 경고).
+        o.geometry = o.geometry.clone();
+        o.material = mat.amr;
+        o.castShadow = true;
+        o.receiveShadow = true;
+      });
+      g.remove(fallback);                       // 실물이 왔으니 대체 상자를 내린다
+      g.add(real);
+    }).catch((err) => {
+      // **거부가 새어 나가지 않게 한다.** 게이트를 Node 에서 돌리면 미처리 거부가 프로세스를
+      // 죽인다 — 화면에서는 대체 상자가 남아 배치 판단이 계속 된다.
+      console.warn('터틀봇 메시를 붙이다 실패했다 — 대체 상자로 간다:', err?.message ?? err);
+    });
 
     if (a.reachMm) {
       const r = makeReachZone({ radius: mm(a.reachMm), height: 0.5, color: C.virtual });
