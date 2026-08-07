@@ -63,6 +63,30 @@ bash scripts/check/assets.sh    # URDF·메시·삼각형 수
 기준값을 바꿨으면 `scripts/README.md`의 표에서 해당 상수도 고쳤는지 본다.
 안 고치면 **게이트가 거짓으로 실패**한다.
 
+### 라즈베리파이가 스플래시(무지개/분홍) 후 화면이 꺼진다
+파이4 에서 쓰던 **라즈베리파이 OS** SD 를 파이5 에 꽂으면 이렇게 멈춘다 — 부팅 파티션에
+파이5 커널(`kernel_2712.img`)이 있어도 rootfs 에 **16K 페이지 커널 모듈**이 없다.
+→ **우분투는 커널이 하나라 파이4↔5 카드 이동이 자유롭다.** 라파OS 는 새로 굽는다.
+
+### 쓰던 SD 에서 cloud-init 이 계정을 안 만든다
+이미 설정된 카드(다른 로봇·팀이 쓰던 것)는 인스턴스가 `nocloud` 로 캐시돼 계정 생성이
+`already ran` 으로 건너뛴다. `meta-data` 의 `instance_id` 를 바꿔도 안 먹는다.
+→ **갓 구운(한 번도 안 켠) 이미지에서만 user-data 가 계정을 만든다.** `/var/lib/cloud/instances/nocloud/` 확인.
+
+### macOS 로 SD 의 리눅스 파티션(ext4)을 고치려다 깨진다
+`debugfs -w`(쓰기)는 ext4 를 **손상시킨다** — `ext4-fs error` 로 이어진다. 읽기(`-R "cat …"`)는 안전.
+→ **ext4 쓰기는 리눅스에서** (랩 우분투 PC 에 카드리더로 꽂아 `mount` 후 편집). fsck 로 복구.
+
+### 파이가 랜에 안 뜬다 (헤드리스)
+맥 HDMI 는 **출력**이라 파이 화면을 못 받는다. 파이5 USB-C 는 **전원 전용**. 전원 넣어도
+안 켜지면 **전원 버튼**을 누른다. 네트워크에선 MAC OUI 로 찾는다 —
+`arp -a | grep -iE "88:a2:9e|b8:27:eb|dc:a6:32|d8:3a:dd|2c:cf:67"`. 이더넷·WiFi 가 **다른 IP** 를 받는다.
+
+### 우분투 서버를 헤드리스로 굽는다 (기록 노드)
+순정 기본계정은 `ubuntu/ubuntu`(만료·`ssh_pwauth:false`)라 그대로는 못 붙는다.
+부팅 파티션(FAT · macOS 안전)의 `user-data` 를 계정+`ssh_pwauth:true`+`chpasswd` 로 교체하고
+`network-config` 로 WiFi 를 넣는다. **끌 때 전원 뽑지 말고 `sudo poweroff`** — ext4 를 아낀다.
+
 ## 이 런북은 자란다
 
 위 목록은 **실제로 겪은 것만** 적혀 있다. 추측한 함정은 넣지 않는다.
