@@ -65,11 +65,23 @@ def grid_map(counts, per_cell):
     return rows
 
 
+def next_index(out):
+    """다음 번호는 **파일 개수가 아니라 최대 번호 + 1** 이다.
+
+    개수로 정하면 중간이 비었을 때(못 쓰는 장을 골라내면 늘 빈다) 번호가 되감겨
+    **이미 있는 사진을 덮어쓴다** — 실측 2026-08-07: 019~038 이 있는 폴더에서
+    021 부터 다시 시작해 어제 17장을 지웠다.
+    """
+    ns = [int(p.stem.rsplit("-", 1)[-1]) for p in out.glob("*.png")
+          if p.stem.rsplit("-", 1)[-1].isdigit()]
+    return max(ns, default=0)
+
+
 def auto_charuco(cap, out, kind, per_cell, size):
     """빈 칸에 보드가 들어왔을 때만 저장한다. 다 차면 멈춘다."""
     det = load_detector()
     counts, last = {}, {}
-    n = len(list(out.glob("*.png")))
+    n = next_index(out)
     total = CELLS * CELLS * per_cell
     print(f"칸마다 {per_cell} 장 · 목표 {total} 장. 보드를 들고 화면 구석까지 다녀라.\n"
           "  ■ 다 참 · ▨ 모자람 · □ 빈 칸    (Ctrl-C 로 언제든 중단)")
@@ -145,17 +157,17 @@ def main():
 
     out = SHOTS / a.kind
     out.mkdir(parents=True, exist_ok=True)
-    n = len(list(out.glob("*.png")))
+    n = next_index(out)
     if a.auto:
         try:
             n = auto_charuco(cap, out, a.kind, a.per_cell, got)
         except KeyboardInterrupt:
             print("\n중단 — 찍은 것은 남는다")
-            n = len(list(out.glob("*.png")))
         cap.release()
-        print(f"총 {n} 장 · {out.relative_to(ROOT)}/")
+        print(f"총 {len(list(out.glob('*.png')))} 장 · {out.relative_to(ROOT)}/")
         return 0
-    print(f"{out.relative_to(ROOT)}/ 에 이미 {n} 장 — SPACE 저장, Q 종료")
+    print(f"{out.relative_to(ROOT)}/ 에 이미 {len(list(out.glob('*.png')))} 장 "
+          f"— 다음 번호 {n + 1:03d} · SPACE 저장, Q 종료")
 
     while True:
         ok, frame = cap.read()
@@ -180,7 +192,7 @@ def main():
 
     cap.release()
     cv2.destroyAllWindows()
-    print(f"총 {n} 장 · {out.relative_to(ROOT)}/")
+    print(f"총 {len(list(out.glob('*.png')))} 장 · {out.relative_to(ROOT)}/")
     return 0
 
 

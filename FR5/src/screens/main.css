@@ -117,18 +117,25 @@ main.workspace { flex: 1; min-height: 0; display: flex; }
 .camhead b { font-size: 11px; }
 .camhead .camstat { color: var(--c-fg-mute); font-family: ui-monospace, monospace;
                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 주소는 있는데 영상이 안 오는 상태를 조용히 두지 않는다 (SAFETY-RULES 제1원칙의 화면판) */
-.camview[data-live="false"] .camhead { background: var(--c-warn-soft); }
-.camview[data-live="false"] .camhead .camstat { color: var(--c-warn); font-weight: 600; }
+/* 주소는 있는데 영상이 안 오는 상태를 조용히 두지 않는다 (SAFETY-RULES 제1원칙의 화면판).
+ * `data-stale` 는 **붙어 있는데 프레임이 멎은** 상태다 — 옛 화면이 그대로 걸려 있어
+ * 겉보기엔 정상이라 더 위험하다. 같은 경고색으로 낸다 (2026-08-07) */
+.camview[data-live="false"] .camhead,
+.camview[data-stale="true"] .camhead { background: var(--c-warn-soft); }
+.camview[data-live="false"] .camhead .camstat,
+.camview[data-stale="true"] .camhead .camstat { color: var(--c-warn); font-weight: 600; }
+/* 멎은 프레임은 흐리게 — 이게 지금 화면이 아니라는 걸 눈으로 안다 */
+.camview[data-stale="true"] .cambody img { filter: grayscale(1) opacity(0.45); }
 .camtoggle { margin-left: auto; border: 0; background: none; cursor: pointer; padding: 0 2px;
              color: var(--c-fg-dim); font-size: 11px; }
 .cambody { position: relative; flex: 1; min-height: 0; overflow: hidden;
            border-top: 1px solid var(--c-line); background: var(--c-sunken); }
-/* 폰 원본은 16:9 가로 프레임이지만 장착 방향이 90° 돌아가 있다. 시계 방향으로 세워
- * 9:16 칸을 채운다 — width 177.78% 는 회전 전의 세로 길이가 칸 너비가 되게 한다. */
-.cambody img { position: absolute; top: 50%; left: 50%; display: block;
-               width: 177.7778%; max-width: none; height: auto;
-               transform: translate(-50%, -50%) rotate(90deg); }
+/* 폰을 **가로로 장착**한다 (2026-08-07). 원본 16:9 를 그대로 쓰므로 회전이 없다.
+ * 회전을 없앤 것이 중요하다 — 돌아간 이미지 위에 오버레이를 얹으면 가운데만 맞고
+ * 모서리가 338~587px 어긋난다 (`evidence/2026-08-06/hud-brief-verify.md` §3).
+ * `contain` 이라 칸 비율이 달라도 잘리지 않는다 — 오버레이는 실제 그려진 사각형에 맞춘다. */
+.cambody img { position: absolute; inset: 0; display: block;
+               width: 100%; height: 100%; object-fit: contain; }
 .camretry { position: absolute; inset: 0; margin: auto; width: fit-content; height: fit-content;
             font-size: 11px; padding: 3px 8px; }
 /* 우측 하단 드래그 핸들 — width/height 를 임의로 늘이고 줄인다. localStorage 에 기억한다 */
@@ -299,6 +306,7 @@ table.joints, table.tcp { width: 100%; border-collapse: collapse; font-size: 13p
   main.workspace { flex-direction: column; }
   .stage .twin { min-height: 40dvh; }
   .side { width: auto; border-left: 0; border-top: 1px solid var(--c-line); }
-  /* 좁은 화면에서 데스크톱 기본 340px 은 3D 를 절반 이상 가린다 */
-  .camview { width: 132px; top: var(--s-2); right: var(--s-2); }
+  /* 좁은 화면에서 데스크톱 기본값은 3D 를 절반 이상 가린다. 가로 영상이라 같은 너비여도
+   * 세로가 9/16 로 줄어 덜 가린다 — 그만큼 조금 넓게 준다 */
+  .camview { width: 190px; top: var(--s-2); right: var(--s-2); }
 }

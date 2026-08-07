@@ -81,8 +81,11 @@ try {
   await page.navigate('http://localhost:5176/?cam=192.168.30.199:8080');
   const dead = await page.waitFor('document.querySelector("[data-t=camview]").dataset.live === "false"',
     { timeoutMs: 20000 });
-  check('못 닿으면 "영상 없음" 을 표시한다', !!dead,
-    await page.eval('document.querySelector("[data-t=cam-stat]")?.textContent'));
+  const deadText = await page.eval('document.querySelector("[data-t=cam-stat]")?.textContent');
+  check('못 닿으면 "영상 없음" 을 표시한다', !!dead, deadText);
+  // **실패할 때도 주소를 보여줘야 한다** — 2026-08-07 실기에서 우분투 화면이 안 뜨는데
+  // 화면에 "영상 없음" 뿐이라 저장된 주소가 옛것인지 확인할 길이 없었다
+  check('못 닿을 때 어느 주소가 안 왔는지 보인다', (deadText || '').includes('192.168.30.199'), deadText);
   check('다시 시도 버튼이 있다', await page.eval('!!document.querySelector("[data-t=cam-retry]")'));
 
   // ── 되돌리고 증거 촬영

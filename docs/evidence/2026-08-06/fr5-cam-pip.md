@@ -7,10 +7,13 @@
 
 ## 왜 겹치지 않고 나란히 두나
 
-**겹치려면 `labToCam`(카메라 외부 파라미터)이 있어야 하는데 없다.**
-`Shared/data/config/global-cam.json` 에는 내부 파라미터만 있다 (2560×1440 · RMS 0.4107px ·
-사진 20장). `scripts/map/extrinsics.py` 를 아직 안 돌렸다 — `check-calib.sh` 도 그렇게 말한다
-("labToCam 아직 없음 — 카메라 설치 후"). PiP 는 정합이 필요 없어 **그 전에 된다.**
+**겹치려면 `labToCam`(카메라 외부 파라미터)이 있어야 하는데, 이 글을 쓸 때는 없었다.**
+`Shared/data/config/global-cam.json` 에 내부 파라미터만 있었고 `extrinsics.py` 를 안 돌린
+상태였다. PiP 는 정합이 필요 없어 **그 전에 된다** — 그래서 나란히 두는 쪽을 먼저 만들었다.
+
+> **2026-08-07 — 전제가 풀렸다.** 내부 파라미터를 다시 재고(`fx 1728.17 · HFOV 73.05°`)
+> `labToCam` 도 실측했다 (`evidence/2026-08-07/global-cam-calibrated.md`).
+> **PiP 를 나란히 두는 결정 자체는 유효하다** — 겹치기는 그 위에 얹는 다음 단계지 대체가 아니다.
 
 겹치기(`ar-global-camera.md` §G2)는 `labToCam` 이 생긴 뒤 같은 `.stage` 칸 안에서 승격한다.
 
