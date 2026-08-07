@@ -73,8 +73,12 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, _narrow ? 1.5 : 2));
   //   · normalBias 0.3 은 그림자를 표면에서 30cm 띄워 **벽 그림자가 바닥에서 떨어져 보인다**
   //   · 0.07 이하는 1024 맵에서 얼룩(acne)이 남는다 → **0.08 이 얼룩 없는 최소값**
   //   · depth bias 는 그것만으로 부족해 -0.0005 를 같이 쓴다
+  // **빛의 방향은 이 벡터 하나가 정한다.** 아래 `fitShadow` 가 광원과 표적을 같은 만큼
+  // 옮기므로, 그림자 부피가 방으로 가도 조명은 한 톨도 안 바뀐다.
+  const KEY_DIR = new THREE.Vector3(5, 8, 4);
+
   const key = new THREE.DirectionalLight(0xffffff, 2.4);
-  key.position.set(5, 8, 4);
+  key.position.copy(KEY_DIR);
   key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024);   // 2048 은 이 규모에 낭비다
   key.shadow.bias = -0.0005;
@@ -83,6 +87,35 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, _narrow ? 1.5 : 2));
   const c = key.shadow.camera;
   c.left = -6; c.right = 6; c.top = 6; c.bottom = -6; c.near = 0.5; c.far = 40;
   scene.add(key, key.target);
+
+  /**
+   * 그림자 부피를 **방에 맞춘다.** 방을 씬에 넣은 직후에 부른다.
+   *
+   * 위 기본값(±6 상자 · 원점)은 **방이 원점에 있다고 가정한다. 방은 원점에 없다.**
+   * 조립 라인 프리셋은 6.75×12m 이고 중심이 (3.4, −6) 이라 그림자 카메라 중심에서
+   * 6.9m 떨어져 있었다 — 반경 6m 상자에 방 반경 7m 가 들어갈 수 없어서
+   * **방 대부분에 그림자가 아예 없었다.** 밋밋해 보이던 게 스타일이 아니라 이것이었다
+   * (2026-08-07 실측 · `evidence/2026-08-07/shadow-fit.md`).
+   *
+   * **조명은 안 바뀐다** — 광원과 표적을 같은 만큼 옮기므로 입사 방향이 보존된다.
+   * 색·세기를 건드리지 않으니 화이트 모형 규약(D62)도 그대로다.
+   */
+  function fitShadow(object3d) {
+    const box = new THREE.Box3().setFromObject(object3d);
+    if (box.isEmpty()) return;
+    const size = box.getSize(new THREE.Vector3());
+    const at = box.getCenter(new THREE.Vector3()).setY(0);
+    // **빛이 비스듬히 들어온다.** 가로·세로 반쪽이 아니라 **바닥 대각 반경**이 필요하다 —
+    // 정사영이 어느 축으로 눕든 대각선만큼은 늘 덮는다.
+    const R = Math.hypot(size.x, size.z) / 2 + 0.5;
+    key.target.position.copy(at);
+    key.position.copy(at).add(KEY_DIR);
+    c.left = -R; c.right = R; c.top = R; c.bottom = -R;
+    // **`far` 도 같이 좁힌다.** 40 은 이 규모에 과했고, 깊이 범위가 넓으면 같은 맵에서
+    // 정밀도가 떨어진다 — 넓히는 변경에 좁히는 변경이 딸려 오는 게 우연이 아니다.
+    c.far = KEY_DIR.length() + R + size.y + 2;
+    c.updateProjectionMatrix();
+  }
 
   // **앰비언트를 올리지 않는다.** 그쪽 주석: "0.55 클램프가 주광의 45% 를 그림자에 새게 해
   // 실내가 평평해졌다". 채움은 환경맵이 한다 — 여기선 아주 약하게만 둔다.
@@ -197,6 +230,8 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, _narrow ? 1.5 : 2));
     onTick: (f) => ticks.push(f),
     /** 대상 전체가 화면에 담기게 시점을 잡는다. 이후 창 비율이 바뀌면 자동으로 다시 잡는다 */
     frame: frameTo,
+    /** 그림자 부피를 대상에 맞춘다. **방을 씬에 넣은 직후 부른다** — 안 부르면 기본 ±6 이다 */
+    fitShadow,
     dispose() {
       renderer.setAnimationLoop(null);
       ro.disconnect();

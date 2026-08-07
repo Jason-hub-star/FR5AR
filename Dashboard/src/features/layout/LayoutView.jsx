@@ -646,6 +646,9 @@ export function LayoutView({
     const view = createLayoutView(layout);
     viewRef.current = view;
     stage.scene.add(view.root);
+    // **그림자를 방에 맞춘다** — `contents` 가 아니라 `root` 다. 벽·바닥이 거기 있고
+    // 그림자를 드리우는 것도 받는 것도 그것들이다. 방 치수가 바뀌면 다시 맞춘다.
+    stage.fitShadow(view.root);
     editRef.current?.reselect?.(keepIds, keepPrimary);
     // 팔은 `armSlot` 에 붙는다 — 베이스 좌표·요각이 이미 걸려 있다 (D56 이후 주인님 요청).
     // **팔마다 하나씩 로드한다.** 한 개를 두 부모에 붙일 수 없다 — three 는 부모가 하나다.
