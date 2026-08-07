@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """발표 마크다운 → 편집 가능한 .pptx.
 
-    python3 scripts/build/deck.py scratchpad/ppt-aegis-2026-08-06.md
+    python3 scripts/build/deck.py scratchpad/ppt-aegis-2026-08-06.md          # → .pptx
+    python3 scripts/build/deck.py scratchpad/ppt-aegis-2026-08-06.md --html   # → .html (자립형)
 
 `/발표` 가 구운 md 를 파워포인트에서 열리는 네이티브 pptx 로 바꾼다.
 **텍스트는 편집 가능하고 사진은 자리만 잡아 둔다** — 최종 배치는 사람이 파워포인트에서 한다.
@@ -118,6 +119,15 @@ VIDEO_EXT = {".mp4", ".mov", ".webm"}
 # 공백을 안 걸면 첫 하이픈에서 잘려 경로가 `docs/evidence/2026` 이 된다.
 FIGURE_RE = re.compile(r"<!--\s*그림\s+(\S+)\s+[—\-·]\s+(.*?)\s*-->")
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
+
+# reveal.js — 발표를 브라우저로 한다. Keynote 는 pandoc 계열 pptx 를 통째로 거부하고
+# (실측 2026-08-06: 손대지 않은 pandoc 기본 산출물도 거부), PDF 는 영상이 죽는다.
+# 브라우저만이 영상·대본·같은 렌더 셋을 한꺼번에 준다.
+REVEAL_VER = "6.0.1"
+REVEAL_URL = f"https://registry.npmjs.org/reveal.js/-/reveal.js-{REVEAL_VER}.tgz"
+# 캐시는 **저장소 밖**에 둔다. 안에 두면 reveal 이 들고 오는 README 의 상대링크가
+# 문서 게이트(`scripts/check/docs.sh`)에 깨진 링크로 잡힌다 (실측 2026-08-06).
+REVEAL_CACHE = Path.home() / ".cache" / "fr5web" / f"reveal-{REVEAL_VER}"
 
 
 def die(msg: str) -> None:
@@ -368,7 +378,7 @@ def style_slide(xml: str, accent: str, plain: str) -> str:
     return "".join(out)
 
 
-def expand_figures(md: str) -> tuple[str, list[str]]:
+def expand_figures(md: str, as_html: bool = False) -> tuple[str, list[str]]:
     """`<!-- 그림 … -->` 주석을 사진 슬라이드로 편다.
 
     주석은 발표자만 보는 메모라 pandoc 이 통째로 버린다. 그러면 pptx 에 사진이 없다.
@@ -381,6 +391,15 @@ def expand_figures(md: str) -> tuple[str, list[str]]:
         rel, caption = m.group(1), m.group(2)
         path = ROOT / rel
         if path.suffix.lower() in VIDEO_EXT:
+            if not path.exists():
+                missing.append(rel)
+                return ""
+            if as_html:
+                # HTML 이라서 영상이 그냥 재생된다 — pptx 로는 못 넣던 것이다.
+                return (
+                    f'\n## {caption}\n\n<video src="{path}" controls playsinline '
+                    'preload="metadata"></video>\n'
+                )
             # 어떤 md 도구도 pptx 에 영상을 못 넣는다. 자리와 경로를 대본에 남겨
             # 파워포인트에서 사람이 끼우게 한다.
             return f"\n## {caption}\n\n::: notes\n영상을 여기에 삽입한다 — {rel}\n:::\n"
@@ -396,19 +415,275 @@ def expand_figures(md: str) -> tuple[str, list[str]]:
     return COMMENT_RE.sub("", out), missing
 
 
+def ensure_reveal() -> Path:
+    """reveal.js dist 를 한 번만 내려받아 scratchpad 아래 캐시한다 (gitignore 대상)."""
+    dist = REVEAL_CACHE / "dist"
+    if not dist.exists():
+        import io
+        import tarfile
+        import urllib.request
+
+        print(f"deck: reveal.js {REVEAL_VER} 내려받는 중…")
+        REVEAL_CACHE.mkdir(parents=True, exist_ok=True)
+        with urllib.request.urlopen(REVEAL_URL, timeout=60) as r:
+            blob = r.read()
+        with tarfile.open(fileobj=io.BytesIO(blob), mode="r:gz") as tf:
+            for m in tf.getmembers():
+                if not m.name.startswith("package/") or m.name.startswith("package/.."):
+                    continue
+                m.name = m.name[len("package/"):]
+                if m.name:
+                    tf.extract(m, REVEAL_CACHE, filter="data")
+        if not dist.exists():
+            die("reveal.js 를 풀었는데 dist 가 없다")
+    # pandoc 템플릿은 플러그인을 `<url>/plugin/<이름>/<이름>.js` 에서 찾는데,
+    # reveal.js 6 의 npm 패키지는 `dist/plugin/<이름>.js` 로 한 단계 평평하다.
+    # 그래서 링크 하나로는 안 되고 이름마다 폴더를 만들어 이어 준다.
+    for name in ("notes", "search", "zoom", "math", "highlight"):
+        d = REVEAL_CACHE / "plugin" / name
+        d.mkdir(parents=True, exist_ok=True)
+        for f in (f"{name}.js", f"{name}.css"):
+            srcf = dist / "plugin" / f
+            if not srcf.exists():
+                srcf = dist / "plugin" / name / f  # 언젠가 구조가 되돌아가도 받는다
+            if srcf.exists() and not (d / f).exists():
+                shutil.copy(srcf, d / f)
+    # highlight 플러그인 테마는 `plugin/highlight/<테마>.css` 로 따로 찾는다.
+    hl = dist / "plugin" / "highlight"
+    if hl.is_dir():
+        for f in hl.glob("*.css"):
+            tgt = REVEAL_CACHE / "plugin" / "highlight" / f.name
+            if not tgt.exists():
+                shutil.copy(f, tgt)
+    return REVEAL_CACHE
+
+
+def reveal_css(colors: dict[str, str]) -> str:
+    """발표용 스타일. 색은 전부 tokens.css 에서 온 값이라 여기서 색을 짓지 않는다.
+
+    **강조한 것만 색과 굵기, 나머지는 검정** — 슬라이드마다 고르지 않고 `**굵게**` 한
+    자리에만 붙는다. pptx 쪽 규칙과 같은 규칙이다.
+    """
+    c = {k: f"#{v}" for k, v in colors.items()}
+    return f"""
+:root {{ --fg:{c['dk1']}; --bg:{c['lt1']}; --dim:{c['dk2']}; --line:{c['lt2']};
+         --accent:{c['accent1']}; --warn:{c['accent3']}; }}
+
+.reveal {{ font-size:34px; font-family:"Pretendard","Apple SD Gothic Neo","맑은 고딕",system-ui,sans-serif;
+           color:var(--fg); -webkit-font-smoothing:antialiased; }}
+.reveal-viewport {{ background:var(--bg); }}
+.reveal .slides {{ text-align:left; }}
+.reveal .slides section {{ height:100%; }}
+
+/* 제목 — 왼쪽 정렬, 아래에 짧은 강조 막대. 슬라이드마다 같은 높이에 선다 */
+.reveal h1, .reveal h2, .reveal h3 {{ color:var(--fg); text-transform:none;
+           font-weight:700; letter-spacing:-0.02em; line-height:1.25; }}
+.reveal h2 {{ font-size:1.5em; margin:0 0 .9em; padding-bottom:.34em;
+           border-bottom:1px solid var(--line); position:relative; }}
+.reveal h2::after {{ content:""; position:absolute; left:0; bottom:-1px;
+           width:2.2em; height:3px; background:var(--accent); }}
+.reveal h1 {{ font-size:2.4em; margin:0 0 .3em; }}
+
+/* 강조한 것만 색과 굵기. 나머지는 검정 */
+.reveal strong {{ color:var(--accent); font-weight:700; }}
+.reveal em {{ color:var(--dim); font-style:normal; }}
+
+.reveal ul {{ list-style:none; margin:0; padding:0; }}
+.reveal ol {{ margin:0; padding-left:1.5em; }}
+.reveal ol li {{ padding-left:.25em; }}
+.reveal li {{ margin:.62em 0; padding-left:1.15em; position:relative; line-height:1.55; }}
+/* 불릿 점은 ul 에만. ol 에 붙이면 번호 옆에 점이 하나 더 찍힌다 */
+.reveal ul > li::before {{ content:""; position:absolute; left:0; top:.62em;
+           width:.42em; height:.42em; background:var(--line); border-radius:50%; }}
+.reveal ol > li::marker {{ color:var(--accent); font-weight:700; }}
+.reveal li > strong:first-child {{ }}
+
+/* 표 — 칸 안 글자를 가운데로. 맨 왼쪽 라벨 열만 왼쪽에 둔다 */
+.reveal table {{ border-collapse:collapse; font-size:.92em; width:100%;
+           margin:.1em 0; }}
+.reveal th {{ background:var(--accent); color:var(--bg); font-weight:600;
+           padding:.62em .85em; text-align:center; letter-spacing:.02em; }}
+.reveal td {{ border-bottom:1px solid var(--line); padding:.62em .85em;
+           text-align:center; vertical-align:middle; line-height:1.4; }}
+.reveal tbody tr:nth-child(even) {{ background:color-mix(in srgb, var(--line) 26%, transparent); }}
+.reveal td:first-child {{ text-align:left; color:var(--dim); }}
+/* 목차처럼 머리행이 빈 표는 격자만 남긴다 */
+.reveal table:has(th:empty) th {{ background:none; padding:0; height:0; }}
+.reveal table:has(th:empty) td {{ text-align:left; color:var(--fg);
+           border-bottom:1px solid var(--line); padding:.62em .7em;
+           white-space:nowrap; }}
+.reveal table:has(th:empty) td strong {{ display:inline-block; min-width:1.6em;
+           color:var(--accent); }}
+.reveal table:has(th:empty) td:first-child {{ color:var(--fg); }}
+
+/* 사진·영상 — 남는 자리를 꽉 채우되 비율을 지킨다. 글과 같은 축에 선다 */
+.reveal img, .reveal video {{ display:block; margin:0 auto; max-width:100%;
+           max-height:578px; width:auto; height:auto; object-fit:contain;
+           border-radius:3px; box-shadow:0 1px 0 var(--line), 0 10px 30px rgba(0,0,0,.10); }}
+.reveal section > p:has(> img), .reveal section > p:has(> video) {{ margin:0; }}
+/* 사진만 있는 슬라이드는 제목을 얇게 — 사진이 주인공이다 */
+.reveal section:has(img) h2, .reveal section:has(video) h2 {{ font-size:1.1em;
+           margin-bottom:.34em; padding-bottom:.26em; }}
+
+/* 사진·영상 자리를 비워 둘 때 */
+.reveal .slot {{ border:1px dashed var(--line); border-radius:3px;
+           aspect-ratio:16/9; max-height:560px; width:100%; margin:0 auto; }}
+
+.reveal pre {{ box-shadow:none; width:100%; font-size:.52em; margin:0; }}
+.reveal pre code {{ background:color-mix(in srgb, var(--line) 22%, transparent);
+           color:var(--fg); padding:1em 1.2em; max-height:none; line-height:1.55;
+           border-radius:3px; border-left:3px solid var(--accent); }}
+.reveal blockquote {{ background:none; box-shadow:none; color:var(--dim);
+           border-left:3px solid var(--line); font-style:normal; }}
+.reveal .progress {{ color:var(--accent); height:3px; }}
+.reveal .slide-number {{ background:none; color:var(--dim); font-size:.42em;
+           right:34px; bottom:18px; font-variant-numeric:tabular-nums;
+           letter-spacing:.04em; }}
+.reveal .slide-number a {{ color:var(--dim); }}
+.reveal .controls {{ color:var(--line); }}
+
+/* 대단원 구분 — 제목 하나뿐인 장은 가운데에 크게 세운다 */
+.reveal section:has(> h2:only-child) {{ display:flex; align-items:center; }}
+.reveal section:has(> h2:only-child) h2 {{ font-size:2.4em; border:0; margin:0;
+           padding:0 0 .3em; }}
+.reveal section:has(> h2:only-child) h2::after {{ width:3.2em; height:4px; bottom:0; }}
+
+/* QR — 폰이 잡을 만큼만 크게. 너무 키우면 초점이 안 맞는다 */
+.reveal img[src*="qr-"] {{ max-height:420px; width:auto; image-rendering:pixelated;
+           box-shadow:none; border:0; border-radius:0; }}
+
+/* 표지 — 그림 한 장이 전부다. 제목은 그림 안에 이미 있다 */
+.reveal section.cover h2 {{ display:none; }}
+.reveal section.cover img {{ max-height:640px; box-shadow:none; border-radius:0; }}
+.reveal section.cover {{ display:flex; align-items:center; justify-content:center; }}
+"""
+
+
+def flatten_for_html(md: str) -> str:
+    """대단원(H1)을 슬라이드(H2)로 낮춰 **한 줄로 편다.**
+
+    reveal 은 H1 아래 H2 를 세로로 쌓아서, 아래 화살표를 눌러야 다음이 나온다.
+    발표 중에는 클릭 한 종류로만 끝까지 가야 한다.
+    """
+    return re.sub(r"^#\s+(?!#)", "## ", md, flags=re.M)
+
+
+CLICK_JS = """
+<script>
+// 빈 화면을 남기지 않는다 — 슬라이드마다 내용 높이를 재서 남는 만큼 키운다.
+// 글자 크기를 슬라이드별로 손으로 정하면 그게 곧 들쭉날쭉이 된다. 기계가 잰다.
+(function () {
+  var H = 720, PAD = 54, MAX = 1.75;
+  function measure(sec) {
+    var bottom = 0, seen = 0;
+    [].forEach.call(sec.children, function (el) {
+      if (el.offsetParent === null) return;          // aside.notes 등 숨은 것
+      seen++;
+      bottom = Math.max(bottom, el.offsetTop + el.offsetHeight);
+    });
+    return seen ? bottom : 0;
+  }
+  function fit(sec) {
+    if (!sec || sec.classList.contains('cover')) return;
+    // 키우면 폭이 좁아져 글이 다시 접히고, 접히면 더 길어진다 —
+    // 한 번 재고 끝내면 표 아래가 잘린다. 수렴할 때까지 되잰다.
+    var target = H - PAD, f = 1;
+    for (var i = 0; i < 6; i++) {
+      sec.style.zoom = f === 1 ? '' : f.toFixed(3);
+      var h = measure(sec);
+      if (!h) { sec.style.zoom = ''; return; }
+      var used = h * f;
+      if (used > target) { f = Math.max(0.5, f * (target / used) * 0.985); continue; }
+      if (f >= MAX - 0.01 || target - used < 14) break;
+      f = Math.min(MAX, f * (target / used) * 0.985);
+    }
+    sec.style.zoom = f === 1 ? '' : f.toFixed(3);
+  }
+  function fitCurrent() {
+    if (!window.Reveal || !Reveal.getCurrentSlide) return;
+    fit(Reveal.getCurrentSlide());
+  }
+  function boot() {
+    if (!window.Reveal || !Reveal.on) return setTimeout(boot, 80);
+    Reveal.on('slidechanged', function (e) { fit(e.currentSlide); });
+    Reveal.on('ready', fitCurrent);
+    window.addEventListener('resize', fitCurrent);
+    // 사진은 늦게 뜬다 — 다 뜬 뒤 한 번 더 잰다
+    window.addEventListener('load', function () { setTimeout(fitCurrent, 60); });
+    fitCurrent();
+  }
+  boot();
+})();
+</script>
+<script>
+// 클릭 한 종류로 발표한다 — 좌클릭은 다음, 우클릭은 이전.
+// 링크·영상·컨트롤 위에서는 그 요소가 이긴다.
+(function () {
+  function go(next) { if (window.Reveal) next ? Reveal.next() : Reveal.prev(); }
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('a, video, audio, button, .controls, .slide-menu')) return;
+    go(true);
+  });
+  document.addEventListener('contextmenu', function (e) {
+    e.preventDefault();
+    go(false);
+  });
+})();
+</script>
+"""
+
+
+def build_html(src: Path, md: str, colors: dict[str, str], out: Path) -> None:
+    reveal = ensure_reveal()
+    md = flatten_for_html(md)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpd = Path(tmp)
+        css = tmpd / "deck.css"
+        css.write_text(reveal_css(colors), encoding="utf-8")
+        click_js = tmpd / "click.html"
+        click_js.write_text(CLICK_JS, encoding="utf-8")
+        flat = tmpd / "deck.md"
+        flat.write_text(md, encoding="utf-8")
+        subprocess.run(
+            ["pandoc", str(flat), "-o", str(out), "-t", "revealjs", "--standalone",
+             "--embed-resources", "--slide-level=2",
+             f"--variable=revealjs-url:{reveal}",
+             "--variable=theme:white", "--variable=transition:none",
+             "--variable=center:false", "--variable=navigationMode:linear",
+             "--variable=controlsLayout:bottom-right",
+             "--metadata=pagetitle:AI 방산 로봇 자율실험 자동화 시스템",
+             "--variable=slideNumber:true", "--variable=showSlideNumber:all",
+             f"--include-after-body={click_js}",
+             "--variable=width:1280", "--variable=height:720",
+             "--variable=margin:0.06", "--variable=hash:true",
+             f"--css={css}", f"--resource-path={ROOT}:{src.parent}"],
+            check=True,
+        )
+
+
 def main() -> None:
-    if len(sys.argv) != 2:
-        die("쓰는 법: python3 scripts/build/deck.py <발표.md>")
-    src = Path(sys.argv[1]).resolve()
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    as_html = "--html" in sys.argv
+    if len(args) != 1:
+        die("쓰는 법: python3 scripts/build/deck.py <발표.md> [--html]")
+    src = Path(args[0]).resolve()
     if not src.exists():
         die(f"입력이 없다: {src}")
     if not shutil.which("pandoc"):
         die("pandoc 이 없다 — `brew install pandoc`")
 
     colors = light_theme_colors()
-    md, missing = expand_figures(src.read_text(encoding="utf-8"))
+    md, missing = expand_figures(src.read_text(encoding="utf-8"), as_html)
     if missing:
         die("그림 주석이 가리키는 파일이 없다:\n  " + "\n  ".join(missing))
+
+    if as_html:
+        out = src.with_suffix(".html")
+        build_html(src, md, colors, out)
+        mb = out.stat().st_size / 1e6
+        print(f"deck: {out.relative_to(ROOT)} · {mb:.1f}MB · 파일 하나로 자립 (사진·영상 내장)")
+        print("deck: 브라우저로 열고 S 키를 누르면 대본이 뜬다")
+        return
 
     out = src.with_suffix(".pptx")
     with tempfile.TemporaryDirectory() as tmp:
