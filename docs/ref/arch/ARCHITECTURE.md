@@ -66,7 +66,7 @@ FR5Web/
 │   ├── src/data/datasource/       mock ↔ bridge ↔ Database 교체 경계
 │   └── bridge/robot_adapter/      FastAPI 경계 · mock/FAIRINO SDK 교체 경계
 ├── Database/                      스키마·마이그레이션 (미착수)
-├── Vision/                        비전 인식 (미착수 — 팀원 몫일 수 있다)
+├── Vision/                        손목캠 → 제안 생산자 (미착수 · 글로벌 카메라는 여기가 아니다)
 ├── TurtleBot/                     터틀봇 관제 — 웹앱(:5175) + tb-bridge(:5055) 수직 완결
 ├── AR/                            폰 AR — Vite + 바닐라 (경계: BUILD-VITE.md)
 │   ├── index.html ar.html robot.html test/marker-detect.html
@@ -160,7 +160,10 @@ Vision  ──제안(proposal)──▶  FR5/bridge 안전 게이트  ──검�
 | 비전이 죽으면 **아무 일도 안 일어난다** | fail-closed (`SAFETY-RULES.md`) |
 | 제안·판정·실행이 전부 기록된다 | 나중에 왜 움직였는지 답할 수 있어야 한다 |
 
-**계약은 `Vision/` 코드가 생길 때 `API-CONTRACT.md` 에 먼저 적는다.** 지금은 이 경계만 못 박는다.
+**계약은 이미 있다 — [`VISION-CONTRACT.md`](../contract/VISION-CONTRACT.md)** (2026-08-05 `API-CONTRACT.md` 에서 분리).
+`Vision/` 이 소유하는 것은 **손목캠 검출 · hand-eye 변환 · 제안 클라이언트 셋뿐**이고,
+`/proposal` 의 서버 쪽(접수·판정·번역·기록)은 안전 게이트 안이라 `FR5/bridge/` 몫이다.
+**글로벌 카메라(폰)는 비전이 아니다** — 캘리브 `scripts/map/` · 겹쳐 보기 `AR/` · HUD `FR5/src/features/live/`.
 
 ## 자율주행 로봇(TurtleBot) — 관제는 우리, 주행 알고리즘은 팀원
 

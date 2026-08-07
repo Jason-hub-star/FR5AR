@@ -9,8 +9,27 @@
 // 폰은 **가로로 장착**한다 (2026-08-07). 세로였을 때는 CSS 로 90° 돌려 보여줬는데,
 // 돌아간 이미지에 오버레이를 얹으면 가운데만 맞고 모서리가 338~587px 어긋난다.
 // 가로로 바꾸면서 그 회전을 없앴다 — 겹치기의 선행 조건이었다.
+//
+// **상태 판정을 여기서 짜지 않는다** (2026-08-07). 무엇이 경고인지는
+// `Shared/data/camera/state.js` 한 곳이 정하고, 이 파일은 그게 낸 문장과 색을 **그리기만**
+// 한다. AR 화면도 같은 함수를 부를 것이라, 판정을 화면에 두면 거기서 갈라진다.
 import { useEffect, useRef, useState } from 'react';
 import { datasource } from '../../data/datasource/index.js';
+import { cameraState } from '@fr5/shared/data/camera/state.js';
+import { watchFrames } from '@fr5/shared/data/camera/watch.js';
+
+// 캘리브레이션은 `map/intrinsics.py` 의 산출물이라 **캘리브 전에는 정상적으로 없다.**
+// 정적 import 로 두면 아무도 캘리브하기 전까지 빌드가 통째로 깨진다 (`AR/src/screens/cam.js`
+// 와 같은 규약). glob 은 안 맞으면 빈 객체다
+const CALIB = Object.values(import.meta.glob('../../../../Shared/data/config/global-cam.json', {
+  eager: true, import: 'default',
+}))[0] ?? null;
+// 폰 설정은 조용히 되돌아간다(D64) — 자주 볼 필요는 없고, 안 보면 모른다
+const STATUS_MS = 15000;
+// **마감시각을 건다.** 없는 IP 로 `fetch` 하면 OS 타임아웃(수십 초)까지 매달리는데,
+// 그동안 상태는 "아직 안 물어봄"(조용함)에 머문다 — `FIRST_FRAME_MS` 와 똑같은 함정이다.
+// 랜 안의 `status.json` 이 이보다 오래 걸릴 이유가 없다 (2026-08-07 실렌더에서 밟았다)
+const STATUS_TIMEOUT_MS = 4000;
 
 const OPEN_KEY = 'fr5.camOpen';
 // **키를 갈았다** (2026-08-07 세로→가로). 안 갈면 사람들 브라우저에 저장된 9:16 크기가
@@ -20,17 +39,7 @@ const SIZE_KEY = 'fr5.camSize.landscape';
 // OS 타임아웃(수십 초)까지 매달려서 그동안 화면은 "여는 중…" 인 채로 멈춘다 — 오래된 주소가
 // 남아 있으면 사람이 그걸 "곧 뜨겠지" 로 읽는다. 못 왔으면 못 왔다고 말한다 (제1원칙).
 const FIRST_FRAME_MS = 8000;
-// ── 끊김 복구 (2026-08-07). **MJPEG 는 끊겨도 아무 이벤트가 안 온다.**
-// `load` 는 첫 프레임 때 한 번뿐이고(10초에 1회 실측), 서버가 연결을 닫아도 `<img>` 는
-// 마지막 프레임을 그대로 들고 조용히 서 있는다. 그날 폰 앱이 네 번 재시작했는데
-// 화면은 멀쩡해 보였다 — **안전 표시에서 이게 제일 나쁜 실패다** (SAFETY-RULES 제1원칙).
-//
-// 그래서 픽셀로 잰다. 작은 캔버스에 옮겨 그려 값이 그대로면 죽은 것이다. 장면이 정말
-// 안 움직여도 JPEG 잡음 때문에 프레임마다 값이 달라진다 — 완전 동일은 "새 프레임 없음"이다.
-const WATCH_MS = 3000;        // 이 간격으로 본다
-const STALE_HITS = 3;         // 연속 이만큼 그대로면 죽은 것으로 친다 (약 9초)
-const PROBE_W = 32;           // 캔버스 크기. 원본을 다 읽으면 비싸다
-const PROBE_H = 18;
+// 끊김 감시는 `Shared/data/camera/watch.js` 가 한다 (2026-08-07 이관) — AR 도 같은 것을 쓴다.
 // 못 붙었을 때도 사람이 누를 때까지 기다리지 않는다 — 벽에 걸린 화면 앞에 사람이 없다.
 // 다만 **간격을 벌려서** 죽은 주소에 계속 매달리지 않는다 (능동 폴링 금지의 취지).
 const RETRY_MS = [3000, 6000, 12000, 20000, 30000];
@@ -68,9 +77,11 @@ export function CamView() {
   // 데스크톱 340px 이 폰에서 그대로 떠 3D 를 절반 넘게 가렸다. 좁으면 인라인을 안 준다.
   const [narrow, setNarrow] = useState(
     () => (typeof matchMedia === 'function' ? matchMedia('(max-width: 760px)').matches : false));
+  // `undefined`=아직/안 물어봄 · `null`=물어봤는데 못 읽음(경고) · 객체=읽음. 그 셋을 가른다
+  const [status, setStatus] = useState(undefined);
+  const [ageMs, setAgeMs] = useState(null);    // 마지막 픽셀 변화 뒤 지난 시간. null=아직 모름
   const resizing = useRef(null);
   const imgRef = useRef(null);
-  const probe = useRef(null);      // {canvas, last, hits, tainted}
 
   useEffect(() => {
     if (typeof matchMedia !== 'function') return undefined;
@@ -86,42 +97,13 @@ export function CamView() {
     return () => clearTimeout(t);
   }, [tries]);
 
-  // ── 감시: 붙어 있는데 새 프레임이 안 오는가 (위 §끊김 복구)
+  // ── 감시. **`tries` 가 바뀌면 새로 건다** — `<img>` 가 갈려 끼워졌으니 옛 표본은 버린다
   useEffect(() => {
     if (!open || live !== true) return undefined;
-    const id = setInterval(() => {
-      const el = imgRef.current;
-      if (!el || !el.naturalWidth) return;
-      let p = probe.current;
-      if (!p) {
-        const canvas = document.createElement('canvas');
-        canvas.width = PROBE_W; canvas.height = PROBE_H;
-        p = probe.current = { canvas, ctx: canvas.getContext('2d', { willReadFrequently: true }),
-                              last: null, hits: 0, tainted: false };
-      }
-      if (p.tainted) return;         // 픽셀을 못 읽는 카메라면 감시를 접는다 (아래)
-      let now;
-      try {
-        p.ctx.drawImage(el, 0, 0, PROBE_W, PROBE_H);
-        now = p.ctx.getImageData(0, 0, PROBE_W, PROBE_H).data;
-      } catch {
-        // `crossOrigin` 이 안 먹는 카메라 — 캔버스가 오염돼 읽을 수 없다.
-        // **감시만 포기하고 영상은 계속 보여준다.** 못 재는 것과 안 되는 것은 다르다
-        p.tainted = true;
-        return;
-      }
-      const hadPrev = p.last !== null;
-      let same = hadPrev;
-      if (same) { for (let i = 0; i < now.length; i += 4) { if (now[i] !== p.last[i]) { same = false; break; } } }
-      p.last = now;
-      if (!hadPrev) return;        // 첫 표본은 비교 대상이 없다
-      p.hits = same ? p.hits + 1 : 0;
-      // **경고는 새 프레임을 실제로 본 뒤에만 푼다.** 다시 끼우자마자 풀면 화면이
-      // "정상 → 멈춤" 을 번갈아 깜빡여, 사람이 그 순간을 정상으로 읽는다
-      if (p.hits >= STALE_HITS) { p.hits = 0; setStale(true); }
-      else if (!same) setStale(false);
-    }, WATCH_MS);
-    return () => clearInterval(id);
+    return watchFrames(imgRef.current, ({ stale: s, lastChangeMsAgo }) => {
+      setStale(s);
+      setAgeMs(lastChangeMsAgo);
+    });
   }, [open, live, tries]);
 
   // ── 복구: 못 붙었거나(live=false) 얼어붙었으면(stale) 스스로 다시 끼운다.
@@ -129,12 +111,37 @@ export function CamView() {
   useEffect(() => {
     if (!open || (live !== false && !stale)) return undefined;
     const t = setTimeout(() => {
-      probe.current = null;        // `stale` 은 안 푼다 — 위 §감시가 새 프레임을 보고 푼다
+      // `stale` 은 여기서 안 푼다 — 감시가 새 프레임을 실제로 본 뒤에 푼다.
+      // `tries` 가 오르면 감시도 새로 걸리므로 옛 표본은 저절로 버려진다
       setLive(null);
       setTries((n) => n + 1);
     }, RETRY_MS[Math.min(tries, RETRY_MS.length - 1)]);
     return () => clearTimeout(t);
   }, [open, live, stale, tries]);
+
+  // ── 폰 설정 되읽기. **영상이 멀쩡해도 보정이 무효일 수 있다** — 2026-08-06(D64) 에
+  // 앱이 혼자 1920×1080·q49·auto 로 돌아가 있었고 화면은 아무 말도 안 했다.
+  // 못 읽으면 `null` 을 그대로 넘긴다. 판정 함수가 그걸 "정상"이 아니라 "확인 못 함"으로 읽는다
+  const host = datasource.cameraHost();
+  useEffect(() => {
+    // **접어도 계속 묻는다.** 접었다고 카메라가 카메라가 아닌 게 아니고, 접힌 채 벽에 걸린
+    // 화면이 조용한 게 제일 나쁘다 — 접으면 경고가 사라지는 걸 실렌더에서 밟았다 (2026-08-07)
+    if (!host) { setStatus(undefined); return undefined; }
+    let dead = false;
+    const read = async () => {
+      try {
+        const r = await fetch(`http://${host}/status.json`,
+          { cache: 'no-store', signal: AbortSignal.timeout(STATUS_TIMEOUT_MS) });
+        const j = await r.json();
+        if (!dead) setStatus(j?.curvals ?? null);
+      } catch {
+        if (!dead) setStatus(null);   // CORS 든 무응답이든 **모르는 것은 모르는 것**이다
+      }
+    };
+    read();
+    const id = setInterval(read, STATUS_MS);
+    return () => { dead = true; clearInterval(id); };
+  }, [host, tries]);
 
   const src = datasource.cameraFeedUrl();
   // 주소를 아무도 안 준 상태는 "기능을 안 켠 것"이다 — 빈 상자를 띄우지 않는다.
@@ -142,7 +149,7 @@ export function CamView() {
   if (!src) return null;
 
   const toggle = () => { const v = !open; setOpen(v); writeOpen(v); };
-  const retry = () => { probe.current = null; setStale(false); setLive(null); setTries((n) => n + 1); };
+  const retry = () => { setStale(false); setLive(null); setTries((n) => n + 1); };
 
   const startResize = (e) => {
     e.preventDefault();
@@ -179,9 +186,28 @@ export function CamView() {
     window.addEventListener('touchend', up);
   };
 
+  // 판정은 전부 `Shared/data/camera/state.js` 가 한다 (위 §머리말). 여기서 하는 일은
+  // 어느 줄을 머리띠에 놓고 어느 줄을 아래 띠에 놓느냐 — **배치**뿐이다
+  const rows = cameraState({
+    calib: CALIB,
+    status,
+    observed: {
+      live,
+      stale,
+      streamW: imgRef.current?.naturalWidth || null,
+      streamH: imgRef.current?.naturalHeight || null,
+      lastChangeMsAgo: ageMs,
+    },
+  });
+  const link = rows.find((r) => r.key === 'link');
+  const hud = rows.filter((r) => r.key !== 'link');
+  // **접었을 때도 경고는 보여야 한다.** 아래 띠는 펴야 보이는데, 접힌 채 벽에 걸린 화면이
+  // 조용한 것이 제일 나쁘다 — 머리띠 색으로 올린다
+  const warn = rows.some((r) => r.tone === 'warn');
+
   return (
     <div className="camview" data-t="camview" data-open={String(open)} data-live={String(live)}
-      data-stale={String(stale)}
+      data-stale={String(stale)} data-warn={String(warn)}
       style={open && !narrow ? { width: size.width, height: size.height } : undefined}>
       <div className="camhead">
         {/* 실물과 3D 를 헷갈리는 것이 이 프로젝트에서 가장 비싼 오해다 (SR_24) —
@@ -192,14 +218,19 @@ export function CamView() {
         {/* **실패할 때도 주소를 보여준다.** "영상 없음" 만 띄우면 사람이 고칠 수가 없다 —
             저장된 주소가 옛 IP 인 게 가장 흔한 원인인데 그걸 화면에서 확인할 길이 없었다
             (2026-08-07 실기: 우분투에서 안 뜨는 원인을 화면만 보고 못 좁혔다) */}
-        <span className="camstat" data-t="cam-stat">
-          {stale ? `멈춤 · ${datasource.cameraHost()}`
-            : live === true ? datasource.cameraHost()
-              : live === false ? `안 옴 · ${datasource.cameraHost()}` : `여는 중… ${datasource.cameraHost()}`}
-        </span>
+        <span className="camstat" data-t="cam-stat">{`${link.label} · ${host}`}</span>
         <button type="button" className="camtoggle" data-t="cam-toggle"
           title={open ? '접기' : '펴기'} onClick={toggle}>{open ? '▾' : '▸'}</button>
       </div>
+      {/* 상태 띠 — 영상 위에 겹치지 않고 위쪽에 자리를 차지한다. 영상 위에 얹으면
+          어두운 장면에서 글자가 사라지고, 그때가 하필 카메라를 의심할 때다 */}
+      {open && (
+        <div className="camhud" data-t="cam-hud">
+          {hud.map((r) => (
+            <span key={r.key} data-t={`cam-hud-${r.key}`} data-tone={r.tone}>{r.label}</span>
+          ))}
+        </div>
+      )}
       {open && (
         <div className="cambody">
           {/* MJPEG 는 연결을 계속 붙들고 있다 — key 로 갈아 끼워야 다시 붙는다.

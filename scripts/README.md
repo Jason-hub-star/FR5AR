@@ -21,7 +21,11 @@ scripts/
 │   ├── fr5-web-verify.mjs        Live·Teach·Program 실렌더 66건 (브리지 + vite + Chrome)
 │   ├── motion.sh                 자세 — 이름 정합 · NaN · j1 각속도 상한 · 화면에 안 박혔나
 │   ├── scenario.sh               시나리오 — 왕복 · 사건 칸(좌표·관절 금지) · 프리셋 재생
+│   ├── shared-unit.sh            Shared 순수 함수 단위 테스트 (node:test · 새 의존성 0)
 │   ├── xr-place.sh               겹치기 놓기 계산 — 두 모서리·히트 분류·벽 법선·훑기·준비도 (1초)
+│   ├── ar-render.sh              AR 실렌더 82건 — 아래 `.mjs` 둘을 자동 게이트로 잠근다
+│   ├── dash-render.sh            대시보드 실렌더 113건 — 아래 `.mjs` 를 자동 게이트로 잠근다
+│   ├── dash-web-verify.mjs       배치안 편집기·시나리오·datasource 경계 실렌더 113건
 │   ├── xr-web-verify.mjs         WebXR 화면 — ①놓기 계산 ②`화면` 모드 실렌더. `--pure` 면 ①만
 │   └── cam-web-verify.mjs        글로벌 카메라 겹치기 실렌더 — 사진 재검출 ↔ 투영 픽셀 대조
 ├── build/                      설정·산출물 생성
@@ -148,6 +152,9 @@ node scripts/build/config.mjs --check  # 쓰지 않고 대조만 (게이트가 �
 | `check/docs.sh` | `REQUIRED` 배열 | 15개 | SSOT 문서를 추가·삭제할 때 |
 | `check/fr5-unit.sh` | 상수 없음 — 테스트가 스스로 기준 | **141 케이스** (2026-08-06 실측 — 표가 29 로 낡아 있었다) | `safety.py` 조건을 더하면 테스트도 더한다 |
 | `check/fr5-render.sh` | 상수 없음 — `.mjs` 두 개가 스스로 기준 | 93 + 66 = **159 건** · 42초 | FR5 화면·브리지를 고칠 때. **자기 포트(5155·5157·5176)에 자기 브리지를 띄우고 `FR5_DATA_DIR` 를 임시 폴더로 돌린다 — 실기·`~/fr5-data/` 안 건드린다** |
+| `check/ar-render.sh` | 상수 없음 — `.mjs` 두 개가 스스로 기준 | 13 + 69 = **82 건** · 약 40초 | AR 화면을 고칠 때. **자기 포트(5188·5189)에 자기 vite 를 띄운다.** 2026-08-07 신설 — `cam-web-verify` 가 겹침 2176px 어긋남을 잡고 있었는데 손으로 부르는 `.mjs` 라 며칠간 아무도 안 봤다. 마지막 1건은 **15초를 기다린다**(감시가 12초에 켜진다) |
+| `check/dash-render.sh` | 상수 없음 — `.mjs` 가 스스로 기준 | **113 건** | 대시보드를 고칠 때. **자기 포트(5187)에 자기 vite 를 띄운다** — 개발용 5174 에 붙으면 고친 코드가 아니라 켜 둔 코드를 판정한다. 2026-08-07 신설 · 일부러 심은 버그로 빨간불을 확인했다 |
+| `check/shared-unit.sh` | 상수 없음 — 테스트가 스스로 기준 | **16 케이스** (카메라 상태 판정) | `Shared/` 에 순수 함수를 더하면 테스트도 더한다 |
 | `check/motion.sh` | 상수 없음 — `Shared/data/motion/presets.js`·`limits.js` 가 기준 | 자세 10개 · 관절 한계 6쌍(URDF 대조) | 자세를 더하거나 URDF 가 바뀔 때 |
 | `check/scenario.sh` | 상수 없음 — `Shared/data/scenario/presets.js` 가 기준 | 사건 13개 · 49초 · 거부 10종 | 시나리오 프리셋을 더하거나 사건 칸을 늘릴 때 |
 | `assets/make-marker-sheet.py` | `SHEETS` · `QUIET_RATIO_MIN` | A4 170/14mm · A3 240/20mm · 하한 6% | 마커 크기·용지를 바꿀 때 |

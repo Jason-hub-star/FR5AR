@@ -298,8 +298,12 @@ if (PURE) {
   process.exit(bad0 ? 1 : 0);
 }
 
+// **`SIGTERM` 은 `npm run` 에서 멈추고 자식 vite 까지 안 간다** — 포트를 쥔 채 남아
+// 다음 판이 `--strictPort` 에 막힌다 (2026-08-06 FR5 에서 밟은 것과 같은 함정 · GAP-MATRIX).
 const web = spawn('npm', ['run', 'dev', '-w', '@fr5/ar', '--', '--port', String(PORT), '--strictPort'],
-  { cwd: ROOT, stdio: 'ignore' });
+  { cwd: ROOT, stdio: 'ignore', detached: true });
+const killTree = (c) => { try { process.kill(-c.pid, 'SIGKILL'); } catch { try { c.kill('SIGKILL'); } catch { /* 이미 죽음 */ } } };
+process.on('exit', () => killTree(web));   // 예외·중단에도 고아 0
 const waitUp = async (url) => {
   for (let i = 0; i < 150; i += 1) {
     if (await fetch(url).then((r) => r.ok).catch(() => false)) return true;
@@ -474,7 +478,7 @@ try {
   check('실행', false, e.message);
 } finally {
   await p?.close?.();
-  web.kill('SIGTERM');
+  killTree(web);          // 위 §고아 — `process.on('exit')` 이 한 번 더 받친다
 }
 
 const bad = results.filter((r) => !r).length;

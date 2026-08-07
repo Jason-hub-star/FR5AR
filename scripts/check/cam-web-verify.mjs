@@ -35,8 +35,13 @@ print(json.dumps({int(k): np.mean(q[0], axis=0).tolist() for q, k in zip(c, i.ra
 `], { encoding: 'utf8' }));
 check('사진에서 태그 4장 재검출', Object.keys(truth).length === 4, Object.keys(truth).join(','));
 
+// **`SIGTERM` 은 `npm run` 에서 멈추고 자식 vite 까지 안 간다** — 포트를 쥔 채 남아
+// 다음 판이 `--strictPort` 에 막히고, 그때 원인은 화면처럼 보인다. 손으로 한 번씩 부를 때는
+// 절대 안 보이고 `all.sh` 에 넣는 순간 드러난다 (2026-08-06 FR5 에서 밟은 것과 같은 함정).
 const web = spawn('npm', ['run', 'dev', '-w', '@fr5/ar', '--', '--port', String(PORT), '--strictPort'],
-  { cwd: ROOT, stdio: 'ignore' });
+  { cwd: ROOT, stdio: 'ignore', detached: true });
+const killTree = (c) => { try { process.kill(-c.pid, 'SIGKILL'); } catch { try { c.kill('SIGKILL'); } catch { /* 이미 죽음 */ } } };
+process.on('exit', () => killTree(web));   // 예외·중단에도 고아 0
 const waitUp = async (url) => {
   for (let i = 0; i < 150; i += 1) {
     if (await fetch(url).then((r) => r.ok).catch(() => false)) return true;
@@ -58,7 +63,10 @@ try {
       scale: c.view.root.scale.x,
       name: document.getElementById('sceneName').textContent,
       hud: document.getElementById('scale').textContent,
-      warn: document.getElementById('status').className,
+      // 카메라 상태는 #status 가 아니라 상태 띠가 낸다 (2026-08-07 · Shared/data/camera/state.js).
+      // 이 블록은 템플릿 문자열 안이라 주석에 백틱을 쓰면 문자열이 거기서 끊긴다
+      warn: document.querySelector('[data-t="cam-hud-calib"]')?.dataset.tone ?? '없음',
+      warnText: document.querySelector('[data-t="cam-hud-calib"]')?.textContent ?? '',
       slab: c.view.root.getObjectByName('slab')?.visible,
       canvas: document.querySelector('#host canvas')?.width ?? 0,
       bg: c.stage.scene.background,
@@ -70,7 +78,8 @@ try {
   check('바닥 슬래브는 숨긴다 — 영상의 진짜 바닥을 가리지 않는다', base.slab === false);
   check('배경 투명 — 영상이 비친다', base.bg === null);
   check('캔버스가 그려졌다', base.canvas > 0, `${base.canvas}px`);
-  check('합성 고정물이라고 경고한다', base.warn.includes('warn'), base.warn);
+  check('합성 고정물이라고 경고한다', base.warn === 'warn' && base.warnText.includes('실측 아님'),
+    `${base.warn} · ${base.warnText}`);
 
   // ── 2. 정합 — 태그 lab 좌표를 화면 카메라로 투영한 값 ↔ 사진에서 검출한 중심
   const worst = [0, 1, 2, 3].reduce((mx, i) => {
@@ -97,11 +106,23 @@ try {
     Math.abs(fit.pos[0] - 0.5) < 1e-9 && Math.abs(fit.pos[2] + 0.4) < 1e-9, JSON.stringify(fit.pos));
   check('배율을 화면에 적는다 — 실물 크기가 아님을 말한다',
     /1:2\.5/.test(fit.hud) && /실물 크기 아님/.test(fit.hud), fit.hud);
+
+  // ── 4. 안 움직이는 게 정상인 것에 움직임을 재지 않는다 (2026-08-07)
+  //
+  // 끊김 감시(`Shared/data/camera/watch.js`)는 픽셀이 그대로면 "새 프레임이 안 온다"로 읽는다.
+  // **합성 고정물은 정지 사진이라 영영 그대로다** — 감시를 걸었더니 12초 뒤 화면이
+  // `멈춤` 이라고 거짓말했다. 거짓 경고는 사람에게 경고를 무시하는 법을 가르친다.
+  // **경고가 켜지는 시각은 9초가 아니라 12초다** — 감시 주기 3초에 첫 틱은 비교 대상이
+  // 없어 기준만 잡는다(3s 기준 · 6·9·12s 에서 3연속). 11초로 뒀더니 회귀를 심어도
+  // 초록이었다 — **일부러 심은 버그로 빨간불을 본 뒤에야 이 숫자를 믿는다.**
+  await new Promise((r) => setTimeout(r, 15000));
+  const link = await p.eval(`document.querySelector('[data-t="cam-hud-link"]')?.textContent ?? '없음'`);
+  check('고정물은 시간이 지나도 멈춤이라고 하지 않는다', link === 'LIVE', `15초 뒤 ${link}`);
 } catch (e) {
   check('실행', false, e.message);
 } finally {
   await p?.close?.();
-  web.kill('SIGTERM');
+  killTree(web);          // 위 §고아 — `process.on('exit')` 이 한 번 더 받친다
 }
 
 const bad = results.filter((r) => !r).length;

@@ -16,7 +16,13 @@ html, body { margin: 0; height: 100%; background: #14161a; color: #eef1f4;
 
 #hud { display: flex; gap: 12px; align-items: center; padding: 10px 14px; flex-wrap: wrap; }
 #status, #scale { font-variant-numeric: tabular-nums; opacity: .85; }
-#status.warn, #scale.warn { color: #ffcf6b; opacity: 1; }   /* 합성 고정물·축소 배율을 눈에 띄게 */
+#status.warn, #scale.warn { color: #ffcf6b; opacity: 1; }   /* 축소 배율을 눈에 띄게 */
+/* 카메라 상태 띠 — 문장과 색은 `Shared/data/camera/state.js` 가 정한다 (FR5 PiP 와 같은 함수).
+ * 여기 CSS 는 그 `tone` 을 이 화면의 어두운 바탕에 맞게 칠할 뿐이다 */
+#camhud { display: flex; gap: 10px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+#camhud [data-tone="ok"]   { opacity: .85; }
+#camhud [data-tone="mute"] { opacity: .55; }
+#camhud [data-tone="warn"] { color: #ffcf6b; opacity: 1; font-weight: 600; }
 .dim { opacity: .55; }
 #toggle, .btn { padding: 6px 12px; border-radius: 8px; border: 1px solid #4a5058;
   background: #232830; color: inherit; cursor: pointer; font: inherit; }

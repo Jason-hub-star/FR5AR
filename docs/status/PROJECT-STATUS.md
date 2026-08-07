@@ -27,25 +27,25 @@ AR.js 기본 해상도가 병목이었고, 그것만 풀어 58% → 100%.
 **다음 순서의 정본은 골사다리 6칸**(`docs/goals/GOAL-*.md`)이다 — `FR5-IMPLEMENTATION-PLAN.md`
 는 화면·안전 순서의 정본이고 **완료된 것만** 적는다 (D74).
 
-**08-05 실기 3건** — ①주소 `58.2`(D68) ②펜던트를 잠근 ARM 은 `mode`+헤더 토글로 복구(D72)
-③상판 3점·벽 2점을 짚은 작업영역 게이트(D73). **밤 — 사다리 2(Teach) 완료 (D74·D75)**:
-4패널·지점·궤적·미리보기, 관절 소수 4자리 일치·6.196s/93프레임 결손 0.
-근거 `evidence/2026-08-05/{workcell-measure,pendant-mode,teach-points-trajectory}.md`.
-**08-06 글로벌 카메라 PiP 실기 완료 (D79)** — 프록시 두 IP 예외. **밤 — UI/UX 감사 반영·
-배포**, 실렌더 63→**66건**. 근거 `evidence/2026-08-06/{fr5-cam-pip,fr5-uiux-audit}.md`.
+**08-05** 실기 3건(주소 `58.2` D68 · ARM 모드 복구 D72 · 작업영역 게이트 D73) + **사다리 2
+(Teach) 완료**(D74·D75). **08-06** 글로벌 카메라 PiP 실기 완료(D79) · UI/UX 감사 반영·배포.
 
 ⚠ **방어선 하나가 비었다** — `motionQueueLength` 가 이동 중에도 **0** 이라 조건 6·`EXECUTING`·드리프트 검사가 다 헛돈다. **감사 1순위.**
 
-**08-07 캘리브레이션 닫힘 + 폰을 가로 장착 (D82).** `fx 2106 · 62.6°` 가 근거 없음으로
-드러나 다시 쟀다 — **`fx 1728.17 · HFOV 73.05° · RMS 0.469px`** + `labToCam`(0.95mm/px).
-관건은 장수가 아니라 **보드 기울기**. 세로 거치는 팔이 프레임 밖으로 나가 가로로 돌렸고,
-그 김에 CSS 90° 회전이 사라져 **겹치기 선행 조건이 닫혔다.** **로봇 베이스도 쟀다** —
-`(285,-179,1.5)mm · yaw 177.1°`, 로봇 무이동. **PiP 끊김 자동 복구까지 배포 (D83)** —
-MJPEG 는 끊겨도 이벤트가 없어 옛 화면이 걸려 있었다. 픽셀로 정지를 감지한다. 실렌더 13/13.
-근거 `evidence/2026-08-07/{global-cam-calibrated,robot-base-in-tag-frame}.md`.
+**08-07 캘리브레이션 닫힘 + 폰 가로 장착 (D82).** `fx 2106 · 62.6°` 가 근거 없음으로 드러나
+다시 쟀다 — **`fx 1728.17 · HFOV 73.05° · RMS 0.469px`** + `labToCam`(0.95mm/px). 관건은
+장수가 아니라 **보드 기울기**. 가로로 돌리며 CSS 90° 회전이 사라져 **겹치기 선행 조건이
+닫혔다.** 로봇 베이스 `(285,-179,1.5)mm · yaw 177.1°`. **PiP 끊김 자동 복구 배포 (D83).**
 
-⚠ **`AR/` 는 아직 옛 `fx 2106`** (재배포 필요) · **폰 설정이 앱 재시작마다 되돌아간다
-(D64 · 08-07 하루 5회)** — 찍기 전 `cam-lock.sh` 필수.
+**08-07 밤 — 카메라 상태 HUD + 게이트 자동화 (D84·D85).** 판정을 `Shared/data/camera/` 한
+곳으로 올려 FR5·AR 이 같은 문장·색을 쓴다. 그 과정에서 **AR 겹침이 2176px 어긋난 것**을
+찾았다(합성 사진에 실측 캘리브가 씌워져 있었다 → **0.80px**). 그걸 잡는 게이트는 손으로
+부르는 `.mjs` 라 며칠간 아무도 안 봤다 — 실렌더를 전부 자동 게이트에 잠갔다.
+`all.sh` **2분 51초 · 370건**.
+
+⚠ **`AR/` 재배포 필요**(옛 `fx 2106`) · **폰 설정이 앱 재시작마다 되돌아간다**(D64 · 하루 5회,
+찍기 전 `cam-lock.sh` 필수) · **`/status.json` CORS 실기 미확인**(막혀 있으면 폰이 켜져 있어도
+`설정 확인 못 함` 이 상주한다).
 
 ## 미착수
 
@@ -120,15 +120,13 @@ ROS 2 Jazzy · Nav2). 팀원 전원이 URL 하나로 켜고·몰고·매핑하�
 
 | | FR5 브리지 | 배치 편집기 | 비전·카메라 |
 |---|---|---|---|
-| **시작 지점** | `docs/goals/GOAL-run-history.md` (사다리 4 · 사다리 3 은 닫혔다) | `Dashboard/src/features/layout/LayoutEditor.jsx` | `docs/ref/arch/DEPTH-CAM.md` |
-| **먼저 읽을 것** | `evidence/2026-08-06/fr5-uiux-audit.md` → **D78·D75** | `evidence/2026-08-04/dash-authoring.md` → `GOAL-amr-route-legible.md` | **D70·D71** → `evidence/2026-08-05/cam-fov.md` |
-| **막힌 것** | **큐가 이동 중을 안 알린다(위 1)** · 막힌 경로 거부를 못 봤다 · `_guard` 상한을 넘긴 호출은 연결을 영구 오염(재연결만이 복구) · 물건 파지 미실험(힘 30% 고정) · 래치 오류·`j1` 한계 밖은 펜던트로만 | **손으로 안 눌러 봤다** — 실렌더 113/113 이지만 전부 합성 이벤트. 폰에서 팔레트 232px 고정 · Shift·우클릭이 없어 다중선택·메뉴에 길이 없다 | **툴 좌표계 미검증** — 좌표 기반 제안이 전부 `toolCalibrationUnverified` 로 거부. **저울이 없어 말단 하중을 못 넣어** 드래그 티칭이 막혀 있다 |
-| **첫 명령** | `bash scripts/check/all.sh` → 폰에서 조그 연타·STOP 크기 손으로 확인 | `bash scripts/check/all.sh` → `npm run dev:dash` | `bash scripts/check/all.sh` → 툴 좌표계 캘리브레이션 |
+| **시작 지점** | `docs/goals/GOAL-run-history.md` (사다리 4 · 사다리 3 은 닫혔다) | `Dashboard/src/features/layout/LayoutEditor.jsx` | `docs/research/global-camera-hud-brief.md` §7 |
+| **먼저 읽을 것** | `evidence/2026-08-06/fr5-uiux-audit.md` → **D78·D75** | `evidence/2026-08-04/dash-authoring.md` → `GOAL-amr-route-legible.md` | `evidence/2026-08-07/cam-status-hud.md` → **D84** |
+| **막힌 것** | **큐가 이동 중을 안 알린다(위 1)** · 막힌 경로 거부를 못 봤다 · `_guard` 상한을 넘긴 호출은 연결을 영구 오염(재연결만이 복구) · 물건 파지 미실험(힘 30% 고정) · 래치 오류·`j1` 한계 밖은 펜던트로만 | **손으로 안 눌러 봤다** — 실렌더 113/113 이지만 전부 합성 이벤트. 폰에서 팔레트 232px 고정 · Shift·우클릭이 없어 다중선택·메뉴에 길이 없다 | **폰이 꺼져 있다** — `status.json` CORS·D64 회귀를 실기에서 못 봤다. 그 뒤는 **툴 좌표계 미검증**(좌표 제안이 전부 `toolCalibrationUnverified`)이고, 그 앞에 **저울이 없다** |
+| **첫 명령** | `bash scripts/check/all.sh` → 폰에서 조그 연타·STOP 크기 손으로 확인 | `bash scripts/check/all.sh` → `npm run dev:dash` | `bash scripts/map/cam-lock.sh --host <폰>` → 브리프 §7 단계 3(공간 HUD) |
 
 **카메라 조사는 실측으로 닫혔다** (D69~D71 · `evidence/2026-08-05/cam-fov.md`) — 장착 기하·화각·사각지대·유효율·USB3.2.
-
-**로봇 상태 (08-06 마감 직전 실측)** — `58.2`(D68) · **ARMED · 서보 ON · owner admin** · 오류 0/0. 지점 `home`·`1` 과
-궤적 `실기-정지-01` 이 `~/fr5-data/` 에 살아 있다.
+**로봇 상태 (08-06 실측)** — `58.2`(D68) · **ARMED · 서보 ON · owner admin** · 오류 0/0. `~/fr5-data/` 에 지점 `home`·`1`, 궤적 `실기-정지-01`.
 
 ## AR 트랙 — 카메라가 붙었다 (2026-08-04 갱신)
 

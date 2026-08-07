@@ -1,15 +1,35 @@
-// 수동 검증용 — all.sh 가 자동으로 돌리지 않는다 (.sh 아님). dev 서버(:5174) 필요.
+// **자기 dev 서버를 자기 포트에 띄운다** (2026-08-07). 남의 `:5174` 에 붙지 않는다.
+// 여태 사람이 다른 터미널에 `npm run dev:dash` 를 켜고 이 파일을 손으로 불러야 했고,
+// 그래서 **112건이 사실상 안 돌았다.** 같은 병으로 AR 겹침이 2176px 어긋난 채 며칠을
+// 살아남았다 (`evidence/2026-08-07/cam-status-hud.md`). `check/dash-render.sh` 가 잠근다.
 //
 // **무엇을 판정하나** — 배치안 편집기가 `Shared/data/datasource/` 를 거쳐 돌고,
 // 그 경계를 넣기 **전과 동작이 같은가** (GOAL-dash-datasource §2).
 // 저장은 화면이 아니라 datasource 가 한다. 그래서 이 파일이 확인할 것은
 // "화면이 무엇을 부르나" 가 아니라 **"사람이 겪는 결과가 같나"** 다.
 //
-//   실행 —  npm run dev:dash  (다른 터미널)  →  node scripts/check/dash-web-verify.mjs
+//   실행 —  node scripts/check/dash-web-verify.mjs   (게이트: bash scripts/check/dash-render.sh)
 
+import { spawn } from 'node:child_process';
 import { openPage } from '/Users/family/jason/FR5Web/.claude/skills/검증/references/cdp-harness.mjs';
 
-const URL = 'http://localhost:5174/';
+// 게이트 전용 포트. 개발용 `:5174` 와 겹치지 않게 둔다 — 겹치면 사람이 켜 둔 서버에 붙어서
+// **고친 코드가 아니라 켜 둔 코드를 판정한다.** `--strictPort` 라 남이 쥐고 있으면 그냥 죽는다
+const PORT = 5187;
+const URL = `http://localhost:${PORT}/`;
+// **`npm run` 을 죽여도 자식 vite 는 산다** — 포트를 쥔 채 남아 다음 판이 `--strictPort` 에
+// 막히고, 그때 원인은 화면처럼 보인다. 손으로 한 번씩 부를 때는 절대 안 보이는 함정이라
+// `all.sh` 에 넣는 순간 드러났다 (2026-08-06 FR5 에서 같은 것을 밟았다 · GAP-MATRIX).
+// 처방도 그때와 같다 — 프로세스 **그룹**째 죽이고, 예외·중단 경로에도 건다.
+const web = spawn('npm', ['run', 'dev', '-w', '@fr5/dashboard', '--', '--port', String(PORT), '--strictPort'],
+  { cwd: '/Users/family/jason/FR5Web', stdio: 'ignore', detached: true });
+const killTree = (c) => { try { process.kill(-c.pid, 'SIGKILL'); } catch { try { c.kill('SIGKILL'); } catch { /* 이미 죽음 */ } } };
+process.on('exit', () => killTree(web));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+for (let i = 0; i < 150; i++) {
+  if (await fetch(URL).then((r) => r.ok).catch(() => false)) break;
+  await sleep(200);
+}
 const results = [];
 const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', name, detail]); };
 const edit = 'window.__fr5edit';
@@ -1241,5 +1261,6 @@ try {
   const bad = results.filter(([v]) => v === 'FAIL').length;
   console.log(`\n  ${results.length - bad}/${results.length} 통과`);
   p.close();
+  killTree(web);          // 위 §고아 — `process.on('exit')` 이 한 번 더 받친다
   process.exit(bad ? 1 : 0);
 }

@@ -15,11 +15,57 @@ import { createLayoutView } from '@fr5/shared/view3d/lab/layout-view.js';
 import { migrateLayout, validateLayout } from '@fr5/shared/data/layout/schema.js';
 import { planToScene } from '@fr5/shared/data/units/units.js';
 import { labToPixel } from '@fr5/shared/view3d/global-cam.js';
+// **판정을 여기서 짜지 않는다** (2026-08-07). 무엇이 경고인지는 FR5 PiP 와 **같은 함수**가
+// 정한다 — 화면마다 따로 짜면 두 화면의 "괜찮다"가 갈라지고, 안전 표시에서 그게 제일 나쁘다
+import { cameraState } from '@fr5/shared/data/camera/state.js';
+import { watchFrames } from '@fr5/shared/data/camera/watch.js';
 
 const FIX = '/test/cam-fixture';
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
+// `#status` 는 **실패 메시지 전용**이다. 카메라 상태는 아래 `#camhud` 가 맡는다
 const status = (s, warn = false) => { $('status').textContent = s; $('status').classList.toggle('warn', warn); };
+
+// ── 카메라 상태 띠. **판정은 안 한다** — `cameraState` 가 낸 문장과 색을 그리기만 한다.
+// 배치는 화면마다 다르다(FR5 는 300px PiP, 여기는 전체화면 머리띠). 같아야 하는 건 판정뿐이다.
+// `settings` 는 `undefined` 로 둔다 — 합성 고정물에는 물을 폰이 없고, 못 고칠 경고를
+// 상주시키면 사람이 경고를 무시하는 법을 배운다 (`state.js` §settings)
+const cam = { calib: null, live: null, stale: false, lastChangeMsAgo: null, settings: undefined };
+function paintHud() {
+  const img = $('feed');
+  const rows = cameraState({
+    calib: cam.calib,
+    status: cam.settings,
+    observed: { live: cam.live, stale: cam.stale, lastChangeMsAgo: cam.lastChangeMsAgo,
+      streamW: img.naturalWidth || null, streamH: img.naturalHeight || null },
+  });
+  $('camhud').replaceChildren(...rows.map((r) => {
+    const el = document.createElement('span');
+    el.dataset.tone = r.tone;
+    el.dataset.t = `cam-hud-${r.key}`;
+    el.textContent = r.label;
+    return el;
+  }));
+}
+
+/** 폰 설정 되읽기. 합성 고정물처럼 **카메라가 아예 없는 주소**면 걸지 않는다 */
+function watchSettings(feed) {
+  let origin;
+  try { origin = new URL(feed, location.href).origin; } catch { return; }
+  if (!/^https?:$/.test(new URL(origin).protocol) || origin === location.origin) return;
+  const read = async () => {
+    try {
+      // **마감시각을 건다** — 없는 IP 는 OS 타임아웃까지 매달리고, 그동안 화면은
+      // "아직 안 물어봄"(조용함)에 머문다. 랜 안의 `status.json` 이 이보다 걸릴 이유가 없다
+      const r = await fetch(`${origin}/status.json`,
+        { cache: 'no-store', signal: AbortSignal.timeout(4000) });
+      cam.settings = (await r.json())?.curvals ?? null;
+    } catch { cam.settings = null; }   // CORS 든 무응답이든 **모르는 것은 모르는 것**이다
+    paintHud();
+  };
+  read();
+  setInterval(read, 15000);
+}
 
 // ── 캘리브레이션. **`import.meta.glob` 을 쓴다** — 이 파일은 `map/intrinsics.py` 가
 // 만드는 산출물이라 캘리브레이션 전에는 **정상적으로 없다.** 정적 import(D18) 로 두면
@@ -102,18 +148,38 @@ function draw(L) {
 }
 
 try {
-  // ── 1. 캘리브레이션
-  const calib = REAL ?? await (await fetch(`${FIX}/global-cam.json`)).json();
-  const fake = !REAL || calib.verified === false;
+  // ── 1. 영상과 캘리브레이션은 **짝이다** (2026-08-07 수정)
+  //
+  // 여태 캘리브를 무조건 실측(`REAL`)으로 골랐다. 실측값이 생기기 전에는 둘이 늘 고정물이라
+  // 맞았는데, D82·D83 으로 실측이 들어온 순간 **합성 사진 위에 실측 캘리브**가 씌워졌다 —
+  // 겹침이 2176px 어긋났고 `cam-web-verify` 가 그걸 잡고 있었다(빨간 채로 있었다).
+  // 사진이 고정물이면 캘리브도 고정물이어야 한다. 사진이 실물이면 실측이어야 한다.
+  const feed = Q.get('feed') || `${FIX}/shot.png`;
+  const fixture = !Q.get('feed');
+  const calib = (!fixture && REAL) ? REAL : await (await fetch(`${FIX}/global-cam.json`)).json();
+  // 실측이 아직 없는데 실영상을 보고 있으면 **고정물 값으로 겹치는 중**이라고 말해야 한다
+  cam.calib = (!fixture && REAL) ? calib : { ...calib, verified: false };
+  paintHud();
 
   // ── 2. 영상
-  const feed = Q.get('feed') || `${FIX}/shot.png`;
   await new Promise((res, rej) => {
     const img = $('feed');
-    img.onload = res;
-    img.onerror = () => rej(new Error(`영상을 못 읽었다 — ${feed}`));
+    img.onload = () => { cam.live = true; paintHud(); res(); };
+    img.onerror = () => { cam.live = false; paintHud(); rej(new Error(`영상을 못 읽었다 — ${feed}`)); };
     img.src = feed;
   });
+  // **재보지도 않고 "살아 있다"고 말하지 않는다** — MJPEG 는 끊겨도 이벤트가 안 온다.
+  // FR5 PiP 와 같은 감시를 건다 (`Shared/data/camera/watch.js`).
+  //
+  // **단 고정물에는 걸지 않는다.** 합성 고정물은 정지 사진이라 픽셀이 영영 안 바뀌고,
+  // 감시는 그걸 "새 프레임이 안 온다"로 읽는다 — 12초 뒤 화면이 거짓 경고를 띄웠다
+  // (2026-08-07 실렌더). 안 움직이는 게 정상인 것에 움직임을 재면 안 된다.
+  if (!fixture) {
+    watchFrames($('feed'), ({ stale, lastChangeMsAgo }) => {
+      cam.stale = stale; cam.lastChangeMsAgo = lastChangeMsAgo; paintHud();
+    });
+  }
+  watchSettings(feed);
 
   stage = createStage($('host'), { alpha: true, controls: false, calib });
 
@@ -131,9 +197,10 @@ try {
   draw(L);
   if (from) remember(L);
 
+  // 거치 높이는 **판정이 아니라 사실**이라 `cameraState` 에 없다 — 여기서 적는다.
+  // 해상도·합성 고정물 경고는 위 상태 띠가 맡는다. 같은 말을 두 곳에서 하지 않는다
   const E = calib.labToCam;
-  status(`카메라 ${(E.heightMm / 1000).toFixed(2)}m · ${calib.intrinsics.widthPx}×${calib.intrinsics.heightPx}`
-    + (fake ? ' · ⚠ 합성 고정물 — 실측 캘리브레이션이 아니다' : ''), fake);
+  status(`카메라 ${(E.heightMm / 1000).toFixed(2)}m`);
 
   // ── 조작
   $('toggle').onclick = () => {
